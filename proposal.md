@@ -16,7 +16,17 @@
 
 ## Modelo de Dominio
 
-[![Modelo de Dominio](https://drive.google.com/thumbnail?id=1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK&sz=w1000)](https://app.diagrams.net/#G1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK)
+<p align="center">
+  <a href="https://app.diagrams.net/#G1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK">
+    <img src="https://drive.google.com/thumbnail?id=1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK&sz=w1000" alt="Modelo de Dominio"/>
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://app.diagrams.net/#G1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK">
+    🔗 Ver y editar en draw.io
+  </a>
+</p>
 
 *Nota*: incluir un link con la imagen de un modelo, puede ser modelo de dominio, diagrama de clases, DER. Si lo prefieren pueden utilizar diagramas con [Mermaid]() en lugar de imágenes.
 

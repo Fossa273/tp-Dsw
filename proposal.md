@@ -17,9 +17,15 @@
 ## Modelo de Dominio
 
 <p align="center">
-  <a href="https://app.diagrams.net/#G1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK">
-    <img src="https://drive.google.com/uc?export=view&id=1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK" alt="Modelo de Dominio"/>
+  <a href="https://drive.google.com/file/d/1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK/view" target="_blank">
+    <img src="https://drive.google.com/thumbnail?id=1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK&sz=w1200" 
+         alt="Modelo de Dominio" 
+         style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);" />
   </a>
+</p>
+
+<p align="center">
+  🔍 Click en la imagen para ver el modelo en tamaño completo
 </p>
 
 

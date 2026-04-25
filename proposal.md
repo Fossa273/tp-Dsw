@@ -31,7 +31,7 @@ Regularidad:
 |Req|Detalle|
 |:-|:-|
 |CRUD simple|1. CRUD Reserva<br>2. CRUD Viaje<br>3. CRUD Trayecto<br>4. CRUD Localidad|
-|CRUD dependiente|1. CRUD Reserva {depende de} CRUD Viaje<br>2. CRUD Viaje {depende de} CRUD Trayecto|
+|CRUD dependiente|1. CRUD Localidad {depende de} CRUD Provincia<br>2. CRUD Viaje {depende de} CRUD Trayecto|
 |Listado<br>+<br>detalle| 1. Listado de reservas filtrado por rango de fecha, muestra fecha de viaje y trayecto, estado de Reserva y nombre del cliente => detalle muestra datos completos de la reserva y del cliente<br>2. Listado de Viajes disponibles Filtrados por Trayecto, muestra Fecha y horario de los Viajes, origen y destino del Trayecto (Para que el Cliente consulte disponibilidad de viajes)|
 |CUU/Epic|1. Registrar una Reserva para viajar<br>2. Cancelar una Reserva<br>3. Dar de alta Conductor<br>4. Consultar Viajes disponibles|
 
@@ -39,7 +39,7 @@ Adicionales para Aprobación
 |Req|Detalle|
 |:-|:-|
 |CRUD |1. CRUD Reserva<br>2. CRUD Viaje<br>3. CRUD Trayecto<br>4. CRUD Localidad<br>5. CRUD Conductor<br>6. CRUD Vehiculo<br>7. CRUD Usuario|
-|CUU/Epic|1. Registrar una Reserva para viajar<br>2. Dar de alta un Cliente<br>3. Cancelar una Reserva<br>4. Seleccionar Vehiculo y Conductor para el Viaje<br>5. Dar de alta Conductor<br>5. Consultar Viajes disponibles|
+|CUU/Epic|1. Registrar una Reserva para viajar<br>2. Dar de alta un Cliente<br>3. Cancelar una Reserva<br>4. Dar de alta Viaje<br>5. Dar de alta Conductor<br>5. Consultar Viajes disponibles|
 
 ### Alcance Adicional Voluntario
 

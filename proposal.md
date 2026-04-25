@@ -24,11 +24,6 @@
   </a>
 </p>
 
-<p align="center">
-  🔍 Click en la imagen para ver el modelo en tamaño completo
-</p>
-
-
 
 ## Alcance Funcional 
 

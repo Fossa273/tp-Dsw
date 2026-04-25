@@ -6,7 +6,7 @@
 * 53671 - Agusti, Tomas
 
 ### Repositorios
-* [frontend app](http://hyperlinkToGihubOrGitlab)
+* [frontend app]((https://github.com/Fossa273/frontend-dsw.git))
 * [backend app](http://hyperlinkToGihubOrGitlab) 
 
 

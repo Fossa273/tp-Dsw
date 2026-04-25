@@ -31,7 +31,7 @@ Regularidad:
 |Req|Detalle|
 |:-|:-|
 |CRUD simple|1. CRUD Reserva<br>2. CRUD Viaje<br>3. CRUD Trayecto<br>4. CRUD Localidad|
-|CRUD dependiente|1. CRUD Reserva {depende de} CRUD Viaje|
+|CRUD dependiente|1. CRUD Reserva {depende de} CRUD Viaje<br>2. Crud Viaje {depende de} CRUD Trayecto|
 |Listado<br>+<br>detalle| 1. Listado de reservas filtrado por rango de fecha, muestra fecha de viaje y trayecto, estado de Reserva y nombre del cliente => detalle muestra datos completos de la reserva y del cliente|
 |CUU/Epic|1. Registrar una Reserva para viajar<br>2. Cancelar una Reserva|
 

@@ -39,7 +39,7 @@ Adicionales para Aprobación
 |Req|Detalle|
 |:-|:-|
 |CRUD |1. CRUD Reserva<br>2. CRUD Viaje<br>3. CRUD Trayecto<br>4. CRUD Localidad<br>5. CRUD Conductor<br>6. CRUD Vehiculo<br>7. CRUD Usuario|
-|CUU/Epic|1. Registrar una Reserva para viajar<br>2. Dar de alta un Cliente<br>3. Cancelar una Reserva|
+|CUU/Epic|1. Registrar una Reserva para viajar<br>2. Dar de alta un Cliente<br>3. Cancelar una Reserva<br>4. Seleccionar Vehiculo y Conductor para el Viaje<br>5. Dar de alta Conductor|
 
 ### Alcance Adicional Voluntario
 

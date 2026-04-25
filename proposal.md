@@ -48,6 +48,6 @@ Adicionales para Aprobación
 |Req|Detalle|
 |:-|:-|
 |Listados |1. Listado de Viajes filtrados por estado (activos)|
-|CUU/Epic|1.|
+|CUU/Epic||
 |Otros|1. Envío de recordatorio de Reserva por email|
 

@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="https://app.diagrams.net/#G1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK">
-    <img src="(https://drive.google.com/file/d/1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK/view?usp=sharing)" alt="Modelo de Dominio"/>
+    <img src="https://drive.google.com/file/d/1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK/view?usp=sharing" alt="Modelo de Dominio"/>
   </a>
 </p>
 

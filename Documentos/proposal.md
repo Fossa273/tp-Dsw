@@ -6,8 +6,8 @@
 * 53671 - Agusti, Tomas
 
 ### Repositorios
-* [frontend app](http://hyperlinkToGihubOrGitlab)
-* [backend app](http://hyperlinkToGihubOrGitlab) 
+* [frontend app](https://github.com/Fossa273/frontend-dsw)
+* [backend app](https://github.com/Fossa273/backend-dsw) 
 
 
 ## Tema
@@ -31,15 +31,15 @@ Regularidad:
 |Req|Detalle|
 |:-|:-|
 |CRUD simple|1. CRUD Reserva<br>2. CRUD Viaje<br>3. CRUD Trayecto<br>4. CRUD Localidad|
-|CRUD dependiente|1. CRUD Reserva {depende de} CRUD Viaje|
-|Listado<br>+<br>detalle| 1. Listado de reservas filtrado por rango de fecha, muestra fecha de viaje y trayecto, estado de Reserva y nombre del cliente => detalle muestra datos completos de la reserva y del cliente|
-|CUU/Epic|1. Registrar una Reserva para viajar<br>2. Cancelar una Reserva|
+|CRUD dependiente|1. CRUD Viaje {depende de} CRUD Reserva y CRUD Vehiculo<br>2. CRUD Trayecto {depende de} CRUD Localidad|
+|Listado<br>+<br>detalle| 1. Listado de reservas filtrado por rango de fecha, muestra fecha de viaje y trayecto, estado de Reserva y nombre del cliente => detalle muestra datos completos de la reserva y del cliente<br>2. Listado de Viajes disponibles Filtrados por Trayecto, muestra Fecha y horario de los Viajes, origen y destino del Trayecto (Para que el Cliente consulte disponibilidad de viajes)|
+|CUU/Epic|1. Registrar una Reserva para viajar<br>2. Cancelar una Reserva<br>3. Dar de alta Conductor<br>4. Consultar Viajes disponibles|
 
 Adicionales para Aprobación
 |Req|Detalle|
 |:-|:-|
 |CRUD |1. CRUD Reserva<br>2. CRUD Viaje<br>3. CRUD Trayecto<br>4. CRUD Localidad<br>5. CRUD Conductor<br>6. CRUD Vehiculo<br>7. CRUD Usuario|
-|CUU/Epic|1. Registrar una Reserva para viajar<br>2. Dar de alta un Cliente<br>3. Cancelar una Reserva|
+|CUU/Epic|1. Registrar una Reserva para viajar<br>2. Dar de alta un Cliente<br>3. Cancelar una Reserva<br>4. Dar de alta Viaje<br>5. Dar de alta Conductor<br>6. Consultar Viajes disponibles|
 
 ### Alcance Adicional Voluntario
 

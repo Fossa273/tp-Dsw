@@ -16,5 +16,7 @@
       "onFail": "download"
     }
   },
-  "type": "module"
+  "type": "module",
+  "build": "tsc -p ./tsconfig.json",
+    "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node ./dist/index.js\""
 }

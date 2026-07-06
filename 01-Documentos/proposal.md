@@ -6,8 +6,7 @@
 * 53671 - Agusti, Tomas
 
 ### Repositorios
-* [frontend app](https://github.com/Fossa273/frontend-dsw)
-* [backend app](https://github.com/Fossa273/backend-dsw) 
+* [Repositorio general](https://github.com/Fossa273/tp-Dsw.git)
 
 
 ## Tema

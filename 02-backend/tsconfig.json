@@ -6,6 +6,7 @@
     "moduleResolution": "bundler",
     "sourceMap": true,
     "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "rootDir": "./src",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

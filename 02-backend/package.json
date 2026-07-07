@@ -1,10 +1,12 @@
 {
   "name": "02-backend",
+  "type": "module",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -p ./tsconfig.json",
+    "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node ./dist/index.js\""
   },
   "keywords": [],
   "author": "",
@@ -16,7 +18,7 @@
       "onFail": "download"
     }
   },
-  "type": "module",
-  "build": "tsc -p ./tsconfig.json",
-    "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node ./dist/index.js\""
+  "devDependencies": {
+    "tsc-watch": "6.0.4"
+  }
 }

@@ -6,7 +6,7 @@
 * 53671 - Agusti, Tomas
 
 ### Repositorios
-* [Repositorio backend]([(https://github.com/Fossa273/Backend-dsw.git)])
+* [Repositorio backend](https://github.com/Fossa273/Backend-dsw.git)
 * [Repositorio frontend]()
 
 ## Tema

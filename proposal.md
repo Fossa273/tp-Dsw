@@ -1,17 +1,17 @@
 # Propuesta TP DSW
 
 ## Grupo
-### Integrantes
-* 53672 - Fossati, Nicolas
-* 53671 - Agusti, Tomas
 
-### Repositorios
-* [Repositorio backend](https://github.com/Fossa273/Backend-dsw.git)
-* [Repositorio frontend]()
+### Integrantes
+
+- 53672 - Fossati, Nicolas
+- 53671 - Agusti, Tomas
 
 ## Tema
+
 ### Descripción
-* Aplicacion web que permite al usuario y al administrador gestionar reservas de viaje eficientemente, brindando la posibilidad de agendar, postergar o cancelar una reserva. La aplicacion permitira al usuario registrarse/loguearse en el sistema para gestionar sus viajes ya agendados, o realizar nuevas reservas indicando datos de origen, destino y fecha del viaje. 
+
+- Aplicacion web que permite al usuario y al administrador gestionar reservas de viaje eficientemente, brindando la posibilidad de agendar, postergar o cancelar una reserva. La aplicacion permitira al usuario registrarse/loguearse en el sistema para gestionar sus viajes ya agendados, o realizar nuevas reservas indicando datos de origen, destino y fecha del viaje.
 
 ## Modelo de Dominio
 
@@ -23,7 +23,8 @@
   </a>
 </p>
 
-## Alcance Funcional 
+## Alcance Funcional
+
 ### Alcance Mínimo
 
 Regularidad:
@@ -42,8 +43,8 @@ Adicionales para Aprobación
 
 ### Alcance Adicional Voluntario
 
-|Req|Detalle|
-|:-|:-|
-|Listados |1. Listado de Viajes filtrados por estado (activos)|
-|CUU/Epic||Reprogramar una reserva |
-|Otros|1. Envío de recordatorio de Reserva|
+| Req      | Detalle                                             |
+| :------- | :-------------------------------------------------- | ----------------------- |
+| Listados | 1. Listado de Viajes filtrados por estado (activos) |
+| CUU/Epic |                                                     | Reprogramar una reserva |
+| Otros    | 1. Envío de recordatorio de Reserva                 |

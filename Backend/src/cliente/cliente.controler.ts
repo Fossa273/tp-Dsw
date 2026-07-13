@@ -20,13 +20,13 @@ function sanitizeClienteInput(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-function findAll(req: Request, res: Response) {
-  res.json({ data: repository.findAll() });
+async function findAll(req: Request, res: Response) {
+  res.json({ data: await repository.findAll() });
 }
 
-function findOne(req: Request, res: Response) {
+async function findOne(req: Request, res: Response) {
   const id = String(req.params.id);
-  const cliente = repository.findOne({ id });
+  const cliente = await repository.findOne({ id });
   if (cliente) {
     res.json(cliente);
   } else {
@@ -34,16 +34,16 @@ function findOne(req: Request, res: Response) {
   }
 }
 
-function add(req: Request, res: Response) {
+async function add(req: Request, res: Response) {
   const { id, nombre, apellido, email, telefono } = req.body.sanitizeInput;
   const nuevoCliente = new Cliente(id, nombre, apellido, email, telefono);
-  const nuevocliente = repository.add(nuevoCliente);
+  const nuevocliente = await repository.add(nuevoCliente);
   res.status(201).json(nuevocliente);
 }
 
-function update(req: Request, res: Response) {
+async function update(req: Request, res: Response) {
   req.body.sanitizeInput.id = req.params.id;
-  const clienteactualizado = repository.update(req.body.sanitizeInput);
+  const clienteactualizado = await repository.update(req.body.sanitizeInput);
   if (clienteactualizado) {
     res.status(200).json(clienteactualizado);
   } else {
@@ -51,9 +51,9 @@ function update(req: Request, res: Response) {
   }
 }
 
-function remove(req: Request, res: Response) {
+async function remove(req: Request, res: Response) {
   const id = String(req.params.id);
-  const deletedCliente = repository.delete({ id });
+  const deletedCliente = await repository.delete({ id });
   if (deletedCliente) {
     res.json({ message: 'Cliente eliminado' });
   } else {

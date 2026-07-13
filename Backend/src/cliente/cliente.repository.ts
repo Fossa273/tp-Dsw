@@ -1,5 +1,6 @@
 import { Repository } from '../shared/repository.js';
 import { Cliente } from './cliente.entity.js';
+import { pool } from '../shared/db/conn.mysql.js';
 
 const clientes: Cliente[] = [
   new Cliente('1', 'Juan', 'Perez', 'juan@example.com', '1234567890'),
@@ -10,20 +11,21 @@ const clientes: Cliente[] = [
 ];
 
 export class clienteRepository implements Repository<Cliente> {
-  public findAll(): Cliente[] | undefined {
-    return clientes;
+  public async findAll(): Promise<Cliente[] | undefined> {
+    const [clientes] = await pool.query('select * from clientes');
+    return clientes as Cliente[];
   }
 
-  public findOne(item: { id: string }): Cliente | undefined {
+  public async findOne(item: { id: string }): Promise<Cliente | undefined> {
     return clientes.find((cliente) => cliente.id === item.id);
   }
 
-  public add(item: Cliente): Cliente | undefined {
+  public async add(item: Cliente): Promise<Cliente | undefined> {
     clientes.push(item);
     return item;
   }
 
-  public update(item: Cliente): Cliente | undefined {
+  public async update(item: Cliente): Promise<Cliente | undefined> {
     const index = clientes.findIndex((cliente) => cliente.id === item.id);
     if (index !== -1) {
       clientes[index] = { ...clientes[index], ...item };
@@ -31,7 +33,7 @@ export class clienteRepository implements Repository<Cliente> {
     }
     return undefined;
   }
-  public delete(item: { id: string }): Cliente | undefined {
+  public async delete(item: { id: string }): Promise<Cliente | undefined> {
     const index = clientes.findIndex((cliente) => cliente.id === item.id);
     if (index !== -1) {
       return clientes.splice(index, 1)[0];

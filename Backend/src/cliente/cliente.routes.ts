@@ -6,7 +6,7 @@ import {
   update,
   add,
   remove,
-} from './cliente.controler.js';
+} from './cliente.controller.js';
 
 export const router = Router();
 

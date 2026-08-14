@@ -1,0 +1,26 @@
+###obtener todos las localidades
+GET http://localhost:3000/api/localidades
+
+###obtener una localidad por id
+GET http://localhost:3000/api/localidades/6
+
+###crear una nueva localidad
+POST http://localhost:3000/api/localidades
+Content-Type: application/json
+
+{
+  "id": "7",
+  "nombreloc": "San Pedro"
+}
+
+###actualizar una localidad existente
+PUT http://localhost:3000/api/localidades/7
+Content-Type: application/json
+
+{
+
+  "nombreloc": "San Nicolas"
+}
+
+###eliminar una localidad
+DELETE http://localhost:3000/api/localidades/7

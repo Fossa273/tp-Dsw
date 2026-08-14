@@ -1,6 +1,6 @@
-export class localidad {
+export class Localidad {
   constructor(
-    public cp: string,
+    public id: string,
     public nombreloc: string
   ) {}
 }

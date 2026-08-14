@@ -2,14 +2,6 @@ import { Repository } from '../shared/repository.js';
 import { Cliente } from './cliente.entity.js';
 import { pool } from '../shared/db/conn.mysql.js';
 
-const clientes: Cliente[] = [
-  new Cliente('1', 'Juan', 'Perez', 'juan@example.com', '1234567890'),
-  new Cliente('2', 'Juana', 'Gonzalez', 'maria@example.com', '0987654321'),
-  new Cliente('3', 'Pedro', 'Rodriguez', 'pedro@example.com', '1122334455'),
-  new Cliente('4', 'Ana', 'Lopez', 'ana@example.com', '5566778899'),
-  new Cliente('5', 'Luis', 'Martinez', 'luis@example.com', '9988776655'),
-];
-
 export class clienteRepository implements Repository<Cliente> {
   public async findAll(): Promise<Cliente[] | undefined> {
     const [clientes] = await pool.query('SELECT * from clientes');

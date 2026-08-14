@@ -4,22 +4,6 @@ import { Cliente } from './cliente.entity.js';
 
 const repository = new clienteRepository();
 
-function sanitizeClienteInput(req: Request, res: Response, next: NextFunction) {
-  req.body.sanitizeInput = {
-    id: req.body.id,
-    nombre: req.body.nombre,
-    apellido: req.body.apellido,
-    email: req.body.email,
-    telefono: req.body.telefono,
-  };
-  Object.keys(req.body.sanitizeInput).forEach((key) => {
-    if (req.body.sanitizeInput[key] === undefined) {
-      delete req.body.sanitizeInput[key];
-    }
-  });
-  next();
-}
-
 async function findAll(req: Request, res: Response) {
   res.json({ data: await repository.findAll() });
 }
@@ -61,4 +45,4 @@ async function remove(req: Request, res: Response) {
   }
 }
 
-export { sanitizeClienteInput, findAll, findOne, add, update, remove };
+export { findAll, findOne, add, update, remove };

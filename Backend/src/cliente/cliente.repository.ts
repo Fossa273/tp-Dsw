@@ -12,31 +12,50 @@ const clientes: Cliente[] = [
 
 export class clienteRepository implements Repository<Cliente> {
   public async findAll(): Promise<Cliente[] | undefined> {
-    const [clientes] = await pool.query('select * from clientes');
+    const [clientes] = await pool.query('SELECT * from clientes');
     return clientes as Cliente[];
   }
 
   public async findOne(item: { id: string }): Promise<Cliente | undefined> {
-    return clientes.find((cliente) => cliente.id === item.id);
+    const resultado = await pool.query('SELECT * from clientes WHERE id = ?', [
+      item.id,
+    ]);
+    if (!resultado) {
+      return undefined;
+    }
+    const cliente = (resultado[0] as Cliente[])[0];
+    return cliente;
   }
 
   public async add(item: Cliente): Promise<Cliente | undefined> {
-    clientes.push(item);
-    return item;
-  }
-
-  public async update(item: Cliente): Promise<Cliente | undefined> {
-    const index = clientes.findIndex((cliente) => cliente.id === item.id);
-    if (index !== -1) {
-      clientes[index] = { ...clientes[index], ...item };
-      return clientes[index];
+    const resultado = await pool.query(
+      'INSERT INTO clientes (id, nombre, apellido, email, telefono) VALUES (?, ?, ?, ?, ?)',
+      [item.id, item.nombre, item.apellido, item.email, item.telefono]
+    );
+    if (resultado) {
+      return item;
     }
     return undefined;
   }
+
+  public async update(item: Cliente): Promise<Cliente | undefined> {
+    const resultado = await pool.query(
+      'UPDATE clientes SET nombre = ?, apellido = ?, email = ?, telefono = ? WHERE id = ?',
+      [item.nombre, item.apellido, item.email, item.telefono, item.id]
+    );
+
+    if (resultado) {
+      return item;
+    }
+    return undefined;
+  }
+
   public async delete(item: { id: string }): Promise<Cliente | undefined> {
-    const index = clientes.findIndex((cliente) => cliente.id === item.id);
-    if (index !== -1) {
-      return clientes.splice(index, 1)[0];
+    const resultado = await pool.query('DELETE FROM clientes WHERE id = ?', [
+      item.id,
+    ]);
+    if (resultado) {
+      return item as Cliente;
     }
     return undefined;
   }

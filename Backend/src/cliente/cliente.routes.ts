@@ -1,12 +1,6 @@
 import { Router } from 'express';
-import {
-  sanitizeClienteInput,
-  findAll,
-  findOne,
-  update,
-  add,
-  remove,
-} from './cliente.controller.js';
+import { findAll, findOne, update, add, remove } from './cliente.controller.js';
+import { sanitizeClienteInput } from './cliente.validation.js';
 
 export const router = Router();
 

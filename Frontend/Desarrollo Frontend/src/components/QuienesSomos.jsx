@@ -5,9 +5,9 @@ const QuienesSomos = () => {
         <h2>Quienes somos</h2>
         <p>
           Somos una empresa dedicada a brindar servicios de transporte y
-          reservas de viajes en todo el pais. Con mas de 10 anos de
-          experiencia, conectamos pasajeros con los mejores destinos
-          ofreciendo seguridad, comodidad y los mejores precios.
+          reservas de viajes en todo el pais. Con mas de 10 años de experiencia,
+          conectamos pasajeros con los mejores destinos ofreciendo seguridad,
+          comodidad y los mejores precios.
         </p>
         <div className="qs-stats">
           <div className="qs-stat">
@@ -24,7 +24,7 @@ const QuienesSomos = () => {
           </div>
           <div className="qs-stat">
             <span className="qs-stat-number">10+</span>
-            <span className="qs-stat-label">Anos</span>
+            <span className="qs-stat-label">Años</span>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { clienteRepository } from './cliente.repository.js';
 import { Cliente } from './cliente.entity.js';
 
@@ -39,7 +39,7 @@ async function remove(req: Request, res: Response) {
   const id = String(req.params.id);
   const deletedCliente = await repository.delete({ id });
   if (deletedCliente) {
-    res.json({ message: 'Cliente eliminado' });
+    res.json({ message: 'Cliente dado de baja' });
   } else {
     res.status(404).json({ error: 'Cliente no encontrado' });
   }

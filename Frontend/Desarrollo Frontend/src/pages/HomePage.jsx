@@ -1,7 +1,8 @@
 import Hero from '../components/Hero';
 import FormularioBusqueda from '../components/FormularioBusqueda';
-import QuienesSomos from '../components/QuienesSomos';
 import CardsDestinos from '../components/CardsDestinos';
+import AdminPanel from '../components/AdminPanel';
+import QuienesSomos from '../components/QuienesSomos';
 
 const HomePage = ({ onNavigate }) => {
   return (
@@ -9,6 +10,7 @@ const HomePage = ({ onNavigate }) => {
       <Hero onNavigate={onNavigate} />
       <FormularioBusqueda />
       <CardsDestinos />
+      <AdminPanel onNavigate={onNavigate} />
       <QuienesSomos />
     </>
   );

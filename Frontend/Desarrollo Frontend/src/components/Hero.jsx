@@ -3,7 +3,7 @@ const Hero = ({ onNavigate }) => {
     <section className="hero">
       <div className="hero-overlay" />
       <div className="hero-content">
-        <h1>EmpresaViaje</h1>
+        <h1>RutaBus</h1>
         <p className="hero-subtitle">
           Tu viaje comienza aqui. Reserva, gestiona y disfruta de los mejores
           destinos con la mejor flota de vehiculos.

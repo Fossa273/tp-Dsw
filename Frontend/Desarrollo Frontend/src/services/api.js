@@ -7,7 +7,15 @@ async function request(endpoint, options = {}) {
     ...options,
   };
 
-  const response = await fetch(url, config);
+  let response;
+  try {
+    response = await fetch(url, config);
+  } catch {
+    throw new Error(
+      'No se pudo conectar con el servidor. Verifique que el backend este corriendo en el puerto 3000.'
+    );
+  }
+
   const data = await response.json();
 
   if (!response.ok) {

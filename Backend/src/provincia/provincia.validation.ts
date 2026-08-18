@@ -1,13 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 
-function sanitizeLocalidadInput(
+function sanitizeProvinciaInput(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
   req.body.sanitizeInput = {
     id: req.body.id,
-    nombreloc: req.body.nombreloc,
+    nombre: req.body.nombre,
   };
   Object.keys(req.body.sanitizeInput).forEach((key) => {
     if (req.body.sanitizeInput[key] === undefined) {
@@ -16,4 +16,4 @@ function sanitizeLocalidadInput(
   });
   next();
 }
-export { sanitizeLocalidadInput };
+export { sanitizeProvinciaInput };

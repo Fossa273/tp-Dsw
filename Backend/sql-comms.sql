@@ -35,3 +35,27 @@ create table if not exists `empresaviaje`.`localidades` (
   insert into empresaviaje.localidades values('4', 'Rosario');
   insert into empresaviaje.localidades values('5', 'San Miguel de Tucumán');
   insert into empresaviaje.localidades values('6', 'Bariloche');
+
+-- Tabla provincias
+Create table if not exists `empresaviaje`.`provincias` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`));
+
+  insert into empresaviaje.provincias values('1', 'Buenos Aires');
+  insert into empresaviaje.provincias values('2', 'Córdoba');
+  insert into empresaviaje.provincias values('3', 'Santa Fe');
+  insert into empresaviaje.provincias values('4', 'Mendoza');
+  insert into empresaviaje.provincias values('5', 'Tucumán');
+
+-- Tabla vehiculos
+Create table if not exists `empresaviaje`.`vehiculos` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `capacidadmax` INT UNSIGNED NOT NULL,
+  PRIMARY KEY (`id`));
+
+  insert into empresaviaje.vehiculos values('1', 45);
+  insert into empresaviaje.vehiculos values('2', 30);
+  insert into empresaviaje.vehiculos values('3', 60);
+  insert into empresaviaje.vehiculos values('4', 20);
+  insert into empresaviaje.vehiculos values('5', 50);

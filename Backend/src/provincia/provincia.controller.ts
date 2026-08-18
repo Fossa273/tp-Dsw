@@ -19,8 +19,8 @@ async function findOne(req: Request, res: Response) {
 }
 
 async function add(req: Request, res: Response) {
-  const { id, nombre } = req.body.sanitizeInput;
-  const nuevaProvincia = new Provincia(id, nombre);
+  const { id, nombreprov } = req.body.sanitizeInput;
+  const nuevaProvincia = new Provincia(id, nombreprov);
   const nuevaprovincia = await repository.add(nuevaProvincia);
   res.status(201).json(nuevaprovincia);
 }

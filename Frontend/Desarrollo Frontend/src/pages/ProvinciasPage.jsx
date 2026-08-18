@@ -5,7 +5,7 @@ const ProvinciasPage = () => {
   const { provincias, loading, error, create, update, remove } =
     useProvincias();
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ nombre: '' });
+  const [form, setForm] = useState({ nombreprov: '' });
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -20,7 +20,7 @@ const ProvinciasPage = () => {
       } else {
         await create(form);
       }
-      setForm({ nombre: '' });
+      setForm({ nombreprov: '' });
     } catch (err) {
       alert('Error: ' + err.message);
     }
@@ -28,7 +28,7 @@ const ProvinciasPage = () => {
 
   const handleEdit = (provincia) => {
     setEditingId(provincia.id);
-    setForm({ nombre: provincia.nombre || '' });
+    setForm({ nombreprov: provincia.nombreprov || '' });
   };
 
   const handleDelete = async (id) => {
@@ -43,7 +43,7 @@ const ProvinciasPage = () => {
 
   const handleCancel = () => {
     setEditingId(null);
-    setForm({ nombre: '' });
+    setForm({ nombreprov: '' });
   };
 
   if (loading) return <div className="loading">Cargando provincias...</div>;
@@ -57,9 +57,9 @@ const ProvinciasPage = () => {
         <h2>{editingId ? 'Editar Provincia' : 'Nueva Provincia'}</h2>
         <div className="form-row">
           <input
-            name="nombre"
+            name="nombreprov"
             placeholder="Nombre de la provincia"
-            value={form.nombre}
+            value={form.nombreprov}
             onChange={handleChange}
             required
           />
@@ -93,7 +93,7 @@ const ProvinciasPage = () => {
             {provincias.map((p) => (
               <tr key={p.id}>
                 <td>{p.id}</td>
-                <td>{p.nombre}</td>
+                <td>{p.nombreprov}</td>
                 <td className="actions">
                   <button
                     className="btn btn-sm btn-edit"

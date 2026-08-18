@@ -67,3 +67,7 @@ SET @sql = IF(
   'ALTER TABLE `empresaviaje`.`clientes` ADD COLUMN `activo` TINYINT NOT NULL DEFAULT 1',
   'SELECT 1'
 );
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

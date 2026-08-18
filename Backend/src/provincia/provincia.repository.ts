@@ -23,7 +23,7 @@ export class provinciaRepository implements Repository<Provincia> {
   public async add(item: Provincia): Promise<Provincia | undefined> {
     const nuevaprovincia = await pool.query(
       'INSERT INTO provincias (id, nombre) VALUES (?, ?)',
-      [item.id, item.nombre]
+      [item.id, item.nombreprov]
     );
     if (nuevaprovincia) {
       return item;
@@ -34,7 +34,7 @@ export class provinciaRepository implements Repository<Provincia> {
   public async update(item: Provincia): Promise<Provincia | undefined> {
     const resultado = await pool.query(
       'UPDATE provincias SET nombre = ? WHERE id = ?',
-      [item.nombre, item.id]
+      [item.nombreprov, item.id]
     );
 
     if (resultado) {

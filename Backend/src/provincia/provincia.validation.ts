@@ -7,7 +7,7 @@ function sanitizeProvinciaInput(
 ) {
   req.body.sanitizeInput = {
     id: req.body.id,
-    nombre: req.body.nombre,
+    nombreprov: req.body.nombreprov,
   };
   Object.keys(req.body.sanitizeInput).forEach((key) => {
     if (req.body.sanitizeInput[key] === undefined) {

@@ -14,7 +14,7 @@ export class clienteRepository implements Repository<Cliente> {
     return clientes as Cliente[];
   }
 
-  // Clientes con baja logica: listado exclusivo del administrador
+  // Clientes con baja logica: (para listado exclusivo del administrador)
   public async findAllInactivos(): Promise<Cliente[] | undefined> {
     const [clientes] = await pool.query(
       'SELECT id, nombre, apellido, dni, email, telefono FROM clientes WHERE activo = 0'
@@ -126,7 +126,7 @@ export class clienteRepository implements Repository<Cliente> {
     return header.affectedRows > 0;
   }
 
-  // Reactiva un cliente con baja logica
+  // Reactivar un cliente con baja logica
   public async reactivar(id: string): Promise<boolean> {
     const [result] = await pool.query(
       'UPDATE clientes SET activo = 1 WHERE id = ? AND activo = 0',

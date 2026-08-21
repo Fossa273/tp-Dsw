@@ -19,9 +19,8 @@ router.post('/login', login);
 router.post('/logout', logout);
 router.post('/reset-password', resetPassword);
 router.post('/:id/reactivar', reactivar);
-
-router.get('/', findAll);
 router.get('/inactivos', findAllInactivos);
+router.get('/', findAll);
 router.get('/:id', findOne);
 router.post('/', sanitizeClienteInput, add);
 router.put('/:id', sanitizeClienteInput, update);

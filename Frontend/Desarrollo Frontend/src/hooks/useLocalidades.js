@@ -26,19 +26,19 @@ export function useLocalidades() {
 
   const create = async (localidad) => {
     const res = await api.localidades.create(localidad);
-    setLocalidades((prev) => [...prev, res]);
+    await fetchAll();
     return res;
   };
 
   const update = async (id, localidad) => {
     const res = await api.localidades.update(id, localidad);
-    setLocalidades((prev) => prev.map((l) => (l.id === id ? res : l)));
+    await fetchAll();
     return res;
   };
 
   const remove = async (id) => {
     await api.localidades.delete(id);
-    setLocalidades((prev) => prev.filter((l) => l.id !== id));
+    await fetchAll();
   };
 
   return {

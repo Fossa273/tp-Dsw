@@ -26,19 +26,19 @@ export function useProvincias() {
 
   const create = async (provincia) => {
     const res = await api.provincias.create(provincia);
-    setProvincias((prev) => [...prev, res]);
+    await fetchAll();
     return res;
   };
 
   const update = async (id, provincia) => {
     const res = await api.provincias.update(id, provincia);
-    setProvincias((prev) => prev.map((p) => (p.id === id ? res : p)));
+    await fetchAll();
     return res;
   };
 
   const remove = async (id) => {
     await api.provincias.delete(id);
-    setProvincias((prev) => prev.filter((p) => p.id !== id));
+    await fetchAll();
   };
 
   return {

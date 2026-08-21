@@ -16,6 +16,18 @@ async function request(endpoint, options = {}) {
     );
   }
 
+  // Si el servidor responde algo que no es JSON (por ejemplo una
+  // pagina de error HTML), avisamos con un mensaje claro en vez de
+  // romper con "Unexpected token '<'".
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    console.error('Respuesta no-JSON del servidor:', text.slice(0, 200));
+    throw new Error(
+      `El servidor respondio con un formato inesperado (HTTP ${response.status}). Verifique que el backend y la base de datos esten funcionando.`
+    );
+  }
+
   const data = await response.json();
 
   if (!response.ok) {
@@ -28,6 +40,7 @@ async function request(endpoint, options = {}) {
 export const api = {
   clientes: {
     getAll: () => request('/clientes'),
+    getInactive: () => request('/clientes/inactivos'),
     getOne: (id) => request(`/clientes/${id}`),
     create: (cliente) =>
       request('/clientes', { method: 'POST', body: JSON.stringify(cliente) }),
@@ -37,6 +50,26 @@ export const api = {
         body: JSON.stringify(cliente),
       }),
     delete: (id) => request(`/clientes/${id}`, { method: 'DELETE' }),
+    reactivate: (id) =>
+      request(`/clientes/${id}/reactivar`, { method: 'POST' }),
+  },
+
+  auth: {
+    login: (email, password) =>
+      request('/clientes/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
+    logout: (id) =>
+      request('/clientes/logout', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      }),
+    resetPassword: (email, password) =>
+      request('/clientes/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
   },
 
   localidades: {

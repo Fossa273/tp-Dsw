@@ -6,6 +6,14 @@ const ProvinciasPage = () => {
     useProvincias();
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ nombreprov: '' });
+  const [msg, setMsg] = useState(null);
+  const [msgType, setMsgType] = useState('success');
+
+  const showMessage = (text, type = 'success') => {
+    setMsg(text);
+    setMsgType(type);
+    setTimeout(() => setMsg(null), 4000);
+  };
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -16,13 +24,15 @@ const ProvinciasPage = () => {
     try {
       if (editingId) {
         await update(editingId, form);
+        showMessage('Provincia actualizada correctamente');
         setEditingId(null);
       } else {
         await create(form);
+        showMessage('Provincia creada correctamente');
       }
       setForm({ nombreprov: '' });
     } catch (err) {
-      alert('Error: ' + err.message);
+      showMessage(err.message, 'error');
     }
   };
 
@@ -35,8 +45,13 @@ const ProvinciasPage = () => {
     if (window.confirm('Eliminar esta provincia?')) {
       try {
         await remove(id);
+        if (String(editingId) === String(id)) {
+          setEditingId(null);
+          setForm({ nombreprov: '' });
+        }
+        showMessage('Provincia eliminada correctamente');
       } catch (err) {
-        alert('Error: ' + err.message);
+        showMessage(err.message, 'error');
       }
     }
   };
@@ -52,6 +67,16 @@ const ProvinciasPage = () => {
   return (
     <div className="crud-page">
       <h1>Gestion de Provincias</h1>
+
+      {msg && (
+        <div
+          className={`crud-message ${
+            msgType === 'error' ? 'msg-error' : 'msg-success'
+          }`}
+        >
+          {msg}
+        </div>
+      )}
 
       <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Provincia' : 'Nueva Provincia'}</h2>

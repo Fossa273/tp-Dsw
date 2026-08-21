@@ -4,52 +4,63 @@ import { pool } from '../shared/db/conn.mysql.js';
 
 export class localidadRepository implements Repository<Localidad> {
   public async findAll(): Promise<Localidad[] | undefined> {
-    const [localidades] = await pool.query('SELECT * from localidades');
+    const [localidades] = await pool.query('SELECT * FROM localidades');
     return localidades as Localidad[];
   }
 
   public async findOne(item: { id: string }): Promise<Localidad | undefined> {
-    const resultado = await pool.query(
-      'SELECT * from localidades WHERE id = ?',
-      [item.id]
+    const [rows] = await pool.query('SELECT * FROM localidades WHERE id = ?', [
+      item.id,
+    ]);
+    const localidades = rows as Localidad[];
+    return localidades.length > 0 ? localidades[0] : undefined;
+  }
+
+  // Busca una localidad por nombre (para validar duplicados)
+  public async findByName(nombre: string): Promise<Localidad | undefined> {
+    const [rows] = await pool.query(
+      'SELECT * FROM localidades WHERE nombre = ?',
+      [nombre]
     );
-    if (!resultado) {
-      return undefined;
-    }
-    const localidad = (resultado[0] as Localidad[])[0];
-    return localidad;
+    const localidades = rows as Localidad[];
+    return localidades.length > 0 ? localidades[0] : undefined;
   }
 
   public async add(item: Localidad): Promise<Localidad | undefined> {
-    const resultado = await pool.query(
-      'INSERT INTO localidades (id, nombre) VALUES (?, ?)',
-      [item.id, item.nombreloc]
+    const [result] = await pool.query(
+      'INSERT INTO localidades (nombre) VALUES (?)',
+      [item.nombre ?? null]
     );
-    if (resultado) {
-      return item;
-    }
-    return undefined;
+    const header = result as { insertId?: number };
+    return { ...item, id: String(header.insertId) };
   }
 
   public async update(item: Localidad): Promise<Localidad | undefined> {
-    const resultado = await pool.query(
+    const [result] = await pool.query(
       'UPDATE localidades SET nombre = ? WHERE id = ?',
-      [item.nombreloc, item.id]
+      [item.nombre ?? null, item.id]
     );
-
-    if (resultado) {
-      return item;
+    const header = result as { affectedRows: number };
+    if (header.affectedRows === 0) {
+      return undefined;
     }
-    return undefined;
+    return item;
   }
 
   public async delete(item: { id: string }): Promise<Localidad | undefined> {
-    const resultado = await pool.query('DELETE FROM localidades WHERE id = ?', [
+    const [result] = await pool.query('DELETE FROM localidades WHERE id = ?', [
       item.id,
     ]);
-    if (resultado) {
-      return item as Localidad;
+    const header = result as { affectedRows: number };
+    if (header.affectedRows === 0) {
+      return undefined;
     }
-    return undefined;
+    // Reinicia el contador para que el proximo id sea secuencial
+    try {
+      await pool.query('ALTER TABLE localidades AUTO_INCREMENT = 1');
+    } catch {
+      // Si la conexion no tiene permisos ALTER se ignora
+    }
+    return { id: item.id } as Localidad;
   }
 }

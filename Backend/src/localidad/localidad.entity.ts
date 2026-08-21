@@ -1,6 +1,6 @@
 export class Localidad {
   constructor(
-    public id: string,
-    public nombreloc: string
+    public id?: string,
+    public nombre?: string
   ) {}
 }

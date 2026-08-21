@@ -26,19 +26,19 @@ export function useClientes() {
 
   const create = async (cliente) => {
     const res = await api.clientes.create(cliente);
-    setClientes((prev) => [...prev, res]);
+    await fetchAll();
     return res;
   };
 
   const update = async (id, cliente) => {
     const res = await api.clientes.update(id, cliente);
-    setClientes((prev) => prev.map((c) => (c.id === id ? res : c)));
+    await fetchAll();
     return res;
   };
 
   const remove = async (id) => {
     await api.clientes.delete(id);
-    setClientes((prev) => prev.filter((c) => c.id !== id));
+    await fetchAll();
   };
 
   return { clientes, loading, error, create, update, remove, refetch: fetchAll };

@@ -54,7 +54,7 @@ const ADMIN_ITEMS = [
 
 const AdminPanel = ({ onNavigate }) => {
   return (
-    <section className="admin-section">
+    <section className="admin-section" id="panel-admin">
       <h2>Panel de administracion</h2>
       <p className="admin-subtitle">
         Gestiona todos los modulos del sistema desde un solo lugar

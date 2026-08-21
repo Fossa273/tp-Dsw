@@ -1,5 +1,6 @@
 export class Provincia {
-    constructor(
-        public id: string,
-        public nombreprov: string
-    ) {}}
+  constructor(
+    public id?: string,
+    public nombreprov?: string
+  ) {}
+}

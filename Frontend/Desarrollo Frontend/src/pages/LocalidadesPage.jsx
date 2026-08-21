@@ -6,6 +6,14 @@ const LocalidadesPage = () => {
     useLocalidades();
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ nombre: '' });
+  const [msg, setMsg] = useState(null);
+  const [msgType, setMsgType] = useState('success');
+
+  const showMessage = (text, type = 'success') => {
+    setMsg(text);
+    setMsgType(type);
+    setTimeout(() => setMsg(null), 4000);
+  };
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -16,13 +24,15 @@ const LocalidadesPage = () => {
     try {
       if (editingId) {
         await update(editingId, form);
+        showMessage('Localidad actualizada correctamente');
         setEditingId(null);
       } else {
         await create(form);
+        showMessage('Localidad creada correctamente');
       }
       setForm({ nombre: '' });
     } catch (err) {
-      alert('Error: ' + err.message);
+      showMessage(err.message, 'error');
     }
   };
 
@@ -35,8 +45,13 @@ const LocalidadesPage = () => {
     if (window.confirm('Eliminar esta localidad?')) {
       try {
         await remove(id);
+        if (String(editingId) === String(id)) {
+          setEditingId(null);
+          setForm({ nombre: '' });
+        }
+        showMessage('Localidad eliminada correctamente');
       } catch (err) {
-        alert('Error: ' + err.message);
+        showMessage(err.message, 'error');
       }
     }
   };
@@ -52,6 +67,16 @@ const LocalidadesPage = () => {
   return (
     <div className="crud-page">
       <h1>Gestion de Localidades</h1>
+
+      {msg && (
+        <div
+          className={`crud-message ${
+            msgType === 'error' ? 'msg-error' : 'msg-success'
+          }`}
+        >
+          {msg}
+        </div>
+      )}
 
       <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Localidad' : 'Nueva Localidad'}</h2>

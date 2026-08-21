@@ -4,52 +4,53 @@ import { pool } from '../shared/db/conn.mysql.js';
 
 export class vehiculoRepository implements Repository<Vehiculo> {
   public async findAll(): Promise<Vehiculo[] | undefined> {
-    const [vehiculos] = await pool.query('SELECT * from vehiculos');
+    const [vehiculos] = await pool.query('SELECT * FROM vehiculos');
     return vehiculos as Vehiculo[];
   }
 
   public async findOne(item: { id: string }): Promise<Vehiculo | undefined> {
-    const resultado = await pool.query(
-      'SELECT * from vehiculos WHERE id = ?',
-      [item.id]
-    );
-    if (!resultado) {
-      return undefined;
-    }
-    const vehiculo = (resultado[0] as Vehiculo[])[0];
-    return vehiculo;
+    const [rows] = await pool.query('SELECT * FROM vehiculos WHERE id = ?', [
+      item.id,
+    ]);
+    const vehiculos = rows as Vehiculo[];
+    return vehiculos.length > 0 ? vehiculos[0] : undefined;
   }
 
   public async add(item: Vehiculo): Promise<Vehiculo | undefined> {
-    const resultado = await pool.query(
-      'INSERT INTO vehiculos (id, capacidadmax) VALUES (?, ?)',
-      [item.id, item.capacidadmax]
+    const [result] = await pool.query(
+      'INSERT INTO vehiculos (capacidadmax) VALUES (?)',
+      [item.capacidadmax ?? null]
     );
-    if (resultado) {
-      return item;
-    }
-    return undefined;
+    const header = result as { insertId?: number };
+    return { ...item, id: String(header.insertId) };
   }
 
   public async update(item: Vehiculo): Promise<Vehiculo | undefined> {
-    const resultado = await pool.query(
+    const [result] = await pool.query(
       'UPDATE vehiculos SET capacidadmax = ? WHERE id = ?',
-      [item.capacidadmax, item.id]
+      [item.capacidadmax ?? null, item.id]
     );
-
-    if (resultado) {
-      return item;
+    const header = result as { affectedRows: number };
+    if (header.affectedRows === 0) {
+      return undefined;
     }
-    return undefined;
+    return item;
   }
 
   public async delete(item: { id: string }): Promise<Vehiculo | undefined> {
-    const resultado = await pool.query('DELETE FROM vehiculos WHERE id = ?', [
+    const [result] = await pool.query('DELETE FROM vehiculos WHERE id = ?', [
       item.id,
     ]);
-    if (resultado) {
-      return item as Vehiculo;
+    const header = result as { affectedRows: number };
+    if (header.affectedRows === 0) {
+      return undefined;
     }
-    return undefined;
+    // Reinicia el contador para que el proximo id sea secuencial
+    try {
+      await pool.query('ALTER TABLE vehiculos AUTO_INCREMENT = 1');
+    } catch {
+      // Si la conexion no tiene permisos ALTER se ignora
+    }
+    return { id: item.id } as Vehiculo;
   }
 }

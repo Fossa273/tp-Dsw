@@ -1,0 +1,258 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const MODES = {
+  login: {
+    title: 'Iniciar sesion',
+    subtitle: 'Ingrese con su email y contraseña',
+    submitLabel: 'Ingresar',
+  },
+  register: {
+    title: 'Crear cuenta',
+    subtitle: 'Complete sus datos para registrarse',
+    submitLabel: 'Registrarme',
+  },
+  reset: {
+    title: 'Recuperar contraseña',
+    subtitle:
+      'Ingrese su email y la nueva contraseña (modo prueba, sin verificacion)',
+    submitLabel: 'Cambiar contraseña',
+  },
+};
+
+const MailIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="M22 7l-10 6L2 7" />
+  </svg>
+);
+
+const LockIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="11" width="18" height="11" rx="2" />
+    <path d="M7 11V7a5 5 0 0110 0v4" />
+  </svg>
+);
+
+const UserIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const LoginPage = () => {
+  const navigate = useNavigate();
+  const { login, register, resetPassword } = useAuth();
+
+  const [mode, setMode] = useState('login');
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    nombre: '',
+    apellido: '',
+    telefono: '',
+  });
+  const [msg, setMsg] = useState(null);
+  const [msgType, setMsgType] = useState('success');
+  const [loading, setLoading] = useState(false);
+
+  const showMessage = (text, type = 'success') => {
+    setMsg(text);
+    setMsgType(type);
+    setTimeout(() => setMsg(null), 5000);
+  };
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    setMsg(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (mode === 'login') {
+        await login(form.email, form.password);
+        navigate('/');
+      } else if (mode === 'register') {
+        await register({
+          nombre: form.nombre,
+          apellido: form.apellido,
+          email: form.email,
+          telefono: form.telefono,
+          password: form.password,
+        });
+        showMessage(
+          'Cuenta creada correctamente. Ya puede iniciar sesion.',
+          'success'
+        );
+        setForm({
+          email: form.email,
+          password: '',
+          nombre: '',
+          apellido: '',
+          telefono: '',
+        });
+        switchMode('login');
+      } else {
+        await resetPassword(form.email, form.password);
+        showMessage('Contraseña actualizada correctamente.', 'success');
+        switchMode('login');
+      }
+    } catch (err) {
+      showMessage(err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const config = MODES[mode];
+
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-header">
+          <h1>{config.title}</h1>
+          <p>{config.subtitle}</p>
+        </div>
+
+        {msg && (
+          <div
+            className={`crud-message ${
+              msgType === 'error' ? 'msg-error' : 'msg-success'
+            }`}
+          >
+            {msg}
+          </div>
+        )}
+
+        <div className="auth-tabs">
+          <button
+            type="button"
+            className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
+            onClick={() => switchMode('login')}
+          >
+            Iniciar sesion
+          </button>
+          <button
+            type="button"
+            className={`auth-tab ${mode === 'register' ? 'active' : ''}`}
+            onClick={() => switchMode('register')}
+          >
+            Registrarse
+          </button>
+        </div>
+
+        <form className="auth-form" onSubmit={handleSubmit}>
+          {mode === 'register' && (
+            <>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="auth-nombre">Nombre</label>
+                  <input
+                    id="auth-nombre"
+                    name="nombre"
+                    placeholder="Nombre"
+                    value={form.nombre}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="auth-apellido">Apellido</label>
+                  <input
+                    id="auth-apellido"
+                    name="apellido"
+                    placeholder="Apellido"
+                    value={form.apellido}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="auth-telefono">Telefono</label>
+                  <input
+                    id="auth-telefono"
+                    name="telefono"
+                    placeholder="Telefono"
+                    value={form.telefono}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="form-group auth-input-group">
+            <label htmlFor="auth-email">Email</label>
+            <div className="auth-input-wrapper">
+              <MailIcon />
+              <input
+                id="auth-email"
+                name="email"
+                type="email"
+                placeholder="correo@ejemplo.com"
+                value={form.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-group auth-input-group">
+            <label htmlFor="auth-password">
+              {mode === 'reset' ? 'Nueva contraseña' : 'Contraseña'}
+            </label>
+            <div className="auth-input-wrapper">
+              <LockIcon />
+              <input
+                id="auth-password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+
+          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+            <UserIcon />
+            {loading ? 'Procesando...' : config.submitLabel}
+          </button>
+        </form>
+
+        {mode === 'login' && (
+          <button
+            type="button"
+            className="auth-link"
+            onClick={() => switchMode('reset')}
+          >
+            ¿Olvidaste tu contraseña?
+          </button>
+        )}
+        {mode === 'reset' && (
+          <button
+            type="button"
+            className="auth-link"
+            onClick={() => switchMode('login')}
+          >
+            Volver a iniciar sesion
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default LoginPage;

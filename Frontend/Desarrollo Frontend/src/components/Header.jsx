@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import UserMenu from './UserMenu';
+import { useAuth } from '../context/AuthContext';
 
 const BusLogo = () => (
   <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
@@ -9,13 +10,11 @@ const BusLogo = () => (
 
 const Header = ({ currentPage, onNavigate }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { isAdmin } = useAuth();
 
   const navLinks = [
     { key: 'home', label: 'Inicio' },
-    { key: 'clientes', label: 'Clientes' },
-    { key: 'localidades', label: 'Localidades' },
-    { key: 'provincias', label: 'Provincias' },
-    { key: 'vehiculos', label: 'Vehiculos' },
+    ...(isAdmin ? [{ key: 'admin', label: 'Panel de administracion' }] : []),
   ];
 
   return (

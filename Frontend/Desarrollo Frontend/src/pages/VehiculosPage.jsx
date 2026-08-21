@@ -5,6 +5,14 @@ const VehiculosPage = () => {
   const { vehiculos, loading, error, create, update, remove } = useVehiculos();
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ capacidadmax: '' });
+  const [msg, setMsg] = useState(null);
+  const [msgType, setMsgType] = useState('success');
+
+  const showMessage = (text, type = 'success') => {
+    setMsg(text);
+    setMsgType(type);
+    setTimeout(() => setMsg(null), 4000);
+  };
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -16,13 +24,15 @@ const VehiculosPage = () => {
       const payload = { capacidadmax: Number(form.capacidadmax) };
       if (editingId) {
         await update(editingId, payload);
+        showMessage('Vehiculo actualizado correctamente');
         setEditingId(null);
       } else {
         await create(payload);
+        showMessage('Vehiculo creado correctamente');
       }
       setForm({ capacidadmax: '' });
     } catch (err) {
-      alert('Error: ' + err.message);
+      showMessage(err.message, 'error');
     }
   };
 
@@ -35,8 +45,13 @@ const VehiculosPage = () => {
     if (window.confirm('Eliminar este vehiculo?')) {
       try {
         await remove(id);
+        if (String(editingId) === String(id)) {
+          setEditingId(null);
+          setForm({ capacidadmax: '' });
+        }
+        showMessage('Vehiculo eliminado correctamente');
       } catch (err) {
-        alert('Error: ' + err.message);
+        showMessage(err.message, 'error');
       }
     }
   };
@@ -52,6 +67,16 @@ const VehiculosPage = () => {
   return (
     <div className="crud-page">
       <h1>Gestion de Vehiculos</h1>
+
+      {msg && (
+        <div
+          className={`crud-message ${
+            msgType === 'error' ? 'msg-error' : 'msg-success'
+          }`}
+        >
+          {msg}
+        </div>
+      )}
 
       <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Vehiculo' : 'Nuevo Vehiculo'}</h2>

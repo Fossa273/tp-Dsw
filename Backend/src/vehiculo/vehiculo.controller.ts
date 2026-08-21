@@ -19,15 +19,27 @@ async function findOne(req: Request, res: Response) {
 }
 
 async function add(req: Request, res: Response) {
-  const { id, capacidadmax } = req.body.sanitizeInput;
-  const nuevoVehiculo = new Vehiculo(id, capacidadmax);
-  const nuevo = await repository.add(nuevoVehiculo);
-  res.status(201).json(nuevo);
+  const { capacidadmax } = req.body.sanitizeInput;
+  if (capacidadmax === undefined || capacidadmax === null) {
+    res.status(400).json({ error: 'La capacidad maxima es obligatoria' });
+    return;
+  }
+  const nuevoVehiculo = await repository.add(
+    new Vehiculo(undefined, Number(capacidadmax))
+  );
+  res.status(201).json(nuevoVehiculo);
 }
 
 async function update(req: Request, res: Response) {
   req.body.sanitizeInput.id = req.params.id;
-  const vehiculoActualizado = await repository.update(req.body.sanitizeInput);
+  const { id, capacidadmax } = req.body.sanitizeInput;
+  if (capacidadmax === undefined || capacidadmax === null) {
+    res.status(400).json({ error: 'La capacidad maxima es obligatoria' });
+    return;
+  }
+  const vehiculoActualizado = await repository.update(
+    new Vehiculo(id, Number(capacidadmax))
+  );
   if (vehiculoActualizado) {
     res.status(200).json(vehiculoActualizado);
   } else {

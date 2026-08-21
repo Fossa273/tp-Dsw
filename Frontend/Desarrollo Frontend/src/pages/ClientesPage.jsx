@@ -1,20 +1,60 @@
 import { useState } from 'react';
 import { useClientes } from '../hooks/useClientes';
+import { api } from '../services/api';
 
 const ClientesPage = () => {
-  const { clientes, loading, error, create, update, remove } = useClientes();
+  const { clientes, loading, error, create, update, remove, refetch } =
+    useClientes();
+
+  const [showBajas, setShowBajas] = useState(false);
+  const [bajas, setBajas] = useState([]);
+  const [loadingBajas, setLoadingBajas] = useState(false);
+
+  const fetchBajas = async () => {
+    setLoadingBajas(true);
+    try {
+      const res = await api.clientes.getInactive();
+      setBajas(res.data || []);
+    } catch {
+      setBajas([]);
+    } finally {
+      setLoadingBajas(false);
+    }
+  };
+
+  const handleToggleBajas = () => {
+    const nuevoEstado = !showBajas;
+    setShowBajas(nuevoEstado);
+    if (nuevoEstado) {
+      fetchBajas();
+    }
+  };
+
+  // Da de alta nuevamente a un cliente con baja logica
+  const handleAlta = async (id) => {
+    try {
+      await api.clientes.reactivate(id);
+      showMessage('Cliente dado de alta correctamente');
+      await Promise.all([fetchBajas(), refetch()]);
+    } catch (err) {
+      showMessage(err.message, 'error');
+    }
+  };
 
   const [registerForm, setRegisterForm] = useState({
     nombre: '',
     apellido: '',
+    dni: '',
     email: '',
     telefono: '',
+    password: '',
   });
 
   const [selectedId, setSelectedId] = useState('');
   const [editForm, setEditForm] = useState({
     nombre: '',
     apellido: '',
+    dni: '',
     email: '',
     telefono: '',
   });
@@ -37,12 +77,15 @@ const ClientesPage = () => {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = {
-        id: String(Date.now()),
-        ...registerForm,
-      };
-      await create(payload);
-      setRegisterForm({ nombre: '', apellido: '', email: '', telefono: '' });
+      await create(registerForm);
+      setRegisterForm({
+        nombre: '',
+        apellido: '',
+        dni: '',
+        email: '',
+        telefono: '',
+        password: '',
+      });
       showMessage('Cliente registrado correctamente');
     } catch (err) {
       showMessage(err.message, 'error');
@@ -57,11 +100,18 @@ const ClientesPage = () => {
       setEditForm({
         nombre: cliente.nombre || '',
         apellido: cliente.apellido || '',
+        dni: cliente.dni || '',
         email: cliente.email || '',
         telefono: cliente.telefono || '',
       });
     } else {
-      setEditForm({ nombre: '', apellido: '', email: '', telefono: '' });
+      setEditForm({
+        nombre: '',
+        apellido: '',
+        dni: '',
+        email: '',
+        telefono: '',
+      });
     }
   };
 
@@ -91,6 +141,9 @@ const ClientesPage = () => {
       setDeleteId('');
       setDeleteConfirm('');
       showMessage('Cuenta dada de baja correctamente');
+      if (showBajas) {
+        fetchBajas();
+      }
     } catch (err) {
       showMessage(err.message, 'error');
     }
@@ -171,6 +224,31 @@ const ClientesPage = () => {
                 name="telefono"
                 placeholder="Telefono"
                 value={registerForm.telefono}
+                onChange={handleRegisterChange}
+                required
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="reg-dni">DNI</label>
+              <input
+                id="reg-dni"
+                name="dni"
+                placeholder="DNI"
+                value={registerForm.dni}
+                onChange={handleRegisterChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="reg-password">Contraseña</label>
+              <input
+                id="reg-password"
+                name="password"
+                type="password"
+                placeholder="Contraseña del cliente"
+                value={registerForm.password}
                 onChange={handleRegisterChange}
                 required
               />
@@ -270,6 +348,19 @@ const ClientesPage = () => {
                     name="telefono"
                     placeholder="Telefono"
                     value={editForm.telefono}
+                    onChange={handleEditChange}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="edit-dni">DNI</label>
+                  <input
+                    id="edit-dni"
+                    name="dni"
+                    placeholder="DNI"
+                    value={editForm.dni}
                     onChange={handleEditChange}
                     required
                   />
@@ -394,6 +485,7 @@ const ClientesPage = () => {
                 <th>ID</th>
                 <th>Nombre</th>
                 <th>Apellido</th>
+                <th>DNI</th>
                 <th>Email</th>
                 <th>Telefono</th>
               </tr>
@@ -404,6 +496,7 @@ const ClientesPage = () => {
                   <td>{c.id}</td>
                   <td>{c.nombre}</td>
                   <td>{c.apellido}</td>
+                  <td>{c.dni}</td>
                   <td>{c.email}</td>
                   <td>{c.telefono}</td>
                 </tr>
@@ -414,6 +507,82 @@ const ClientesPage = () => {
 
         {clientes.length === 0 && (
           <p className="empty-msg">No hay clientes registrados.</p>
+        )}
+      </section>
+
+      {/* LISTADO DE DADAS DE BAJA (solo administrador) */}
+      <section className="profile-section">
+        <div className="profile-section-header">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+            <circle cx="10" cy="7" r="4" />
+            <line x1="17" y1="8" x2="23" y2="14" />
+            <line x1="23" y1="8" x2="17" y2="14" />
+          </svg>
+          <div>
+            <h2>Clientes dados de baja</h2>
+            <p className="profile-section-desc">
+              Cuentas con baja logica. Este listado es visible unicamente para
+              el administrador.
+            </p>
+          </div>
+        </div>
+
+        <div className="form-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleToggleBajas}
+          >
+            {showBajas ? 'Ocultar listado' : 'Ver clientes dados de baja'}
+          </button>
+        </div>
+
+        {showBajas && (
+          <>
+            {loadingBajas ? (
+              <p className="empty-msg">Cargando...</p>
+            ) : (
+              <div className="crud-table-wrapper">
+                <table className="crud-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Nombre</th>
+                      <th>Apellido</th>
+                      <th>DNI</th>
+                      <th>Email</th>
+                      <th>Telefono</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bajas.map((c) => (
+                      <tr key={c.id}>
+                        <td>{c.id}</td>
+                        <td>{c.nombre}</td>
+                        <td>{c.apellido}</td>
+                        <td>{c.dni}</td>
+                        <td>{c.email}</td>
+                        <td>{c.telefono}</td>
+                        <td className="actions">
+                          <button
+                            className="btn btn-sm btn-edit"
+                            onClick={() => handleAlta(c.id)}
+                          >
+                            Dar de alta
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {!loadingBajas && bajas.length === 0 && (
+              <p className="empty-msg">No hay clientes dados de baja.</p>
+            )}
+          </>
         )}
       </section>
     </div>

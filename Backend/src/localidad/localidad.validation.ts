@@ -7,7 +7,7 @@ function sanitizeLocalidadInput(
 ) {
   req.body.sanitizeInput = {
     id: req.body.id,
-    nombreloc: req.body.nombreloc,
+    nombre: req.body.nombre,
   };
   Object.keys(req.body.sanitizeInput).forEach((key) => {
     if (req.body.sanitizeInput[key] === undefined) {

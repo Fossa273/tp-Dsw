@@ -26,19 +26,19 @@ export function useVehiculos() {
 
   const create = async (vehiculo) => {
     const res = await api.vehiculos.create(vehiculo);
-    setVehiculos((prev) => [...prev, res]);
+    await fetchAll();
     return res;
   };
 
   const update = async (id, vehiculo) => {
     const res = await api.vehiculos.update(id, vehiculo);
-    setVehiculos((prev) => prev.map((v) => (v.id === id ? res : v)));
+    await fetchAll();
     return res;
   };
 
   const remove = async (id) => {
     await api.vehiculos.delete(id);
-    setVehiculos((prev) => prev.filter((v) => v.id !== id));
+    await fetchAll();
   };
 
   return {

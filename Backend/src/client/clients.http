@@ -1,0 +1,40 @@
+###get all clients
+GET http://localhost:3000/api/clients
+
+###get a client by id
+GET http://localhost:3000/api/clients/6
+
+###create a new client
+POST http://localhost:3000/api/clients
+Content-Type: application/json
+
+{
+  "id": "6",
+  "firstName": "Juan",
+  "lastName": "Lopez",
+  "email": "juan.lopez@example.com",
+  "phone": "9999999999"
+}
+
+###update an existing client
+PUT http://localhost:3000/api/clients/6
+Content-Type: application/json
+
+{
+  "firstName": "Julio",
+  "lastName": "Perez",
+  "email": "julio.perez@example.com",
+  "phone": "9999999999"
+}
+
+###update only the name of an existing client
+PATCH http://localhost:3000/api/clients/6
+Content-Type: application/json
+
+{
+  "firstName": "Carlos",
+  "email": "carlos.perez@example.com"
+}
+
+###delete a client
+DELETE http://localhost:3000/api/clients/6

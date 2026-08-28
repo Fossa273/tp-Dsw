@@ -118,4 +118,22 @@ export const api = {
       }),
     delete: (id) => request(`/vehicles/${id}`, { method: 'DELETE' }),
   },
+
+  drivers: {
+    getAll: () => request('/drivers'),
+    getInactive: () => request('/drivers/inactive'),
+    getOne: (id) => request(`/drivers/${id}`),
+    create: (driver) =>
+      request('/drivers', {
+        method: 'POST',
+        body: JSON.stringify(driver),
+      }),
+    update: (id, driver) =>
+      request(`/drivers/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(driver),
+      }),
+    delete: (id) => request(`/drivers/${id}`, { method: 'DELETE' }),
+    reactivate: (id) => request(`/drivers/${id}/reactivate`, { method: 'POST' }),
+  },
 };

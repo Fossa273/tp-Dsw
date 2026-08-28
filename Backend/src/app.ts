@@ -4,6 +4,7 @@ import { router as clientRoutes } from './client/client.routes.js';
 import { router as localityRoutes } from './locality/locality.routes.js';
 import { router as provinceRoutes } from './province/province.routes.js';
 import { router as vehicleRoutes } from './vehicle/vehicle.routes.js';
+import { router as driverRoutes } from './driver/driver.routes.js';
 
 const app = express();
 const PORT = 3000;
@@ -11,6 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/clients', clientRoutes);
+app.use('/api/drivers', driverRoutes);
 app.use('/api/localities', localityRoutes);
 app.use('/api/provinces', provinceRoutes);
 app.use('/api/vehicles', vehicleRoutes);

@@ -25,6 +25,18 @@ const ADMIN_ITEMS = [
     ),
   },
   {
+    key: 'drivers',
+    title: 'Conductores',
+    description: 'Gestionar el personal de choferes y su estado de actividad.',
+    iconClass: 'drivers',
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="7" r="4" />
+        <path d="M5.5 21v-1a6.5 6.5 0 0113 0v1" />
+      </svg>
+    ),
+  },
+  {
     key: 'localities',
     title: 'Localidades',
     description: 'ABM de localidades y puntos de partida/destino.',

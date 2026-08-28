@@ -6,6 +6,7 @@ import ClientsPage from './pages/ClientsPage';
 import LocalitiesPage from './pages/LocalitiesPage';
 import ProvincesPage from './pages/ProvincesPage';
 import VehiclesPage from './pages/VehiclesPage';
+import DriversPage from './pages/DriversPage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -101,6 +102,14 @@ const AppContent = () => {
             element={
               <RequireAdmin>
                 <VehiclesPage />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/drivers"
+            element={
+              <RequireAdmin>
+                <DriversPage />
               </RequireAdmin>
             }
           />

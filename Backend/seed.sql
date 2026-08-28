@@ -200,3 +200,41 @@ insert ignore into rutabus.vehicles values('2', 30);
 insert ignore into rutabus.vehicles values('3', 60);
 insert ignore into rutabus.vehicles values('4', 20);
 insert ignore into rutabus.vehicles values('5', 50);
+
+-- ------------------------------------------------------------
+-- Table drivers
+-- ------------------------------------------------------------
+create table if not exists `rutabus`.`drivers` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `dni` VARCHAR(255) NULL,
+  `firstName` VARCHAR(255) NULL,
+  `lastName` VARCHAR(255) NULL,
+  `phone` VARCHAR(255) NULL,
+  `active` TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `uq_drivers_dni` (`dni`)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Migration: add column active (logical deletion)
+SET @column_exists = (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'rutabus'
+    AND TABLE_NAME = 'drivers'
+    AND COLUMN_NAME = 'active'
+);
+SET @sql = IF(
+  @column_exists = 0,
+  'ALTER TABLE `rutabus`.`drivers` ADD COLUMN `active` TINYINT NOT NULL DEFAULT 1',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Seed drivers (INSERT IGNORE: no duplicates if already present)
+insert ignore into rutabus.drivers (dni, firstName, lastName, phone, active) values('30123456', 'Carlos', 'Gutierrez', '1112223334', 1);
+insert ignore into rutabus.drivers (dni, firstName, lastName, phone, active) values('30234567', 'Marta', 'Sosa', '2223334445', 1);
+insert ignore into rutabus.drivers (dni, firstName, lastName, phone, active) values('30345678', 'Jorge', 'Fernandez', '3334445556', 1);
+insert ignore into rutabus.drivers (dni, firstName, lastName, phone, active) values('30456789', 'Silvia', 'Ramos', '4445556667', 1);
+insert ignore into rutabus.drivers (dni, firstName, lastName, phone, active) values('30567890', 'Diego', 'Alvarez', '5556667778', 1);

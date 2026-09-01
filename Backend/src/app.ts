@@ -6,6 +6,9 @@ import { router as localityRoutes } from './locality/locality.routes.js';
 import { router as provinceRoutes } from './province/province.routes.js';
 import { router as vehicleRoutes } from './vehicle/vehicle.routes.js';
 import { router as driverRoutes } from './driver/driver.routes.js';
+import { router as journeyRoutes } from './journey/journey.routes.js';
+import { router as tripRoutes } from './trip/trip.routes.js';
+import { router as bookingRoutes } from './booking/booking.routes.js';
 
 const app = express();
 const PORT = 3000;
@@ -14,6 +17,9 @@ app.use(express.json());
 
 app.use('/api/clients', clientRoutes);
 app.use('/api/drivers', driverRoutes);
+app.use('/api/journeys', journeyRoutes);
+app.use('/api/trips', tripRoutes);
+app.use('/api/bookings', bookingRoutes);
 app.use('/api/localities', localityRoutes);
 app.use('/api/provinces', provinceRoutes);
 app.use('/api/vehicles', vehicleRoutes);

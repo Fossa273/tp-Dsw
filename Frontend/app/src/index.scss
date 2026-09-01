@@ -924,6 +924,24 @@ body {
   border: 1px solid rgba(255, 183, 77, 0.3);
 }
 
+.status-pending {
+  background: rgba(255, 183, 77, 0.12);
+  color: #ffb74d;
+  border: 1px solid rgba(255, 183, 77, 0.3);
+}
+
+.status-confirmed {
+  background: rgba(76, 175, 80, 0.15);
+  color: #66bb6a;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.status-cancelled {
+  background: rgba(253, 121, 168, 0.12);
+  color: var(--secondary);
+  border: 1px solid rgba(253, 121, 168, 0.3);
+}
+
 .dni-cell strong {
   color: var(--text-white);
   letter-spacing: 0.5px;

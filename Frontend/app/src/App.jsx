@@ -7,6 +7,9 @@ import LocalitiesPage from './pages/LocalitiesPage';
 import ProvincesPage from './pages/ProvincesPage';
 import VehiclesPage from './pages/VehiclesPage';
 import DriversPage from './pages/DriversPage';
+import JourneysPage from './pages/JourneysPage';
+import TripsPage from './pages/TripsPage';
+import BookingsPage from './pages/BookingsPage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -110,6 +113,30 @@ const AppContent = () => {
             element={
               <RequireAdmin>
                 <DriversPage />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/journeys"
+            element={
+              <RequireAdmin>
+                <JourneysPage />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/trips"
+            element={
+              <RequireAdmin>
+                <TripsPage />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/bookings"
+            element={
+              <RequireAdmin>
+                <BookingsPage />
               </RequireAdmin>
             }
           />

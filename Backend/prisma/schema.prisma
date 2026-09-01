@@ -17,6 +17,8 @@ model Client {
   password  String?
   logged    Int     @default(0)
 
+  bookings Booking[]
+
   @@map("clients")
 }
 
@@ -28,6 +30,8 @@ model Driver {
   phone     String?
   active    Int     @default(1)
 
+  trips Trip[]
+
   @@map("drivers")
 }
 
@@ -35,14 +39,34 @@ model Vehicle {
   id          Int  @id @default(autoincrement())
   maxCapacity Int
 
+  trips Trip[]
+
   @@map("vehicles")
 }
 
 model Locality {
-  id   Int     @id @default(autoincrement())
-  name String?
+  id                 Int       @id @default(autoincrement())
+  name               String?
+  originJourneys     Journey[] @relation("JourneyOrigin")
+  destinationJourneys Journey[] @relation("JourneyDestination")
 
   @@map("localities")
+}
+
+model Journey {
+  id              Int      @id @default(autoincrement())
+  originId        Int
+  destinationId   Int
+  distanceKm      Int      @default(0)
+  durationMinutes Int      @default(0)
+
+  origin      Locality @relation("JourneyOrigin", fields: [originId], references: [id])
+  destination Locality @relation("JourneyDestination", fields: [destinationId], references: [id])
+
+  trips Trip[]
+
+  @@unique([originId, destinationId])
+  @@map("journeys")
 }
 
 model Province {
@@ -50,4 +74,33 @@ model Province {
   name String?
 
   @@map("provinces")
+}
+
+model Trip {
+  id            Int           @id @default(autoincrement())
+  journeyId     Int
+  driverId      Int
+  vehicleId     Int
+  departureDate DateTime
+  arrivalDate   DateTime?
+
+  journey        Journey        @relation(fields: [journeyId], references: [id])
+  driver         Driver         @relation(fields: [driverId], references: [id])
+  vehicle        Vehicle        @relation(fields: [vehicleId], references: [id])
+  bookings       Booking[]
+
+  @@map("trips")
+}
+
+model Booking {
+  id       Int    @id @default(autoincrement())
+  clientId Int
+  tripId   Int
+  numSeats Int    @default(1)
+  state    String @default("pending")
+
+  client Client @relation(fields: [clientId], references: [id])
+  trip   Trip   @relation(fields: [tripId], references: [id])
+
+  @@map("bookings")
 }

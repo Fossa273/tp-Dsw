@@ -49,6 +49,47 @@ const ADMIN_ITEMS = [
     ),
   },
   {
+    key: 'journeys',
+    title: 'Trayectos',
+    description: 'Definir recorridos entre localidades de origen y destino.',
+    iconClass: 'trayectos',
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="5" cy="18" r="2.5" />
+        <circle cx="19" cy="6" r="2.5" />
+        <path d="M6.5 17.5L17.5 6.5" />
+        <path d="M5 15.5v-3a5 5 0 015-5h2.5" />
+        <path d="M19 8.5v3a5 5 0 01-5 5H11.5" />
+      </svg>
+    ),
+  },
+  {
+    key: 'trips',
+    title: 'Viajes',
+    description: 'Programar servicios: trayecto, conductor, vehiculo y horarios.',
+    iconClass: 'viajes',
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="9" />
+        <polyline points="12 7 12 12 15 14" />
+      </svg>
+    ),
+  },
+  {
+    key: 'bookings',
+    title: 'Reservas',
+    description: 'Gestionar las reservas de asientos de los pasajeros.',
+    iconClass: 'reservas',
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M4 18v-6a8 8 0 0116 0v6" />
+        <path d="M2 18h20" />
+        <path d="M18 18l-.5 3" />
+        <path d="M6 18l.5 3" />
+      </svg>
+    ),
+  },
+  {
     key: 'provinces',
     title: 'Provincias',
     description: 'Administrar provincias y regiones del pais.',

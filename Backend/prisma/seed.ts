@@ -37,6 +37,17 @@ async function main() {
     skipDuplicates: true,
   });
 
+  await prisma.journey.createMany({
+    data: [
+      { id: 1, originId: 1, destinationId: 2, distanceKm: 60, durationMinutes: 70 },
+      { id: 2, originId: 1, destinationId: 4, distanceKm: 300, durationMinutes: 240 },
+      { id: 3, originId: 2, destinationId: 3, distanceKm: 380, durationMinutes: 300 },
+      { id: 4, originId: 4, destinationId: 5, distanceKm: 810, durationMinutes: 600 },
+      { id: 5, originId: 1, destinationId: 6, distanceKm: 1600, durationMinutes: 840 },
+    ],
+    skipDuplicates: true,
+  });
+
   await prisma.vehicle.createMany({
     data: [
       { id: 1, maxCapacity: 45 },
@@ -123,6 +134,69 @@ async function main() {
       OR: [{ password: null }, { password: '' }],
     },
     data: { password: DEMO_PASSWORD_HASH },
+  });
+
+  // ------------------------------------------------------------
+  // Trips (viajes): journey + driver + vehicle + departure/arrival dates
+  // ------------------------------------------------------------
+  await prisma.trip.createMany({
+    data: [
+      {
+        id: 1,
+        journeyId: 1,
+        driverId: 1,
+        vehicleId: 1,
+        departureDate: new Date('2026-09-15T08:00:00'),
+        arrivalDate: new Date('2026-09-15T09:10:00'),
+      },
+      {
+        id: 2,
+        journeyId: 2,
+        driverId: 2,
+        vehicleId: 2,
+        departureDate: new Date('2026-09-16T10:00:00'),
+        arrivalDate: new Date('2026-09-16T14:00:00'),
+      },
+      {
+        id: 3,
+        journeyId: 3,
+        driverId: 3,
+        vehicleId: 3,
+        departureDate: new Date('2026-09-17T18:00:00'),
+        arrivalDate: new Date('2026-09-17T23:00:00'),
+      },
+      {
+        id: 4,
+        journeyId: 1,
+        driverId: 4,
+        vehicleId: 4,
+        departureDate: new Date('2026-09-18T07:30:00'),
+        arrivalDate: new Date('2026-09-18T08:40:00'),
+      },
+      {
+        id: 5,
+        journeyId: 5,
+        driverId: 5,
+        vehicleId: 5,
+        departureDate: new Date('2026-09-19T20:00:00'),
+        arrivalDate: new Date('2026-09-20T06:00:00'),
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  // ------------------------------------------------------------
+  // Bookings (reservas): client + trip + seats + state
+  // ------------------------------------------------------------
+  await prisma.booking.createMany({
+    data: [
+      { id: 1, clientId: 1, tripId: 1, numSeats: 2, state: 'confirmed' },
+      { id: 2, clientId: 2, tripId: 2, numSeats: 1, state: 'pending' },
+      { id: 3, clientId: 3, tripId: 1, numSeats: 4, state: 'confirmed' },
+      { id: 4, clientId: 4, tripId: 3, numSeats: 2, state: 'cancelled' },
+      { id: 5, clientId: 5, tripId: 5, numSeats: 1, state: 'pending' },
+    ],
+    skipDuplicates: true,
   });
 
   // ------------------------------------------------------------

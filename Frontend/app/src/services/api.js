@@ -136,4 +136,52 @@ export const api = {
     delete: (id) => request(`/drivers/${id}`, { method: 'DELETE' }),
     reactivate: (id) => request(`/drivers/${id}/reactivate`, { method: 'POST' }),
   },
+
+  journeys: {
+    getAll: () => request('/journeys'),
+    getOne: (id) => request(`/journeys/${id}`),
+    create: (journey) =>
+      request('/journeys', {
+        method: 'POST',
+        body: JSON.stringify(journey),
+      }),
+    update: (id, journey) =>
+      request(`/journeys/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(journey),
+      }),
+    delete: (id) => request(`/journeys/${id}`, { method: 'DELETE' }),
+  },
+
+  trips: {
+    getAll: () => request('/trips'),
+    getOne: (id) => request(`/trips/${id}`),
+    create: (trip) =>
+      request('/trips', {
+        method: 'POST',
+        body: JSON.stringify(trip),
+      }),
+    update: (id, trip) =>
+      request(`/trips/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(trip),
+      }),
+    delete: (id) => request(`/trips/${id}`, { method: 'DELETE' }),
+  },
+
+  bookings: {
+    getAll: () => request('/bookings'),
+    getOne: (id) => request(`/bookings/${id}`),
+    create: (booking) =>
+      request('/bookings', {
+        method: 'POST',
+        body: JSON.stringify(booking),
+      }),
+    update: (id, booking) =>
+      request(`/bookings/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(booking),
+      }),
+    delete: (id) => request(`/bookings/${id}`, { method: 'DELETE' }),
+  },
 };

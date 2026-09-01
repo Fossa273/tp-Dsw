@@ -6,6 +6,11 @@ const AuthContext = createContext(null);
 
 const STORAGE_KEY = 'rutabus_user';
 
+// The administrator account is identified by a fixed email. It is not based
+// on the id (0) because MySQL/BariaDB AUTO_INCREMENT columns can reassign an
+// explicit 0 to another value, making the id unreliable.
+export const ADMIN_EMAIL = 'admin@rutabus.com';
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
@@ -16,9 +21,12 @@ export function AuthProvider({ children }) {
     }
   });
 
-  // The administrator is the client with id 0
+  // The administrator is the account with the fixed admin email
   const isAdmin = useMemo(
-    () => user !== null && String(user.id) === '0',
+    () =>
+      user !== null &&
+      !!user.email &&
+      String(user.email).trim().toLowerCase() === ADMIN_EMAIL,
     [user]
   );
 

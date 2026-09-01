@@ -16,23 +16,24 @@ async function main() {
   // ------------------------------------------------------------
   await prisma.province.createMany({
     data: [
-      { id: 1, name: 'Buenos Aires' },
-      { id: 2, name: 'Córdoba' },
-      { id: 3, name: 'Santa Fe' },
-      { id: 4, name: 'Mendoza' },
-      { id: 5, name: 'Tucumán' },
+      { id: 1, name: 'Buenos Aires', abbreviation: 'BA' },
+      { id: 2, name: 'Córdoba', abbreviation: 'CBA' },
+      { id: 3, name: 'Santa Fe', abbreviation: 'SF' },
+      { id: 4, name: 'Mendoza', abbreviation: 'MZA' },
+      { id: 5, name: 'Tucumán', abbreviation: 'TUC' },
+      { id: 6, name: 'Río Negro', abbreviation: 'RN' },
     ],
     skipDuplicates: true,
   });
 
   await prisma.locality.createMany({
     data: [
-      { id: 1, name: 'CABA' },
-      { id: 2, name: 'La Plata' },
-      { id: 3, name: 'Mar del Plata' },
-      { id: 4, name: 'Rosario' },
-      { id: 5, name: 'San Miguel de Tucumán' },
-      { id: 6, name: 'Bariloche' },
+      { id: 1, name: 'CABA', provinceId: 1 },
+      { id: 2, name: 'La Plata', provinceId: 1 },
+      { id: 3, name: 'Mar del Plata', provinceId: 1 },
+      { id: 4, name: 'Rosario', provinceId: 3 },
+      { id: 5, name: 'San Miguel de Tucumán', provinceId: 5 },
+      { id: 6, name: 'Bariloche', provinceId: 6 },
     ],
     skipDuplicates: true,
   });
@@ -137,7 +138,8 @@ async function main() {
   });
 
   // ------------------------------------------------------------
-  // Trips (viajes): journey + driver + vehicle + departure/arrival dates
+  // Trips (viajes): journey + driver + vehicle + recurring weekly schedule.
+  // Travel time is derived from journey distance at a fixed 90 km/h.
   // ------------------------------------------------------------
   await prisma.trip.createMany({
     data: [
@@ -146,40 +148,55 @@ async function main() {
         journeyId: 1,
         driverId: 1,
         vehicleId: 1,
-        departureDate: new Date('2026-09-15T08:00:00'),
-        arrivalDate: new Date('2026-09-15T09:10:00'),
+        dayOfWeek: 1, // Lunes
+        departureTime: '16:10',
+        arrivalTime: '16:50',
+        arrivesNextDay: false,
+        active: 1,
       },
       {
         id: 2,
         journeyId: 2,
         driverId: 2,
         vehicleId: 2,
-        departureDate: new Date('2026-09-16T10:00:00'),
-        arrivalDate: new Date('2026-09-16T14:00:00'),
+        dayOfWeek: 2, // Martes
+        departureTime: '10:00',
+        arrivalTime: '13:20',
+        arrivesNextDay: false,
+        active: 1,
       },
       {
         id: 3,
         journeyId: 3,
         driverId: 3,
         vehicleId: 3,
-        departureDate: new Date('2026-09-17T18:00:00'),
-        arrivalDate: new Date('2026-09-17T23:00:00'),
+        dayOfWeek: 3, // Miercoles
+        departureTime: '18:00',
+        arrivalTime: '22:13',
+        arrivesNextDay: false,
+        active: 1,
       },
       {
         id: 4,
-        journeyId: 1,
+        journeyId: 4,
         driverId: 4,
         vehicleId: 4,
-        departureDate: new Date('2026-09-18T07:30:00'),
-        arrivalDate: new Date('2026-09-18T08:40:00'),
+        dayOfWeek: 4, // Jueves
+        departureTime: '07:30',
+        arrivalTime: '16:30',
+        arrivesNextDay: false,
+        active: 1,
       },
       {
         id: 5,
         journeyId: 5,
         driverId: 5,
         vehicleId: 5,
-        departureDate: new Date('2026-09-19T20:00:00'),
-        arrivalDate: new Date('2026-09-20T06:00:00'),
+        dayOfWeek: 5, // Viernes
+        departureTime: '20:00',
+        arrivalTime: '13:47',
+        arrivesNextDay: true,
+        active: 1,
       },
     ],
     skipDuplicates: true,

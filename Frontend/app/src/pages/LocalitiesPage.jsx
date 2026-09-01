@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalities } from '../hooks/useLocalities';
+import { useProvinces } from '../hooks/useProvinces';
+import { api } from '../services/api';
+import { localityLabel } from '../utils/format';
 
 const PlusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -14,15 +17,19 @@ const SORT_OPTIONS = [
 ];
 
 const LocalitiesPage = () => {
-  const { localities, loading, error, create, update, remove, refetch } =
-    useLocalities();
+  const { localities, loading, error, refetch } = useLocalities();
+  const { provinces, loading: loadingProvinces } = useProvinces();
 
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: '' });
+  const [form, setForm] = useState({ name: '', provinceId: '' });
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
+
+  const [candidates, setCandidates] = useState(null);
+  const [pendingName, setPendingName] = useState('');
+  const [pendingEditId, setPendingEditId] = useState(null);
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('name-asc');
@@ -42,6 +49,38 @@ const LocalitiesPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const doSubmit = async (name, provinceId, editId) => {
+    const payload = { name, provinceId: provinceId || undefined };
+    try {
+      setSubmitting(true);
+      let res;
+      if (editId) {
+        res = await api.localities.update(editId, payload);
+      } else {
+        res = await api.localities.create(payload);
+      }
+      if (res.warning) {
+        showMessage(res.warning, 'success');
+      } else {
+        showMessage(editId ? 'Localidad actualizada correctamente' : 'Localidad creada correctamente');
+      }
+      if (editId) setEditingId(null);
+      setForm({ name: '', provinceId: '' });
+      await refetch();
+    } catch (err) {
+      if (err.data?.candidates) {
+        setPendingName(name);
+        setPendingEditId(editId);
+        setCandidates(err.data.candidates);
+        showMessage(err.data?.error || err.message, 'success');
+      } else {
+        showMessage(err.message, 'error');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
@@ -54,26 +93,24 @@ const LocalitiesPage = () => {
       showMessage('El nombre debe tener al menos 2 caracteres', 'error');
       return;
     }
-    try {
-      setSubmitting(true);
-      if (editingId) {
-        await update(editingId, { name });
-        showMessage('Localidad actualizada correctamente');
-        setEditingId(null);
-      } else {
-        await create({ name });
-        showMessage('Localidad creada correctamente');
-      }
-      setForm({ name: '' });
-    } finally {
-      setSubmitting(false);
-    }
+    await doSubmit(name, form.provinceId, editingId);
+  };
+
+  const handleCandidatePick = async (provinceId) => {
+    setCandidates(null);
+    await doSubmit(pendingName, provinceId, pendingEditId);
+  };
+
+  const handleCancelCandidate = () => {
+    setCandidates(null);
+    setPendingName('');
+    setPendingEditId(null);
   };
 
   const handleEdit = (locality) => {
     setEditingId(locality.id);
     setPendingDelete(null);
-    setForm({ name: locality.name || '' });
+    setForm({ name: locality.name || '', provinceId: locality.province?.id ? String(locality.province.id) : '' });
   };
 
   const handleDelete = async (id) => {
@@ -83,11 +120,12 @@ const LocalitiesPage = () => {
     }
     setPendingDelete(null);
     try {
-      await remove(id);
+      await api.localities.delete(id);
       if (String(editingId) === String(id)) {
         setEditingId(null);
-        setForm({ name: '' });
+        setForm({ name: '', provinceId: '' });
       }
+      await refetch();
       showMessage('Localidad eliminada correctamente');
     } catch (err) {
       showMessage(err.message, 'error');
@@ -96,7 +134,7 @@ const LocalitiesPage = () => {
 
   const handleCancel = () => {
     setEditingId(null);
-    setForm({ name: '' });
+    setForm({ name: '', provinceId: '' });
   };
 
   const filtered = useMemo(() => {
@@ -127,6 +165,10 @@ const LocalitiesPage = () => {
     </div>
   );
 
+  const provincesSorted = [...provinces].sort((a, b) =>
+    (a.name || '').localeCompare(b.name || '', 'es')
+  );
+
   return (
     <div className="crud-page">
       <h1>Gestion de Localidades</h1>
@@ -141,6 +183,40 @@ const LocalitiesPage = () => {
         </div>
       )}
 
+      {candidates && (
+        <div className="profile-section" style={{ marginBottom: '1rem' }}>
+          <h2>De cual provincia es "{pendingName}"?</h2>
+          <p className="profile-section-desc">
+            Google Maps encontro este nombre en varias provincias. Seleccione la
+            correcta para continuar.
+          </p>
+          <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+            {candidates.map((c) => (
+              <button
+                key={c.name}
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  const match = provinces.find(
+                    (p) => (p.name || '').toLowerCase() === (c.name || '').toLowerCase()
+                  );
+                  handleCandidatePick(match?.id ?? null);
+                }}
+              >
+                {c.name} {c.abbreviation ? `(${c.abbreviation})` : ''}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleCancelCandidate}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Localidad' : 'Nueva Localidad'}</h2>
         <div className="form-row">
@@ -151,6 +227,25 @@ const LocalitiesPage = () => {
             onChange={handleChange}
             required
           />
+        </div>
+        <div className="form-row">
+          <label htmlFor="loc-province" className="form-label">
+            Provincia
+          </label>
+          <select
+            id="loc-province"
+            name="provinceId"
+            value={form.provinceId}
+            onChange={handleChange}
+            disabled={loadingProvinces}
+          >
+            <option value="">-- Sin provincia (Google lo verificara) --</option>
+            {provincesSorted.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} {p.abbreviation ? `(${p.abbreviation})` : ''}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
@@ -199,6 +294,7 @@ const LocalitiesPage = () => {
           <thead>
             <tr>
               <th>Nombre</th>
+              <th>Provincia</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -206,6 +302,7 @@ const LocalitiesPage = () => {
             {filtered.map((l) => (
               <tr key={l.id}>
                 <td>{l.name}</td>
+                <td>{l.province ? `${l.province.name} (${l.province.abbreviation || ''})` : '-'}</td>
                 <td className="actions">
                   {pendingDelete === l.id ? (
                     <>

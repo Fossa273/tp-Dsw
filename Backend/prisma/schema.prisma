@@ -47,6 +47,8 @@ model Vehicle {
 model Locality {
   id                 Int       @id @default(autoincrement())
   name               String?
+  provinceId         Int?
+  province           Province? @relation(fields: [provinceId], references: [id])
   originJourneys     Journey[] @relation("JourneyOrigin")
   destinationJourneys Journey[] @relation("JourneyDestination")
 
@@ -70,19 +72,24 @@ model Journey {
 }
 
 model Province {
-  id   Int     @id @default(autoincrement())
-  name String?
+  id          Int          @id @default(autoincrement())
+  name        String?
+  abbreviation String?     @map("abbreviation")
+  localities  Locality[]
 
   @@map("provinces")
 }
 
 model Trip {
-  id            Int           @id @default(autoincrement())
+  id            Int     @id @default(autoincrement())
   journeyId     Int
   driverId      Int
   vehicleId     Int
-  departureDate DateTime
-  arrivalDate   DateTime?
+  dayOfWeek     Int
+  departureTime String
+  arrivalTime   String?
+  arrivesNextDay Boolean @default(false)
+  active        Int     @default(1)
 
   journey        Journey        @relation(fields: [journeyId], references: [id])
   driver         Driver         @relation(fields: [driverId], references: [id])

@@ -4,6 +4,17 @@ import { ClientRepository } from './client.repository.js';
 
 const repository = new ClientRepository();
 
+// The administrator account uses a fixed, reserved email. It cannot be
+// registered by other clients nor changed.
+const ADMIN_EMAIL = 'admin@rutabus.com';
+
+function isAdminEmail(value: unknown): boolean {
+  return (
+    typeof value === 'string' &&
+    value.trim().toLowerCase() === ADMIN_EMAIL
+  );
+}
+
 function hashPassword(password: string): string {
   return createHash('sha256').update(password).digest('hex');
 }
@@ -39,6 +50,11 @@ async function add(req: Request, res: Response) {
     return;
   }
 
+  if (isAdminEmail(email)) {
+    res.status(403).json({ error: 'No se puede usar el email del administrador' });
+    return;
+  }
+
   const existing = await repository.findByEmailWithPassword(email);
   if (existing) {
     res.status(409).json({ error: 'Ya existe una cuenta con ese email' });
@@ -58,10 +74,30 @@ async function add(req: Request, res: Response) {
 }
 
 async function update(req: Request, res: Response) {
+  const id = Number(req.params.id);
   const { firstName, lastName, dni, email, phone, password } =
     req.body.sanitizeInput;
+
+  const current = await repository.findOne({ id });
+  if (!current) {
+    res.status(404).json({ error: 'Cliente no encontrado' });
+    return;
+  }
+
+  // The administrator email is fixed: the admin cannot change it and no
+  // other account may adopt it.
+  if (isAdminEmail(current.email)) {
+    if (email !== undefined && !isAdminEmail(email)) {
+      res.status(403).json({ error: 'No se puede cambiar el email del administrador' });
+      return;
+    }
+  } else if (email !== undefined && isAdminEmail(email)) {
+    res.status(403).json({ error: 'No se puede usar el email del administrador' });
+    return;
+  }
+
   const updatedClient = await repository.update({
-    id: Number(req.params.id),
+    id,
     firstName,
     lastName,
     dni,
@@ -78,6 +114,15 @@ async function update(req: Request, res: Response) {
 
 async function remove(req: Request, res: Response) {
   const id = Number(req.params.id);
+  const current = await repository.findOne({ id });
+  if (!current) {
+    res.status(404).json({ error: 'Cliente no encontrado' });
+    return;
+  }
+  if (isAdminEmail(current.email)) {
+    res.status(403).json({ error: 'No se puede dar de baja al administrador' });
+    return;
+  }
   const deletedClient = await repository.delete({ id });
   if (deletedClient) {
     res.json({ message: 'Cliente dado de baja' });

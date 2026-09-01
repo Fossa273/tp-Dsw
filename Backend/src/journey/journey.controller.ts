@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import { JourneyRepository } from './journey.repository.js';
 import { LocalityRepository } from '../locality/locality.repository.js';
+import {
+  getDistanceKm,
+  durationFromDistance,
+} from '../shared/maps.service.js';
 
 const repository = new JourneyRepository();
 const localityRepository = new LocalityRepository();
@@ -20,6 +24,22 @@ async function validateLocalities(originId: number, destinationId: number) {
     return 'La localidad de destino no existe';
   }
   return null;
+}
+
+// "CABA, Buenos Aires, Argentina" (province improves geocoding)
+function localityLabel(locality: any): string {
+  const base = locality?.name?.trim() ?? '';
+  const province = locality?.province?.name?.trim();
+  return province ? `${base}, ${province}, Argentina` : `${base}, Argentina`;
+}
+
+// Loads both localities (with their province) to build geocoding labels.
+async function loadLocalityLabel(id: number) {
+  const loc = await localityRepository.findOne({ id });
+  if (!loc) {
+    return null;
+  }
+  return { id, label: localityLabel(loc) };
 }
 
 function normalizePositiveInt(value: unknown, fallback: number) {
@@ -44,6 +64,43 @@ async function findOne(req: Request, res: Response) {
   }
 }
 
+// Computes distanceKm (Google Maps) and durationMinutes (fixed 90 km/h).
+// With manualDistanceKm === null, relies on the Distance Matrix API.
+// Returns { distanceKm, durationMinutes, warning? } or { error }.
+async function resolveDistanceAndDuration(
+  originId: number,
+  destinationId: number,
+  manualDistanceKm: number | null,
+  manualDurationMinutes: number | null
+) {
+  let distanceKm = manualDistanceKm;
+  let warning: string | undefined;
+
+  if (manualDistanceKm === null) {
+    const origin = await loadLocalityLabel(originId);
+    const destination = await loadLocalityLabel(destinationId);
+    if (!origin || !destination) {
+      return { error: 'No se pudieron cargar las localidades' };
+    }
+    try {
+      distanceKm = await getDistanceKm(origin.label, destination.label);
+    } catch (err: any) {
+      return {
+        error:
+          (err?.message ?? 'No se pudo calcular la distancia') +
+          '. Podes ingresar la distancia manualmente.',
+      };
+    }
+  }
+
+  const durationMinutes =
+    manualDurationMinutes === null
+      ? durationFromDistance(distanceKm!)
+      : manualDurationMinutes;
+
+  return { distanceKm: distanceKm!, durationMinutes, warning };
+}
+
 async function add(req: Request, res: Response) {
   const { originId, destinationId, distanceKm, durationMinutes } =
     req.body.sanitizeInput;
@@ -57,19 +114,19 @@ async function add(req: Request, res: Response) {
     return;
   }
 
+  const originIdNum = Number(originId);
+  const destinationIdNum = Number(destinationId);
+
   const localityError = await validateLocalities(
-    Number(originId),
-    Number(destinationId)
+    originIdNum,
+    destinationIdNum
   );
   if (localityError) {
     res.status(400).json({ error: localityError });
     return;
   }
 
-  const existing = await repository.findByJourney(
-    Number(originId),
-    Number(destinationId)
-  );
+  const existing = await repository.findByJourney(originIdNum, destinationIdNum);
   if (existing) {
     res.status(409).json({
       error: 'Ya existe un trayecto entre esas localidades',
@@ -77,13 +134,35 @@ async function add(req: Request, res: Response) {
     return;
   }
 
+  // distanceKm provided -> manual override; otherwise auto-calculated by Google.
+  const isManualDistance =
+    distanceKm !== undefined && distanceKm !== null && Number(distanceKm) > 0;
+  const isManualDuration =
+    durationMinutes !== undefined &&
+    durationMinutes !== null &&
+    Number(durationMinutes) >= 0;
+
+  const resolved = await resolveDistanceAndDuration(
+    originIdNum,
+    destinationIdNum,
+    isManualDistance ? normalizePositiveInt(distanceKm, 0) : null,
+    isManualDuration ? normalizePositiveInt(durationMinutes, 0) : null
+  );
+  if ('error' in resolved) {
+    res.status(502).json({ error: resolved.error });
+    return;
+  }
+
   const newJourney = await repository.add({
-    originId: Number(originId),
-    destinationId: Number(destinationId),
-    distanceKm: normalizePositiveInt(distanceKm, 0),
-    durationMinutes: normalizePositiveInt(durationMinutes, 0),
+    originId: originIdNum,
+    destinationId: destinationIdNum,
+    distanceKm: resolved.distanceKm,
+    durationMinutes: resolved.durationMinutes,
   });
-  res.status(201).json(newJourney);
+  res.status(201).json({
+    ...newJourney,
+    ...(resolved.warning ? { warning: resolved.warning } : {}),
+  });
 }
 
 async function update(req: Request, res: Response) {
@@ -97,18 +176,11 @@ async function update(req: Request, res: Response) {
     return;
   }
 
-  const finalOriginId = originId !== undefined ? Number(originId) : current.originId;
+  const finalOriginId = originId !== undefined && originId !== null ? Number(originId) : current.originId;
   const finalDestinationId =
-    destinationId !== undefined ? Number(destinationId) : current.destinationId;
-
-  if (finalOriginId === undefined || finalOriginId === null) {
-    res.status(400).json({ error: 'La localidad de origen es obligatoria' });
-    return;
-  }
-  if (finalDestinationId === undefined || finalDestinationId === null) {
-    res.status(400).json({ error: 'La localidad de destino es obligatoria' });
-    return;
-  }
+    destinationId !== undefined && destinationId !== null
+      ? Number(destinationId)
+      : current.destinationId;
 
   const localityError = await validateLocalities(
     finalOriginId,
@@ -130,21 +202,59 @@ async function update(req: Request, res: Response) {
     return;
   }
 
+  const originChanged = finalOriginId !== current.originId;
+  const destinationChanged = finalDestinationId !== current.destinationId;
+  const isManualDistance =
+    distanceKm !== undefined && distanceKm !== null && Number(distanceKm) > 0;
+  const isManualDuration =
+    durationMinutes !== undefined &&
+    durationMinutes !== null &&
+    Number(durationMinutes) >= 0;
+
+  // Recalculate when localities changed or no distance was provided.
+  const needsRecompute =
+    originChanged || destinationChanged || current.distanceKm === null || !isManualDistance;
+
+  let distance: number | undefined;
+  let duration: number | undefined;
+  let warning: string | undefined;
+
+  if (needsRecompute) {
+    const manualDistance = isManualDistance ? normalizePositiveInt(distanceKm, 0) : null;
+    const manualDuration = isManualDuration ? normalizePositiveInt(durationMinutes, 0) : null;
+    const resolved = await resolveDistanceAndDuration(
+      finalOriginId,
+      finalDestinationId,
+      manualDistance,
+      manualDuration
+    );
+    if ('error' in resolved) {
+      res.status(502).json({ error: resolved.error });
+      return;
+    }
+    distance = resolved.distanceKm;
+    duration = resolved.durationMinutes;
+    warning = resolved.warning;
+  } else {
+    // Keep changes to distance/duration only.
+    distance = isManualDistance ? normalizePositiveInt(distanceKm, 0) : undefined;
+    duration = isManualDuration
+      ? normalizePositiveInt(durationMinutes, 0)
+      : undefined;
+  }
+
   const updatedJourney = await repository.update({
     id,
     originId: finalOriginId,
     destinationId: finalDestinationId,
-    distanceKm:
-      distanceKm === undefined
-        ? undefined
-        : normalizePositiveInt(distanceKm, 0),
-    durationMinutes:
-      durationMinutes === undefined
-        ? undefined
-        : normalizePositiveInt(durationMinutes, 0),
+    distanceKm: distance,
+    durationMinutes: duration,
   });
   if (updatedJourney) {
-    res.status(200).json(updatedJourney);
+    res.status(200).json({
+      ...updatedJourney,
+      ...(warning ? { warning } : {}),
+    });
   } else {
     res.status(404).json({ error: 'Trayecto no encontrado' });
   }

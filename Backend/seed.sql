@@ -164,14 +164,28 @@ where id = 0 and (password is null or password = '');
 create table if not exists `rutabus`.`localities` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(255) NULL,
+  `provinceId` INT UNSIGNED NULL,
   PRIMARY KEY (`id`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-insert ignore into rutabus.localities values('1', 'CABA');
-insert ignore into rutabus.localities values('2', 'La Plata');
-insert ignore into rutabus.localities values('3', 'Mar del Plata');
-insert ignore into rutabus.localities values('4', 'Rosario');
-insert ignore into rutabus.localities values('5', 'San Miguel de Tucumán');
-insert ignore into rutabus.localities values('6', 'Bariloche');
+
+-- Migration: add column provinceId (locality <-> province FK)
+SET @column_exists = (
+  SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'rutabus' AND TABLE_NAME = 'localities' AND COLUMN_NAME = 'provinceId'
+);
+SET @sql = IF(
+  @column_exists = 0,
+  'ALTER TABLE `rutabus`.`localities` ADD COLUMN `provinceId` INT UNSIGNED NULL',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+insert ignore into rutabus.localities (id, name, provinceId) values('1', 'CABA', 1);
+insert ignore into rutabus.localities (id, name, provinceId) values('2', 'La Plata', 1);
+insert ignore into rutabus.localities (id, name, provinceId) values('3', 'Mar del Plata', 1);
+insert ignore into rutabus.localities (id, name, provinceId) values('4', 'Rosario', 3);
+insert ignore into rutabus.localities (id, name, provinceId) values('5', 'San Miguel de Tucumán', 5);
+insert ignore into rutabus.localities (id, name, provinceId) values('6', 'Bariloche', 6);
 
 -- ------------------------------------------------------------
 -- Table provinces
@@ -179,13 +193,40 @@ insert ignore into rutabus.localities values('6', 'Bariloche');
 create table if not exists `rutabus`.`provinces` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(255) NULL,
+  `abbreviation` VARCHAR(8) NULL,
   PRIMARY KEY (`id`)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-insert ignore into rutabus.provinces values('1', 'Buenos Aires');
-insert ignore into rutabus.provinces values('2', 'Córdoba');
-insert ignore into rutabus.provinces values('3', 'Santa Fe');
-insert ignore into rutabus.provinces values('4', 'Mendoza');
-insert ignore into rutabus.provinces values('5', 'Tucumán');
+
+-- Migration: add column abbreviation
+SET @column_exists = (
+  SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'rutabus' AND TABLE_NAME = 'provinces' AND COLUMN_NAME = 'abbreviation'
+);
+SET @sql = IF(
+  @column_exists = 0,
+  'ALTER TABLE `rutabus`.`provinces` ADD COLUMN `abbreviation` VARCHAR(8) NULL',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+insert ignore into rutabus.provinces (id, name, abbreviation) values('1', 'Buenos Aires', 'BA');
+insert ignore into rutabus.provinces (id, name, abbreviation) values('2', 'Córdoba', 'CBA');
+insert ignore into rutabus.provinces (id, name, abbreviation) values('3', 'Santa Fe', 'SF');
+insert ignore into rutabus.provinces (id, name, abbreviation) values('4', 'Mendoza', 'MZA');
+insert ignore into rutabus.provinces (id, name, abbreviation) values('5', 'Tucumán', 'TUC');
+insert ignore into rutabus.provinces (id, name, abbreviation) values('6', 'Río Negro', 'RN');
+
+-- Migration: FK localities.provinceId -> provinces.id
+SET @fk_exists = (
+  SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+  WHERE CONSTRAINT_SCHEMA = 'rutabus' AND TABLE_NAME = 'localities' AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+);
+SET @sql = IF(
+  @fk_exists = 0,
+  'ALTER TABLE `rutabus`.`localities` ADD CONSTRAINT `fk_localities_province` FOREIGN KEY (`provinceId`) REFERENCES `rutabus`.`provinces` (`id`)',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ------------------------------------------------------------
 -- Table vehicles

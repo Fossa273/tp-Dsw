@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useClients } from '../hooks/useClients';
 import { api } from '../services/api';
+import { ADMIN_EMAIL } from '../context/AuthContext';
 
 const SORT_OPTIONS = [
   { value: 'dni-asc', label: 'DNI (menor a mayor)' },
@@ -35,6 +36,9 @@ const validateClient = (data, { requirePassword = false } = {}) => {
   }
   if (!data.email || !EMAIL_REGEX.test(String(data.email))) {
     return 'Ingrese un email valido';
+  }
+  if (String(data.email).trim().toLowerCase() === ADMIN_EMAIL) {
+    return 'No se puede usar el email del administrador';
   }
   if (!data.phone || !String(data.phone).trim()) {
     return 'El telefono es obligatorio';

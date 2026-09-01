@@ -1,5 +1,9 @@
 import { prisma } from '../shared/db/connection.js';
 
+// The administrator is not a regular client and must not appear in the
+// clients listing. Identified by a fixed, reserved email.
+const ADMIN_EMAIL = 'admin@rutabus.com';
+
 const PUBLIC_SELECT = {
   id: true,
   firstName: true,
@@ -26,7 +30,7 @@ export interface ClientData {
 export class ClientRepository {
   public async findAll() {
     return prisma.client.findMany({
-      where: { active: 1 },
+      where: { active: 1, email: { not: ADMIN_EMAIL } },
       select: PUBLIC_SELECT,
     });
   }

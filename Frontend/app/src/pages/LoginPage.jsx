@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ADMIN_EMAIL } from '../context/AuthContext';
 
 const MODES = {
   login: {
@@ -101,8 +101,11 @@ const LoginPage = () => {
     try {
       if (mode === 'login') {
         const loggedUser = await login(form.email, form.password);
-        // The administrator (client id 0) goes directly to the admin panel
-        navigate(String(loggedUser?.id) === '0' ? '/admin' : '/');
+        // The administrator uses the admin panel directly
+        const isAdminUser =
+          !!loggedUser?.email &&
+          String(loggedUser.email).trim().toLowerCase() === ADMIN_EMAIL;
+        navigate(isAdminUser ? '/admin' : '/');
       } else if (mode === 'register') {
         await register({
           firstName: form.firstName,

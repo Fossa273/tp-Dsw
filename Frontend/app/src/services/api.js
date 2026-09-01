@@ -31,7 +31,11 @@ async function request(endpoint, options = {}) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || 'Error en la solicitud');
+    const err = new Error(data.error || 'Error en la solicitud');
+    // Preserve the full response payload so callers can read extra fields
+    // such as `candidates` (409 locality verification) or `warning`.
+    err.data = data;
+    throw err;
   }
 
   return data;
@@ -155,6 +159,7 @@ export const api = {
 
   trips: {
     getAll: () => request('/trips'),
+    getInactive: () => request('/trips/inactive'),
     getOne: (id) => request(`/trips/${id}`),
     create: (trip) =>
       request('/trips', {
@@ -167,6 +172,8 @@ export const api = {
         body: JSON.stringify(trip),
       }),
     delete: (id) => request(`/trips/${id}`, { method: 'DELETE' }),
+    reactivate: (id) =>
+      request(`/trips/${id}/reactivate`, { method: 'POST' }),
   },
 
   bookings: {

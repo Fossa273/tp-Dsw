@@ -3,15 +3,29 @@ import { prisma } from '../shared/db/connection.js';
 export interface LocalityData {
   id?: number;
   name?: string;
+  provinceId?: number | null;
 }
+
+const LOCATION_SELECT = {
+  id: true,
+  name: true,
+  province: {
+    select: { id: true, name: true, abbreviation: true },
+  },
+} as const;
 
 export class LocalityRepository {
   public async findAll() {
-    return prisma.locality.findMany();
+    return prisma.locality.findMany({
+      select: LOCATION_SELECT,
+    });
   }
 
   public async findOne(item: { id: number }) {
-    return prisma.locality.findUnique({ where: { id: item.id } });
+    return prisma.locality.findUnique({
+      where: { id: item.id },
+      select: LOCATION_SELECT,
+    });
   }
 
   // Find a locality by name (to validate duplicates)
@@ -20,19 +34,33 @@ export class LocalityRepository {
   }
 
   public async add(item: LocalityData) {
-    return prisma.locality.create({ data: { name: item.name ?? null } });
+    return prisma.locality.create({
+      data: {
+        name: item.name ?? null,
+        provinceId: item.provinceId ?? null,
+      },
+      select: LOCATION_SELECT,
+    });
   }
 
   public async update(item: LocalityData) {
     if (item.id === undefined) {
       return undefined;
     }
-    if (item.name === undefined) {
-      return prisma.locality.findUnique({ where: { id: item.id } });
+    const data: Record<string, unknown> = {};
+    if (item.name !== undefined) data.name = item.name;
+    if (item.provinceId !== undefined) data.provinceId = item.provinceId;
+
+    if (Object.keys(data).length === 0) {
+      return prisma.locality.findUnique({
+        where: { id: item.id },
+        select: LOCATION_SELECT,
+      });
     }
     return prisma.locality.update({
       where: { id: item.id },
-      data: { name: item.name },
+      data: data as any,
+      select: LOCATION_SELECT,
     });
   }
 

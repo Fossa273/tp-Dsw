@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useJourneys } from '../hooks/useJourneys';
 import { useLocalities } from '../hooks/useLocalities';
+import { localityLabel } from '../utils/format';
 
 const PlusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -17,7 +18,7 @@ const SORT_OPTIONS = [
 ];
 
 const formatDuration = (minutes) => {
-  if (!Number.isFinite(minutes)) return '-';
+  if (!Number.isFinite(minutes) || minutes <= 0) return '-';
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   if (h === 0) return `${m} min`;
@@ -32,8 +33,6 @@ const JourneysPage = () => {
   const [form, setForm] = useState({
     originId: '',
     destinationId: '',
-    distanceKm: '',
-    durationMinutes: '',
   });
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -57,11 +56,6 @@ const JourneysPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const isValidPositiveInt = (value) => {
-    const n = Number(value);
-    return Number.isInteger(n) && n >= 1;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
@@ -76,23 +70,10 @@ const JourneysPage = () => {
       showMessage('El origen y el destino deben ser localidades distintas', 'error');
       return;
     }
-    if (!form.distanceKm.trim() || !isValidPositiveInt(form.distanceKm)) {
-      showMessage('La distancia debe ser un numero entero mayor a 0', 'error');
-      return;
-    }
-    if (
-      !form.durationMinutes.trim() ||
-      !isValidPositiveInt(form.durationMinutes)
-    ) {
-      showMessage('La duracion debe ser un numero entero mayor a 0', 'error');
-      return;
-    }
 
     const payload = {
       originId,
       destinationId,
-      distanceKm: Number(form.distanceKm),
-      durationMinutes: Number(form.durationMinutes),
     };
 
     try { setSubmitting(true);
@@ -104,12 +85,7 @@ const JourneysPage = () => {
         await create(payload);
         showMessage('Trayecto creado correctamente');
       }
-      setForm({
-        originId: '',
-        destinationId: '',
-        distanceKm: '',
-        durationMinutes: '',
-      });
+      setForm({ originId: '', destinationId: '' });
     } catch (err) {
       showMessage(err.message, 'error');
     } finally {
@@ -123,8 +99,6 @@ const JourneysPage = () => {
     setForm({
       originId: String(journey.originId ?? ''),
       destinationId: String(journey.destinationId ?? ''),
-      distanceKm: String(journey.distanceKm ?? ''),
-      durationMinutes: String(journey.durationMinutes ?? ''),
     });
   };
 
@@ -138,12 +112,7 @@ const JourneysPage = () => {
       await remove(id);
       if (String(editingId) === String(id)) {
         setEditingId(null);
-        setForm({
-          originId: '',
-          destinationId: '',
-          distanceKm: '',
-          durationMinutes: '',
-        });
+        setForm({ originId: '', destinationId: '' });
       }
       showMessage('Trayecto eliminado correctamente');
     } catch (err) {
@@ -153,12 +122,7 @@ const JourneysPage = () => {
 
   const handleCancel = () => {
     setEditingId(null);
-    setForm({
-      originId: '',
-      destinationId: '',
-      distanceKm: '',
-      durationMinutes: '',
-    });
+    setForm({ originId: '', destinationId: '' });
   };
 
   const filtered = useMemo(() => {
@@ -223,6 +187,10 @@ const JourneysPage = () => {
 
       <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Trayecto' : 'Nuevo Trayecto'}</h2>
+        <p className="profile-section-desc">
+          La distancia y duracion se calculan automaticamente con Google Maps
+          y una velocidad promedio de 90 km/h.
+        </p>
         <div className="form-row">
           <label htmlFor="tray-origen" className="form-label">
             Origen
@@ -238,7 +206,7 @@ const JourneysPage = () => {
             <option value="">-- Seleccionar localidad --</option>
             {localitiesSorted.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.name}
+                {localityLabel(l)}
               </option>
             ))}
           </select>
@@ -258,40 +226,10 @@ const JourneysPage = () => {
             <option value="">-- Seleccionar localidad --</option>
             {localitiesSorted.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.name}
+                {localityLabel(l)}
               </option>
             ))}
           </select>
-        </div>
-        <div className="form-row">
-          <label htmlFor="tray-distancia" className="form-label">
-            Distancia (km)
-          </label>
-          <input
-            id="tray-distancia"
-            name="distanceKm"
-            type="number"
-            min="1"
-            placeholder="Ej: 300"
-            value={form.distanceKm}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div className="form-row">
-          <label htmlFor="tray-duracion" className="form-label">
-            Duracion aproximada (minutos)
-          </label>
-          <input
-            id="tray-duracion"
-            name="durationMinutes"
-            type="number"
-            min="1"
-            placeholder="Ej: 240"
-            value={form.durationMinutes}
-            onChange={handleChange}
-            required
-          />
         </div>
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
@@ -353,9 +291,9 @@ const JourneysPage = () => {
           <tbody>
             {filtered.map((t) => (
               <tr key={t.id}>
-                <td>{t.origin?.name || '-'}</td>
-                <td>{t.destination?.name || '-'}</td>
-                <td>{t.distanceKm} km</td>
+                <td>{localityLabel(t.origin)}</td>
+                <td>{localityLabel(t.destination)}</td>
+                <td>{t.distanceKm > 0 ? `${t.distanceKm} km` : '-'}</td>
                 <td>{formatDuration(t.durationMinutes)}</td>
                 <td className="actions">
                   {pendingDelete === t.id ? (

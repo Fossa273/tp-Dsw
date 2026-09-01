@@ -10,8 +10,9 @@ function sanitizeTripInput(
     journeyId: req.body.journeyId,
     driverId: req.body.driverId,
     vehicleId: req.body.vehicleId,
-    departureDate: req.body.departureDate,
-    arrivalDate: req.body.arrivalDate,
+    dayOfWeek: req.body.dayOfWeek,
+    departureTime: req.body.departureTime,
+    arrivalTime: req.body.arrivalTime,
   };
   Object.keys(req.body.sanitizeInput).forEach((key) => {
     if (req.body.sanitizeInput[key] === undefined) {

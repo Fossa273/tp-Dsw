@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ADMIN_EMAIL } from '../context/AuthContext';
 import { api } from '../services/api';
 
 const UserIcon = () => (
@@ -94,6 +94,15 @@ const ProfilePage = () => {
   const handleDatosSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+    if (String(form.email).trim().toLowerCase() === ADMIN_EMAIL && !isAdmin) {
+      setSubmitting(true);
+      try {
+        showMessage('No se puede usar el email del administrador', 'error');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     setSubmitting(true);
     try {
       await api.clients.update(user.id, form);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTrips } from '../hooks/useTrips';
 import { useJourneys } from '../hooks/useJourneys';
 import { useDrivers } from '../hooks/useDrivers';
@@ -27,7 +27,7 @@ const toLocalInputValue = (iso) => {
 };
 
 const TripsPage = () => {
-  const { trips, loading, error, create, update, remove } = useTrips();
+  const { trips, loading, error, create, update, remove, refetch } = useTrips();
   const { journeys, loading: loadingJourneys } = useJourneys();
   const { drivers, loading: loadingDrivers } = useDrivers();
   const { vehicles, loading: loadingVehicles } = useVehicles();
@@ -43,14 +43,19 @@ const TripsPage = () => {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
+  const [submitting, setSubmitting] = useState(false);
 
   const [search, setSearch] = useState('');
+  const msgTimer = useRef(null);
 
   const showMessage = (text, type = 'success') => {
     setMsg(text);
     setMsgType(type);
-    setTimeout(() => setMsg(null), 4000);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setMsg(null), 4000);
   };
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -58,6 +63,7 @@ const TripsPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     if (!form.journeyId || !form.driverId || !form.vehicleId) {
       showMessage('Debe seleccionar trayecto, conductor y vehiculo', 'error');
       return;
@@ -96,7 +102,7 @@ const TripsPage = () => {
         : null,
     };
 
-    try {
+    try { setSubmitting(true);
       if (editingId) {
         await update(editingId, payload);
         showMessage('Viaje actualizado correctamente');
@@ -108,6 +114,8 @@ const TripsPage = () => {
       setForm({ journeyId: '', driverId: '', vehicleId: '', departureDate: '', arrivalDate: '' });
     } catch (err) {
       showMessage(err.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -162,7 +170,12 @@ const TripsPage = () => {
   }, [trips, search]);
 
   if (loading) return <div className="loading">Cargando viajes...</div>;
-  if (error) return <div className="error">Error: {error}</div>;
+  if (error) return (
+    <div className="error">
+      <p>Error: {error}</p>
+      <button className="btn btn-primary" onClick={refetch}>Reintentar</button>
+    </div>
+  );
 
   const journeysSorted = [...journeys].sort((a, b) =>
     ((a.origin?.name || '') + ' -> ' + (a.destination?.name || '')).localeCompare(
@@ -274,9 +287,9 @@ const TripsPage = () => {
           />
         </div>
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary btn-icon">
+          <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
             <PlusIcon />
-            {editingId ? 'Actualizar' : 'Crear viaje'}
+            {submitting ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear viaje'}
           </button>
           {editingId && (
             <button

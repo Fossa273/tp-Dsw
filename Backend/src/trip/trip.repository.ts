@@ -60,7 +60,7 @@ export class TripRepository {
     if (item.arrivalDate !== undefined) data.arrivalDate = item.arrivalDate;
 
     if (Object.keys(data).length === 0) {
-      return undefined;
+      return prisma.trip.findUnique({ where: { id: item.id }, include: TRIP_INCLUDE });
     }
     return prisma.trip.update({
       where: { id: item.id },

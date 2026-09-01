@@ -12,7 +12,7 @@ const Hero = ({ onNavigate }) => {
         <div className="hero-buttons">
           <button
             className="btn btn-primary"
-            onClick={() => onNavigate('vehiculos')}
+            onClick={() => onNavigate('login')}
           >
             <svg
               width="20"
@@ -28,7 +28,7 @@ const Hero = ({ onNavigate }) => {
           </button>
           <button
             className="btn btn-secondary"
-            onClick={() => onNavigate('clientes')}
+            onClick={() => onNavigate('login')}
           >
             <svg
               width="20"
@@ -45,7 +45,7 @@ const Hero = ({ onNavigate }) => {
           </button>
           <button
             className="btn btn-accent"
-            onClick={() => onNavigate('localidades')}
+            onClick={() => onNavigate('login')}
           >
             <svg
               width="20"

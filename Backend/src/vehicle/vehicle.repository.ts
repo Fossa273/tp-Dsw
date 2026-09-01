@@ -21,8 +21,11 @@ export class VehicleRepository {
   }
 
   public async update(item: VehicleData) {
-    if (item.id === undefined || item.maxCapacity === undefined) {
+    if (item.id === undefined) {
       return undefined;
+    }
+    if (item.maxCapacity === undefined) {
+      return prisma.vehicle.findUnique({ where: { id: item.id } });
     }
     return prisma.vehicle.update({
       where: { id: item.id },

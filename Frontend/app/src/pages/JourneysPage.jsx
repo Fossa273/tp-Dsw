@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useJourneys } from '../hooks/useJourneys';
 import { useLocalities } from '../hooks/useLocalities';
 
@@ -25,7 +25,7 @@ const formatDuration = (minutes) => {
 };
 
 const JourneysPage = () => {
-  const { journeys, loading, error, create, update, remove } = useJourneys();
+  const { journeys, loading, error, create, update, remove, refetch } = useJourneys();
   const { localities, loading: loadingLocalities } = useLocalities();
 
   const [editingId, setEditingId] = useState(null);
@@ -38,15 +38,20 @@ const JourneysPage = () => {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
+  const [submitting, setSubmitting] = useState(false);
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('distance-asc');
+  const msgTimer = useRef(null);
 
   const showMessage = (text, type = 'success') => {
     setMsg(text);
     setMsgType(type);
-    setTimeout(() => setMsg(null), 4000);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setMsg(null), 4000);
   };
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -59,6 +64,7 @@ const JourneysPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     const originId = Number(form.originId);
     const destinationId = Number(form.destinationId);
 
@@ -89,7 +95,7 @@ const JourneysPage = () => {
       durationMinutes: Number(form.durationMinutes),
     };
 
-    try {
+    try { setSubmitting(true);
       if (editingId) {
         await update(editingId, payload);
         showMessage('Trayecto actualizado correctamente');
@@ -106,6 +112,8 @@ const JourneysPage = () => {
       });
     } catch (err) {
       showMessage(err.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -188,7 +196,12 @@ const JourneysPage = () => {
   }, [journeys, search, sort]);
 
   if (loading) return <div className="loading">Cargando trayectos...</div>;
-  if (error) return <div className="error">Error: {error}</div>;
+  if (error) return (
+    <div className="error">
+      <p>Error: {error}</p>
+      <button className="btn btn-primary" onClick={refetch}>Reintentar</button>
+    </div>
+  );
 
   const localitiesSorted = [...localities].sort((a, b) =>
     (a.name || '').localeCompare(b.name || '', 'es')
@@ -281,9 +294,9 @@ const JourneysPage = () => {
           />
         </div>
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary btn-icon">
+          <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
             <PlusIcon />
-            {editingId ? 'Actualizar' : 'Crear trayecto'}
+            {submitting ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear trayecto'}
           </button>
           {editingId && (
             <button

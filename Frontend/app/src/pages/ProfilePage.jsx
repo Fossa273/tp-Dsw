@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -71,12 +71,17 @@ const ProfilePage = () => {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
+  const msgTimer = useRef(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const showMessage = (text, type = 'success') => {
     setMsg(text);
     setMsgType(type);
-    setTimeout(() => setMsg(null), 4000);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setMsg(null), 4000);
   };
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -88,18 +93,23 @@ const ProfilePage = () => {
 
   const handleDatosSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await api.clients.update(user.id, form);
       updateUser(form);
       showMessage('Datos actualizados correctamente');
     } catch (err) {
       showMessage(err.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   // Seccion 2: cambio de contraseña
   const handlePassSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     if (!passForm.password || !passForm.confirm) {
       showMessage('Complete ambos campos de contraseña', 'error');
       return;
@@ -108,12 +118,15 @@ const ProfilePage = () => {
       showMessage('Las contraseñas no coinciden', 'error');
       return;
     }
+    setSubmitting(true);
     try {
       await api.clients.update(user.id, { password: passForm.password });
       setPassForm({ password: '', confirm: '' });
       showMessage('Contraseña actualizada correctamente');
     } catch (err) {
       showMessage(err.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -223,9 +236,9 @@ const ProfilePage = () => {
             </div>
           </div>
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
               <EditIcon />
-              Guardar cambios
+              {submitting ? 'Guardando...' : 'Guardar cambios'}
             </button>
           </div>
         </form>
@@ -291,9 +304,9 @@ const ProfilePage = () => {
             </div>
           </div>
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
               <LockIcon />
-              Cambiar contraseña
+              {submitting ? 'Guardando...' : 'Cambiar contraseña'}
             </button>
           </div>
         </form>

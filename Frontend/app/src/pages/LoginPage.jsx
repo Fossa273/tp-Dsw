@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -74,13 +74,17 @@ const LoginPage = () => {
   });
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
+  const msgTimer = useRef(null);
   const [loading, setLoading] = useState(false);
 
   const showMessage = (text, type = 'success') => {
     setMsg(text);
     setMsgType(type);
-    setTimeout(() => setMsg(null), 5000);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setMsg(null), 5000);
   };
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -120,11 +124,11 @@ const LoginPage = () => {
           dni: '',
           phone: '',
         }));
-        switchMode('login');
+        setTimeout(() => switchMode('login'), 2000);
       } else {
         await resetPassword(form.email, form.password);
-        showMessage('Contraseña actualizada correctamente.', 'success');
-        switchMode('login');
+        showMessage('Contrasena actualizada correctamente.', 'success');
+        setTimeout(() => switchMode('login'), 2000);
       }
     } catch (err) {
       showMessage(err.message, 'error');

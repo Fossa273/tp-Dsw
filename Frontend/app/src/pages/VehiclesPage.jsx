@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVehicles } from '../hooks/useVehicles';
 
 const PlusIcon = () => (
@@ -14,22 +14,28 @@ const SORT_OPTIONS = [
 ];
 
 const VehiclesPage = () => {
-  const { vehicles, loading, error, create, update, remove } = useVehicles();
+  const { vehicles, loading, error, create, update, remove, refetch } = useVehicles();
 
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ maxCapacity: '' });
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
+  const [submitting, setSubmitting] = useState(false);
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('capacity-asc');
 
+  const msgTimer = useRef(null);
+
   const showMessage = (text, type = 'success') => {
     setMsg(text);
     setMsgType(type);
-    setTimeout(() => setMsg(null), 4000);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setMsg(null), 4000);
   };
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -37,6 +43,7 @@ const VehiclesPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     const value = Number(form.maxCapacity);
     if (!form.maxCapacity.trim()) {
       showMessage('La capacidad maxima es obligatoria', 'error');
@@ -55,6 +62,7 @@ const VehiclesPage = () => {
       return;
     }
     try {
+      setSubmitting(true);
       const payload = { maxCapacity: value };
       if (editingId) {
         await update(editingId, payload);
@@ -65,8 +73,8 @@ const VehiclesPage = () => {
         showMessage('Vehiculo creado correctamente');
       }
       setForm({ maxCapacity: '' });
-    } catch (err) {
-      showMessage(err.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -127,7 +135,12 @@ const VehiclesPage = () => {
   }, [vehicles, search, sort]);
 
   if (loading) return <div className="loading">Cargando vehiculos...</div>;
-  if (error) return <div className="error">Error: {error}</div>;
+  if (error) return (
+    <div className="error">
+      <p>Error: {error}</p>
+      <button className="btn btn-primary" onClick={refetch}>Reintentar</button>
+    </div>
+  );
 
   return (
     <div className="crud-page">
@@ -158,9 +171,9 @@ const VehiclesPage = () => {
           />
         </div>
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary btn-icon">
+          <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
             <PlusIcon />
-            {editingId ? 'Actualizar' : 'Crear vehiculo'}
+            {submitting ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear vehiculo'}
           </button>
           {editingId && (
             <button

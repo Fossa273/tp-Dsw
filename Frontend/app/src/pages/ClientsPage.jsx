@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useClients } from '../hooks/useClients';
 import { api } from '../services/api';
 
@@ -134,9 +134,11 @@ const ClientsPage = () => {
 
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
+  const [submitting, setSubmitting] = useState(false);
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('dni-asc');
+  const msgTimer = useRef(null);
 
   // Inline edit of the list
   const [editMode, setEditMode] = useState(false);
@@ -146,8 +148,11 @@ const ClientsPage = () => {
   const showMessage = (text, type = 'success') => {
     setMsg(text);
     setMsgType(type);
-    setTimeout(() => setMsg(null), 4000);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setMsg(null), 4000);
   };
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
 
   const handleRegisterChange = (e) => {
     setRegisterForm({ ...registerForm, [e.target.name]: e.target.value });
@@ -155,12 +160,14 @@ const ClientsPage = () => {
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     const err = validateClient(registerForm, { requirePassword: true });
     if (err) {
       showMessage(err, 'error');
       return;
     }
     try {
+      setSubmitting(true);
       await create({
         firstName: registerForm.firstName.trim(),
         lastName: registerForm.lastName.trim(),
@@ -180,6 +187,8 @@ const ClientsPage = () => {
       showMessage('Cliente registrado correctamente');
     } catch (errMsg) {
       showMessage(errMsg.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -242,7 +251,7 @@ const ClientsPage = () => {
     try {
       await remove(id);
       showMessage('Cliente dado de baja correctamente');
-      fetchInactive();
+      await fetchInactive();
     } catch (err) {
       showMessage(err.message, 'error');
     }
@@ -308,7 +317,12 @@ const ClientsPage = () => {
   const isInactive = (id) => !clients.some((c) => String(c.id) === String(id));
 
   if (loading) return <div className="loading">Cargando clientes...</div>;
-  if (error) return <div className="error">Error: {error}</div>;
+  if (error) return (
+    <div className="error">
+      <p>Error: {error}</p>
+      <button className="btn btn-primary" onClick={refetch}>Reintentar</button>
+    </div>
+  );
 
   const visibleClients = allClients.filter((c) =>
     showInactive ? true : !isInactive(c.id)
@@ -421,9 +435,9 @@ const ClientsPage = () => {
             </div>
           </div>
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary btn-icon">
+            <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
               <PlusIcon />
-              Registrar cliente
+              {submitting ? 'Guardando...' : 'Registrar cliente'}
             </button>
           </div>
         </form>
@@ -629,7 +643,21 @@ const ClientsPage = () => {
                         <>
                           <button
                             className="btn btn-sm btn-edit"
-                            onClick={toggleEditMode}
+                            onClick={() => {
+                              if (!editMode) {
+                                setDrafts((prev) => ({
+                                  ...prev,
+                                  [String(c.id)]: {
+                                    firstName: c.firstName || '',
+                                    lastName: c.lastName || '',
+                                    dni: c.dni || '',
+                                    email: c.email || '',
+                                    phone: c.phone || '',
+                                  },
+                                }));
+                                setEditMode(true);
+                              }
+                            }}
                           >
                             <PencilIcon /> Editar
                           </button>

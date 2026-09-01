@@ -48,7 +48,9 @@ export class ClientRepository {
 
   // Only for login: also returns the password hash
   public async findByEmailWithPassword(email: string) {
-    return prisma.client.findUnique({ where: { email } });
+    return prisma.client.findFirst({
+      where: { email, active: 1 },
+    });
   }
 
   public async add(item: ClientData) {
@@ -75,8 +77,11 @@ export class ClientRepository {
     if (item.phone !== undefined) data.phone = item.phone;
     if (item.password) data.password = item.password;
 
-    if (Object.keys(data).length === 0 || item.id === undefined) {
+    if (item.id === undefined) {
       return undefined;
+    }
+    if (Object.keys(data).length === 0) {
+      return prisma.client.findUnique({ where: { id: item.id }, select: PUBLIC_SELECT });
     }
 
     return prisma.client.update({

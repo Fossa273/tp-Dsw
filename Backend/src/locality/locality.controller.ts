@@ -58,11 +58,25 @@ async function update(req: Request, res: Response) {
 
 async function remove(req: Request, res: Response) {
   const id = Number(req.params.id);
-  const deletedLocality = await repository.delete({ id });
-  if (deletedLocality) {
-    res.json({ message: 'Localidad eliminada' });
-  } else {
-    res.status(404).json({ error: 'Localidad no encontrada' });
+  try {
+    const deletedLocality = await repository.delete({ id });
+    if (deletedLocality) {
+      res.json({ message: 'Localidad eliminada' });
+    } else {
+      res.status(404).json({ error: 'Localidad no encontrada' });
+    }
+  } catch (err: any) {
+    if (err?.code === 'P2025') {
+      res.status(404).json({ error: 'Localidad no encontrada' });
+      return;
+    }
+    if (err?.code === 'P2003') {
+      res.status(409).json({
+        error: 'No se puede eliminar la localidad porque tiene trayectos asociados',
+      });
+      return;
+    }
+    throw err;
   }
 }
 

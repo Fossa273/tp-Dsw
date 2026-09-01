@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDrivers } from '../hooks/useDrivers';
 import { api } from '../services/api';
 
@@ -122,9 +122,11 @@ const DriversPage = () => {
 
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
+  const [submitting, setSubmitting] = useState(false);
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('dni-asc');
+  const msgTimer = useRef(null);
 
   // Inline edit of the list
   const [editMode, setEditMode] = useState(false);
@@ -134,8 +136,11 @@ const DriversPage = () => {
   const showMessage = (text, type = 'success') => {
     setMsg(text);
     setMsgType(type);
-    setTimeout(() => setMsg(null), 4000);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setMsg(null), 4000);
   };
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
 
   const handleRegisterChange = (e) => {
     setRegisterForm({ ...registerForm, [e.target.name]: e.target.value });
@@ -143,12 +148,14 @@ const DriversPage = () => {
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     const err = validateDriver(registerForm);
     if (err) {
       showMessage(err, 'error');
       return;
     }
     try {
+      setSubmitting(true);
       await create({
         firstName: registerForm.firstName.trim(),
         lastName: registerForm.lastName.trim(),
@@ -159,6 +166,8 @@ const DriversPage = () => {
       showMessage('Conductor registrado correctamente');
     } catch (errMsg) {
       showMessage(errMsg.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -218,7 +227,7 @@ const DriversPage = () => {
     try {
       await remove(id);
       showMessage('Conductor dado de baja correctamente');
-      fetchInactive();
+      await fetchInactive();
     } catch (err) {
       showMessage(err.message, 'error');
     }
@@ -278,7 +287,12 @@ const DriversPage = () => {
   const isInactive = (id) => !drivers.some((d) => String(d.id) === String(id));
 
   if (loading) return <div className="loading">Cargando conductores...</div>;
-  if (error) return <div className="error">Error: {error}</div>;
+  if (error) return (
+    <div className="error">
+      <p>Error: {error}</p>
+      <button className="btn btn-primary" onClick={refetch}>Reintentar</button>
+    </div>
+  );
 
   const visibleDrivers = allDrivers.filter((d) =>
     showInactive ? true : !isInactive(d.id)
@@ -364,9 +378,9 @@ const DriversPage = () => {
             </div>
           </div>
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary btn-icon">
+            <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
               <PlusIcon />
-              Registrar conductor
+              {submitting ? 'Guardando...' : 'Registrar conductor'}
             </button>
           </div>
         </form>
@@ -552,7 +566,20 @@ const DriversPage = () => {
                         <>
                           <button
                             className="btn btn-sm btn-edit"
-                            onClick={toggleEditMode}
+                            onClick={() => {
+                              if (!editMode) {
+                                setDrafts((prev) => ({
+                                  ...prev,
+                                  [String(d.id)]: {
+                                    firstName: d.firstName || '',
+                                    lastName: d.lastName || '',
+                                    dni: d.dni || '',
+                                    phone: d.phone || '',
+                                  },
+                                }));
+                                setEditMode(true);
+                              }
+                            }}
                           >
                             <PencilIcon /> Editar
                           </button>

@@ -57,6 +57,14 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     return;
   }
 
+  // Prisma foreign key constraint violation (delete of a referenced record)
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+    res.status(409).json({
+      error: 'No se puede realizar esta operacion porque existen registros dependientes.',
+    });
+    return;
+  }
+
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 

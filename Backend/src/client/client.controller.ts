@@ -53,7 +53,8 @@ async function add(req: Request, res: Response) {
     phone,
     password: hashPassword(password),
   });
-  res.status(201).json(created);
+  const { password: _p, ...safeCreated } = created;
+  res.status(201).json(safeCreated);
 }
 
 async function update(req: Request, res: Response) {

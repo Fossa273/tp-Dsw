@@ -91,18 +91,28 @@ async function update(req: Request, res: Response) {
   const { originId, destinationId, distanceKm, durationMinutes } =
     req.body.sanitizeInput;
 
-  if (originId === undefined || originId === null) {
+  const current = await repository.findOne({ id });
+  if (!current) {
+    res.status(404).json({ error: 'Trayecto no encontrado' });
+    return;
+  }
+
+  const finalOriginId = originId !== undefined ? Number(originId) : current.originId;
+  const finalDestinationId =
+    destinationId !== undefined ? Number(destinationId) : current.destinationId;
+
+  if (finalOriginId === undefined || finalOriginId === null) {
     res.status(400).json({ error: 'La localidad de origen es obligatoria' });
     return;
   }
-  if (destinationId === undefined || destinationId === null) {
+  if (finalDestinationId === undefined || finalDestinationId === null) {
     res.status(400).json({ error: 'La localidad de destino es obligatoria' });
     return;
   }
 
   const localityError = await validateLocalities(
-    Number(originId),
-    Number(destinationId)
+    finalOriginId,
+    finalDestinationId
   );
   if (localityError) {
     res.status(400).json({ error: localityError });
@@ -110,8 +120,8 @@ async function update(req: Request, res: Response) {
   }
 
   const existing = await repository.findByJourney(
-    Number(originId),
-    Number(destinationId)
+    finalOriginId,
+    finalDestinationId
   );
   if (existing && existing.id !== id) {
     res.status(409).json({
@@ -122,10 +132,16 @@ async function update(req: Request, res: Response) {
 
   const updatedJourney = await repository.update({
     id,
-    originId: Number(originId),
-    destinationId: Number(destinationId),
-    distanceKm: normalizePositiveInt(distanceKm, 0),
-    durationMinutes: normalizePositiveInt(durationMinutes, 0),
+    originId: finalOriginId,
+    destinationId: finalDestinationId,
+    distanceKm:
+      distanceKm === undefined
+        ? undefined
+        : normalizePositiveInt(distanceKm, 0),
+    durationMinutes:
+      durationMinutes === undefined
+        ? undefined
+        : normalizePositiveInt(durationMinutes, 0),
   });
   if (updatedJourney) {
     res.status(200).json(updatedJourney);

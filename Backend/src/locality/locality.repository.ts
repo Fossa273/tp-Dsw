@@ -24,8 +24,11 @@ export class LocalityRepository {
   }
 
   public async update(item: LocalityData) {
-    if (item.id === undefined || item.name === undefined) {
+    if (item.id === undefined) {
       return undefined;
+    }
+    if (item.name === undefined) {
+      return prisma.locality.findUnique({ where: { id: item.id } });
     }
     return prisma.locality.update({
       where: { id: item.id },

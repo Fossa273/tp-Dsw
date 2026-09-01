@@ -40,10 +40,14 @@ export class BookingRepository {
   }
 
   // Sum of already-reserved seats for a trip, excluding a given reservation
-  // (used to enforce vehicle capacity).
+  // (used to enforce vehicle capacity). Cancelled reservations do not count.
   public async sumSeatsByTrip(tripId: number, excludeId?: number) {
     const rows = await prisma.booking.aggregate({
-      where: { tripId, ...(excludeId ? { id: { not: excludeId } } : {}) },
+      where: {
+        tripId,
+        state: { not: 'cancelled' },
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
       _sum: { numSeats: true },
     });
     return rows._sum.numSeats ?? 0;
@@ -72,7 +76,7 @@ export class BookingRepository {
     if (item.state !== undefined) data.state = item.state;
 
     if (Object.keys(data).length === 0) {
-      return undefined;
+      return prisma.booking.findUnique({ where: { id: item.id }, include: BOOKING_INCLUDE });
     }
     return prisma.booking.update({
       where: { id: item.id },

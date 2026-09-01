@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalities } from '../hooks/useLocalities';
 
 const PlusIcon = () => (
@@ -14,7 +14,7 @@ const SORT_OPTIONS = [
 ];
 
 const LocalitiesPage = () => {
-  const { localities, loading, error, create, update, remove } =
+  const { localities, loading, error, create, update, remove, refetch } =
     useLocalities();
 
   const [editingId, setEditingId] = useState(null);
@@ -22,15 +22,21 @@ const LocalitiesPage = () => {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
+  const [submitting, setSubmitting] = useState(false);
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('name-asc');
 
+  const msgTimer = useRef(null);
+
   const showMessage = (text, type = 'success') => {
     setMsg(text);
     setMsgType(type);
-    setTimeout(() => setMsg(null), 4000);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setMsg(null), 4000);
   };
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -38,6 +44,7 @@ const LocalitiesPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     const name = form.name.trim();
     if (!name) {
       showMessage('El nombre es obligatorio', 'error');
@@ -48,6 +55,7 @@ const LocalitiesPage = () => {
       return;
     }
     try {
+      setSubmitting(true);
       if (editingId) {
         await update(editingId, { name });
         showMessage('Localidad actualizada correctamente');
@@ -57,8 +65,8 @@ const LocalitiesPage = () => {
         showMessage('Localidad creada correctamente');
       }
       setForm({ name: '' });
-    } catch (err) {
-      showMessage(err.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -112,7 +120,12 @@ const LocalitiesPage = () => {
   }, [localities, search, sort]);
 
   if (loading) return <div className="loading">Cargando localidades...</div>;
-  if (error) return <div className="error">Error: {error}</div>;
+  if (error) return (
+    <div className="error">
+      <p>Error: {error}</p>
+      <button className="btn btn-primary" onClick={refetch}>Reintentar</button>
+    </div>
+  );
 
   return (
     <div className="crud-page">
@@ -140,9 +153,9 @@ const LocalitiesPage = () => {
           />
         </div>
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary btn-icon">
+          <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
             <PlusIcon />
-            {editingId ? 'Actualizar' : 'Crear localidad'}
+            {submitting ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear localidad'}
           </button>
           {editingId && (
             <button

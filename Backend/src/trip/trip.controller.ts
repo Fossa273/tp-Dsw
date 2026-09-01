@@ -108,11 +108,15 @@ async function update(req: Request, res: Response) {
     (driverId !== undefined && driverId !== null) ||
     (vehicleId !== undefined && vehicleId !== null)
   ) {
-    const dependencyError = await validateDependencies(
-      Number(journeyId ?? 0),
-      Number(driverId ?? 0),
-      Number(vehicleId ?? 0)
-    );
+    const current = await repository.findOne({ id });
+    if (!current) {
+      res.status(404).json({ error: 'Viaje no encontrado' });
+      return;
+    }
+    const jId = journeyId !== undefined ? Number(journeyId) : current.journeyId;
+    const dId = driverId !== undefined ? Number(driverId) : current.driverId;
+    const vId = vehicleId !== undefined ? Number(vehicleId) : current.vehicleId;
+    const dependencyError = await validateDependencies(jId, dId, vId);
     if (dependencyError) {
       res.status(400).json({ error: dependencyError });
       return;
@@ -138,7 +142,7 @@ async function update(req: Request, res: Response) {
     driverId: driverId !== undefined ? Number(driverId) : undefined,
     vehicleId: vehicleId !== undefined ? Number(vehicleId) : undefined,
     departureDate: departure === null ? undefined : departure,
-    arrivalDate,
+    arrivalDate: arrival === null ? undefined : arrival,
   });
   if (updatedTrip) {
     res.status(200).json(updatedTrip);

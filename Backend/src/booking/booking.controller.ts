@@ -122,7 +122,8 @@ async function update(req: Request, res: Response) {
       res.status(400).json({ error: 'La cantidad de asientos debe ser un entero mayor a 0' });
       return;
     }
-    const seatsForCheck = seats ?? 0;
+    const existing = seats === undefined ? await repository.findOne({ id }) : null;
+    const seatsForCheck: number = seats ?? existing?.numSeats ?? 1;
     const capacityError = await validateCapacity(
       Number(tripId),
       seatsForCheck,
@@ -131,6 +132,21 @@ async function update(req: Request, res: Response) {
     if (capacityError) {
       res.status(400).json({ error: capacityError });
       return;
+    }
+  } else if (numSeats !== undefined && numSeats !== null) {
+    const seats = normalizeNumSeats(numSeats);
+    if (seats === null) {
+      res.status(400).json({ error: 'La cantidad de asientos debe ser un entero mayor a 0' });
+      return;
+    }
+    const currentBooking = await repository.findOne({ id });
+    const currentTripId = currentBooking?.tripId;
+    if (currentTripId !== undefined) {
+      const capacityError = await validateCapacity(currentTripId, seats, id);
+      if (capacityError) {
+        res.status(400).json({ error: capacityError });
+        return;
+      }
     }
   }
 

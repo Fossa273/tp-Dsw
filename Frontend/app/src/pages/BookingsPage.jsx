@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBookings } from '../hooks/useBookings';
 import { useClients } from '../hooks/useClients';
 import { useTrips } from '../hooks/useTrips';
@@ -36,7 +36,7 @@ const formatDate = (iso) => {
 };
 
 const BookingsPage = () => {
-  const { bookings, loading, error, create, update, remove } = useBookings();
+  const { bookings, loading, error, create, update, remove, refetch } = useBookings();
   const { clients, loading: loadingClients } = useClients();
   const { trips, loading: loadingTrips } = useTrips();
 
@@ -50,14 +50,19 @@ const BookingsPage = () => {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
+  const [submitting, setSubmitting] = useState(false);
 
   const [search, setSearch] = useState('');
+  const msgTimer = useRef(null);
 
   const showMessage = (text, type = 'success') => {
     setMsg(text);
     setMsgType(type);
-    setTimeout(() => setMsg(null), 4000);
+    if (msgTimer.current) clearTimeout(msgTimer.current);
+    msgTimer.current = setTimeout(() => setMsg(null), 4000);
   };
+
+  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -65,6 +70,7 @@ const BookingsPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     if (!form.clientId) {
       showMessage('Debe seleccionar un cliente', 'error');
       return;
@@ -86,7 +92,7 @@ const BookingsPage = () => {
       state: form.state,
     };
 
-    try {
+    try { setSubmitting(true);
       if (editingId) {
         await update(editingId, payload);
         showMessage('Reserva actualizada correctamente');
@@ -98,6 +104,8 @@ const BookingsPage = () => {
       setForm({ clientId: '', tripId: '', numSeats: '', state: 'pending' });
     } catch (err) {
       showMessage(err.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -151,7 +159,12 @@ const BookingsPage = () => {
   }, [bookings, search]);
 
   if (loading) return <div className="loading">Cargando reservas...</div>;
-  if (error) return <div className="error">Error: {error}</div>;
+  if (error) return (
+    <div className="error">
+      <p>Error: {error}</p>
+      <button className="btn btn-primary" onClick={refetch}>Reintentar</button>
+    </div>
+  );
 
   const clientName = (c) => `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.email || '-';
   const viajeLabel = (v) =>
@@ -253,9 +266,9 @@ const BookingsPage = () => {
           </select>
         </div>
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary btn-icon">
+          <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
             <PlusIcon />
-            {editingId ? 'Actualizar' : 'Crear reserva'}
+            {submitting ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear reserva'}
           </button>
           {editingId && (
             <button

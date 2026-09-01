@@ -16,6 +16,8 @@ model Client {
   active    Int     @default(1)
   password  String?
   logged    Int     @default(0)
+
+  @@map("clients")
 }
 
 model Driver {
@@ -25,19 +27,27 @@ model Driver {
   lastName  String?
   phone     String?
   active    Int     @default(1)
+
+  @@map("drivers")
 }
 
 model Vehicle {
   id          Int  @id @default(autoincrement())
   maxCapacity Int
+
+  @@map("vehicles")
 }
 
 model Locality {
   id   Int     @id @default(autoincrement())
   name String?
+
+  @@map("localities")
 }
 
 model Province {
   id   Int     @id @default(autoincrement())
   name String?
+
+  @@map("provinces")
 }

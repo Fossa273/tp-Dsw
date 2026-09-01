@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { DriverRepository } from './driver.repository.js';
-import { Driver } from './driver.entity.js';
 
 const repository = new DriverRepository();
 
@@ -14,7 +13,7 @@ async function findAllInactive(req: Request, res: Response) {
 }
 
 async function findOne(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const driver = await repository.findOne({ id });
   if (driver) {
     res.json(driver);
@@ -37,26 +36,29 @@ async function add(req: Request, res: Response) {
     return;
   }
 
-  const newDriver = new Driver(undefined, dni, firstName, lastName, phone, 1);
-  const created = await repository.add(newDriver);
+  const created = await repository.add({ dni, firstName, lastName, phone });
   res.status(201).json(created);
 }
 
 async function update(req: Request, res: Response) {
-  req.body.sanitizeInput.id = req.params.id;
-  const { id, dni, firstName, lastName, phone } = req.body.sanitizeInput;
+  const { dni, firstName, lastName, phone } = req.body.sanitizeInput;
+  const id = Number(req.params.id);
 
   if (dni !== undefined) {
     const existing = await repository.findByDni(dni);
-    if (existing && String(existing.id) !== String(id)) {
+    if (existing && existing.id !== id) {
       res.status(409).json({ error: 'Ya existe un conductor con ese DNI' });
       return;
     }
   }
 
-  const updatedDriver = await repository.update(
-    new Driver(id, dni, firstName, lastName, phone)
-  );
+  const updatedDriver = await repository.update({
+    id,
+    dni,
+    firstName,
+    lastName,
+    phone,
+  });
   if (updatedDriver) {
     res.status(200).json(updatedDriver);
   } else {
@@ -65,7 +67,7 @@ async function update(req: Request, res: Response) {
 }
 
 async function remove(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const deletedDriver = await repository.delete({ id });
   if (deletedDriver) {
     res.json({ message: 'Conductor dado de baja' });
@@ -76,7 +78,7 @@ async function remove(req: Request, res: Response) {
 
 // Reactivate a driver that was logically deleted (admin only)
 async function reactivate(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const ok = await repository.reactivate(id);
   if (!ok) {
     res

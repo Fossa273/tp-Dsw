@@ -1,5 +1,6 @@
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import { Prisma } from '@prisma/client';
 import { router as clientRoutes } from './client/client.routes.js';
 import { router as localityRoutes } from './locality/locality.routes.js';
 import { router as provinceRoutes } from './province/province.routes.js';
@@ -27,24 +28,26 @@ app.use((req, res) => {
 app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   console.error(`[ERROR] ${req.method} ${req.originalUrl}:`, err?.message ?? err);
 
-  if (err && err.code === 'ECONNREFUSED') {
+  // Driver-adapter connection failure (ECONNREFUSED / unable to connect)
+  if (err && (err.code === 'ECONNREFUSED' || err.code === 'ER_ACCESS_DENIED_ERROR')) {
     res.status(503).json({
       error:
         'No se pudo conectar con la base de datos MySQL. Verifique que el servicio este iniciado.',
     });
     return;
   }
-  if (err && err.code === 'ER_NO_SUCH_TABLE') {
-    res.status(500).json({
-      error:
-        'Falta una tabla en la base de datos. Ejecute Backend/seed.sql para inicializarla.',
-    });
-    return;
-  }
-  if (err && err.code === 'ER_DUP_ENTRY') {
+
+  // Prisma unique constraint violation (e.g. duplicate email / dni)
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
     res.status(409).json({
       error: 'Ya existe un registro con ese identificador o email.',
     });
+    return;
+  }
+
+  // Prisma record not found (update/delete on a non-existent row)
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+    res.status(404).json({ error: 'Registro no encontrado.' });
     return;
   }
 

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { ProvinceRepository } from './province.repository.js';
-import { Province } from './province.entity.js';
 
 const repository = new ProvinceRepository();
 
@@ -9,7 +8,7 @@ async function findAll(req: Request, res: Response) {
 }
 
 async function findOne(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const province = await repository.findOne({ id });
   if (province) {
     res.json(province);
@@ -31,25 +30,25 @@ async function add(req: Request, res: Response) {
     });
     return;
   }
-  const newProvince = await repository.add(new Province(undefined, name));
+  const newProvince = await repository.add({ name });
   res.status(201).json(newProvince);
 }
 
 async function update(req: Request, res: Response) {
-  req.body.sanitizeInput.id = req.params.id;
-  const { id, name } = req.body.sanitizeInput;
+  const { name } = req.body.sanitizeInput;
+  const id = Number(req.params.id);
   if (!name) {
     res.status(400).json({ error: 'El nombre es obligatorio' });
     return;
   }
   const existing = await repository.findByName(name);
-  if (existing && String(existing.id) !== String(id)) {
+  if (existing && existing.id !== id) {
     res.status(409).json({
       error: `Ya existe una provincia con el nombre "${name}"`,
     });
     return;
   }
-  const updatedProvince = await repository.update(new Province(id, name));
+  const updatedProvince = await repository.update({ id, name });
   if (updatedProvince) {
     res.status(200).json(updatedProvince);
   } else {
@@ -58,7 +57,7 @@ async function update(req: Request, res: Response) {
 }
 
 async function remove(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const deletedProvince = await repository.delete({ id });
   if (deletedProvince) {
     res.json({ message: 'Provincia eliminada' });

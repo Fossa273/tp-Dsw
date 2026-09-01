@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Client {
+  id        Int     @id @default(autoincrement())
+  firstName String?
+  lastName  String?
+  dni       String?
+  email     String? @unique
+  phone     String?
+  active    Int     @default(1)
+  password  String?
+  logged    Int     @default(0)
+}
+
+model Driver {
+  id        Int     @id @default(autoincrement())
+  dni       String? @unique
+  firstName String?
+  lastName  String?
+  phone     String?
+  active    Int     @default(1)
+}
+
+model Vehicle {
+  id          Int  @id @default(autoincrement())
+  maxCapacity Int
+}
+
+model Locality {
+  id   Int     @id @default(autoincrement())
+  name String?
+}
+
+model Province {
+  id   Int     @id @default(autoincrement())
+  name String?
+}

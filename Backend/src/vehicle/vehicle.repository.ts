@@ -1,56 +1,36 @@
-import { Repository } from '../shared/repository.js';
-import { Vehicle } from './vehicle.entity.js';
-import { pool } from '../shared/db/connection.js';
+import { prisma } from '../shared/db/connection.js';
 
-export class VehicleRepository implements Repository<Vehicle> {
-  public async findAll(): Promise<Vehicle[] | undefined> {
-    const [vehicles] = await pool.query('SELECT * FROM vehicles');
-    return vehicles as Vehicle[];
+export interface VehicleData {
+  id?: number;
+  maxCapacity?: number;
+}
+
+export class VehicleRepository {
+  public async findAll() {
+    return prisma.vehicle.findMany();
   }
 
-  public async findOne(item: { id: string }): Promise<Vehicle | undefined> {
-    const [rows] = await pool.query('SELECT * FROM vehicles WHERE id = ?', [
-      item.id,
-    ]);
-    const vehicles = rows as Vehicle[];
-    return vehicles.length > 0 ? vehicles[0] : undefined;
+  public async findOne(item: { id: number }) {
+    return prisma.vehicle.findUnique({ where: { id: item.id } });
   }
 
-  public async add(item: Vehicle): Promise<Vehicle | undefined> {
-    const [result] = await pool.query(
-      'INSERT INTO vehicles (maxCapacity) VALUES (?)',
-      [item.maxCapacity ?? null]
-    );
-    const header = result as { insertId?: number };
-    return { ...item, id: String(header.insertId) };
+  public async add(item: VehicleData) {
+    return prisma.vehicle.create({
+      data: { maxCapacity: item.maxCapacity ?? 0 },
+    });
   }
 
-  public async update(item: Vehicle): Promise<Vehicle | undefined> {
-    const [result] = await pool.query(
-      'UPDATE vehicles SET maxCapacity = ? WHERE id = ?',
-      [item.maxCapacity ?? null, item.id]
-    );
-    const header = result as { affectedRows: number };
-    if (header.affectedRows === 0) {
+  public async update(item: VehicleData) {
+    if (item.id === undefined || item.maxCapacity === undefined) {
       return undefined;
     }
-    return item;
+    return prisma.vehicle.update({
+      where: { id: item.id },
+      data: { maxCapacity: item.maxCapacity },
+    });
   }
 
-  public async delete(item: { id: string }): Promise<Vehicle | undefined> {
-    const [result] = await pool.query('DELETE FROM vehicles WHERE id = ?', [
-      item.id,
-    ]);
-    const header = result as { affectedRows: number };
-    if (header.affectedRows === 0) {
-      return undefined;
-    }
-    // Reset the counter so the next id stays sequential
-    try {
-      await pool.query('ALTER TABLE vehicles AUTO_INCREMENT = 1');
-    } catch {
-      // Ignored if the connection lacks ALTER permissions
-    }
-    return { id: item.id } as Vehicle;
+  public async delete(item: { id: number }) {
+    return prisma.vehicle.delete({ where: { id: item.id } });
   }
 }

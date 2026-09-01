@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { LocalityRepository } from './locality.repository.js';
-import { Locality } from './locality.entity.js';
 
 const repository = new LocalityRepository();
 
@@ -9,7 +8,7 @@ async function findAll(req: Request, res: Response) {
 }
 
 async function findOne(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const locality = await repository.findOne({ id });
   if (locality) {
     res.json(locality);
@@ -31,25 +30,25 @@ async function add(req: Request, res: Response) {
     });
     return;
   }
-  const newLocality = await repository.add(new Locality(undefined, name));
+  const newLocality = await repository.add({ name });
   res.status(201).json(newLocality);
 }
 
 async function update(req: Request, res: Response) {
-  req.body.sanitizeInput.id = req.params.id;
-  const { id, name } = req.body.sanitizeInput;
+  const { name } = req.body.sanitizeInput;
+  const id = Number(req.params.id);
   if (!name) {
     res.status(400).json({ error: 'El nombre es obligatorio' });
     return;
   }
   const existing = await repository.findByName(name);
-  if (existing && String(existing.id) !== String(id)) {
+  if (existing && existing.id !== id) {
     res.status(409).json({
       error: `Ya existe una localidad con el nombre "${name}"`,
     });
     return;
   }
-  const updatedLocality = await repository.update(new Locality(id, name));
+  const updatedLocality = await repository.update({ id, name });
   if (updatedLocality) {
     res.status(200).json(updatedLocality);
   } else {
@@ -58,7 +57,7 @@ async function update(req: Request, res: Response) {
 }
 
 async function remove(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const deletedLocality = await repository.delete({ id });
   if (deletedLocality) {
     res.json({ message: 'Localidad eliminada' });

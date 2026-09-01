@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { createHash } from 'node:crypto';
 import { ClientRepository } from './client.repository.js';
-import { Client } from './client.entity.js';
 
 const repository = new ClientRepository();
 
@@ -19,7 +18,7 @@ async function findAllInactive(req: Request, res: Response) {
 }
 
 async function findOne(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const client = await repository.findOne({ id });
   if (client) {
     res.json(client);
@@ -46,37 +45,29 @@ async function add(req: Request, res: Response) {
     return;
   }
 
-  const newClient = new Client(
-    undefined,
+  const created = await repository.add({
     firstName,
     lastName,
     dni,
     email,
     phone,
-    1,
-    hashPassword(password),
-    0
-  );
-  const created = await repository.add(newClient);
+    password: hashPassword(password),
+  });
   res.status(201).json(created);
 }
 
 async function update(req: Request, res: Response) {
-  req.body.sanitizeInput.id = req.params.id;
-  const { id, firstName, lastName, dni, email, phone, password } =
+  const { firstName, lastName, dni, email, phone, password } =
     req.body.sanitizeInput;
-  const updatedClient = await repository.update(
-    new Client(
-      id,
-      firstName,
-      lastName,
-      dni,
-      email,
-      phone,
-      1,
-      password ? hashPassword(password) : undefined
-    )
-  );
+  const updatedClient = await repository.update({
+    id: Number(req.params.id),
+    firstName,
+    lastName,
+    dni,
+    email,
+    phone,
+    password: password ? hashPassword(password) : undefined,
+  });
   if (updatedClient) {
     res.status(200).json(updatedClient);
   } else {
@@ -85,7 +76,7 @@ async function update(req: Request, res: Response) {
 }
 
 async function remove(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const deletedClient = await repository.delete({ id });
   if (deletedClient) {
     res.json({ message: 'Cliente dado de baja' });
@@ -109,7 +100,7 @@ async function login(req: Request, res: Response) {
     return;
   }
 
-  await repository.setLogged(String(client.id), true);
+  await repository.setLogged(client.id, true);
   const { password: _p, ...safeClient } = client;
   res.json({
     message: 'Sesion iniciada',
@@ -123,7 +114,7 @@ async function logout(req: Request, res: Response) {
     res.status(400).json({ error: 'Falta el id del cliente' });
     return;
   }
-  const ok = await repository.setLogged(String(id), false);
+  const ok = await repository.setLogged(Number(id), false);
   if (!ok) {
     res.status(404).json({ error: 'Cliente no encontrado' });
     return;
@@ -153,7 +144,7 @@ async function resetPassword(req: Request, res: Response) {
 
 // Reactivate a client that was logically deleted (admin only)
 async function reactivate(req: Request, res: Response) {
-  const id = String(req.params.id);
+  const id = Number(req.params.id);
   const ok = await repository.reactivate(id);
   if (!ok) {
     res

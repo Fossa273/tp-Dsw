@@ -1,114 +1,98 @@
-import { Repository } from '../shared/repository.js';
-import { Driver } from './driver.entity.js';
-import { pool } from '../shared/db/connection.js';
+import { prisma } from '../shared/db/connection.js';
 
-const PUBLIC_COLUMNS = 'id, dni, firstName, lastName, phone, active';
+const PUBLIC_SELECT = {
+  id: true,
+  dni: true,
+  firstName: true,
+  lastName: true,
+  phone: true,
+  active: true,
+} as const;
 
-export class DriverRepository implements Repository<Driver> {
-  public async findAll(): Promise<Driver[] | undefined> {
-    const [drivers] = await pool.query(
-      `SELECT ${PUBLIC_COLUMNS} FROM drivers WHERE active = 1`
-    );
-    return drivers as Driver[];
+export interface DriverData {
+  id?: number;
+  dni?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  active?: number;
+}
+
+export class DriverRepository {
+  public async findAll() {
+    return prisma.driver.findMany({
+      where: { active: 1 },
+      select: PUBLIC_SELECT,
+    });
   }
 
   // Drivers with logical deletion (for the admin-only listing)
-  public async findAllInactive(): Promise<Driver[] | undefined> {
-    const [drivers] = await pool.query(
-      `SELECT ${PUBLIC_COLUMNS} FROM drivers WHERE active = 0`
-    );
-    return drivers as Driver[];
+  public async findAllInactive() {
+    return prisma.driver.findMany({
+      where: { active: 0 },
+      select: PUBLIC_SELECT,
+    });
   }
 
-  public async findOne(item: { id: string }): Promise<Driver | undefined> {
-    const [rows] = await pool.query(
-      `SELECT ${PUBLIC_COLUMNS} FROM drivers WHERE id = ? AND active = 1`,
-      [item.id]
-    );
-    const drivers = rows as Driver[];
-    return drivers.length > 0 ? drivers[0] : undefined;
+  public async findOne(item: { id: number }) {
+    return prisma.driver.findFirst({
+      where: { id: item.id, active: 1 },
+      select: PUBLIC_SELECT,
+    });
   }
 
-  public async findByDni(dni: string): Promise<Driver | undefined> {
-    const [rows] = await pool.query(
-      `SELECT ${PUBLIC_COLUMNS} FROM drivers WHERE dni = ?`,
-      [dni]
-    );
-    const drivers = rows as Driver[];
-    return drivers.length > 0 ? drivers[0] : undefined;
+  public async findByDni(dni: string) {
+    return prisma.driver.findFirst({
+      where: { dni },
+      select: PUBLIC_SELECT,
+    });
   }
 
-  public async add(item: Driver): Promise<Driver | undefined> {
-    const [result] = await pool.query(
-      'INSERT INTO drivers (dni, firstName, lastName, phone, active) VALUES (?, ?, ?, ?, 1)',
-      [
-        item.dni ?? null,
-        item.firstName ?? null,
-        item.lastName ?? null,
-        item.phone ?? null,
-      ]
-    );
-    const header = result as { insertId?: number };
-    return { ...item, id: String(header.insertId), active: 1 };
+  public async add(item: DriverData) {
+    return prisma.driver.create({
+      data: {
+        dni: item.dni ?? null,
+        firstName: item.firstName ?? null,
+        lastName: item.lastName ?? null,
+        phone: item.phone ?? null,
+        active: 1,
+      },
+      select: PUBLIC_SELECT,
+    });
   }
 
-  public async update(item: Driver): Promise<Driver | undefined> {
-    // Only fields present in the request are updated
-    const fields: string[] = [];
-    const params: (string | null)[] = [];
+  public async update(item: DriverData) {
+    const data: Record<string, unknown> = {};
+    if (item.dni !== undefined) data.dni = item.dni;
+    if (item.firstName !== undefined) data.firstName = item.firstName;
+    if (item.lastName !== undefined) data.lastName = item.lastName;
+    if (item.phone !== undefined) data.phone = item.phone;
 
-    if (item.dni !== undefined) {
-      fields.push('dni = ?');
-      params.push(item.dni);
-    }
-    if (item.firstName !== undefined) {
-      fields.push('firstName = ?');
-      params.push(item.firstName);
-    }
-    if (item.lastName !== undefined) {
-      fields.push('lastName = ?');
-      params.push(item.lastName);
-    }
-    if (item.phone !== undefined) {
-      fields.push('phone = ?');
-      params.push(item.phone);
-    }
-
-    if (fields.length === 0) {
+    if (Object.keys(data).length === 0 || item.id === undefined) {
       return undefined;
     }
-    params.push(String(item.id));
 
-    const [result] = await pool.query(
-      `UPDATE drivers SET ${fields.join(', ')} WHERE id = ? AND active = 1`,
-      params
-    );
-    const header = result as { affectedRows: number };
-    if (header.affectedRows === 0) {
-      return undefined;
-    }
-    return item;
+    return prisma.driver.update({
+      where: { id: item.id },
+      data: data as any,
+      select: PUBLIC_SELECT,
+    });
   }
 
-  public async delete(item: { id: string }): Promise<Driver | undefined> {
-    const [result] = await pool.query(
-      'UPDATE drivers SET active = 0 WHERE id = ?',
-      [item.id]
-    );
-    const header = result as { affectedRows: number };
-    if (header.affectedRows === 0) {
-      return undefined;
-    }
-    return { id: item.id } as Driver;
+  public async delete(item: { id: number }) {
+    return prisma.driver.update({
+      where: { id: item.id },
+      data: { active: 0 },
+      select: PUBLIC_SELECT,
+    });
   }
 
   // Reactivate a logically deleted driver
-  public async reactivate(id: string): Promise<boolean> {
-    const [result] = await pool.query(
-      'UPDATE drivers SET active = 1 WHERE id = ? AND active = 0',
-      [id]
-    );
-    const header = result as { affectedRows: number };
-    return header.affectedRows > 0;
+  public async reactivate(id: number): Promise<boolean> {
+    const result = await prisma.driver.updateMany({
+      where: { id, active: 0 },
+      data: { active: 1 },
+    });
+    return result.count > 0;
   }
 }

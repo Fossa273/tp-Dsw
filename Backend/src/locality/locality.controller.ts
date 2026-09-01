@@ -73,7 +73,7 @@ async function verifyLocality(
 
   const allProvinces = await provinceRepository.findAll();
   const findByName = (nm: string) =>
-    allProvinces.find((p) => normalizeName(p.name ?? '') === normalizeName(nm));
+    allProvinces.find((p: { name?: string | null }) => normalizeName(p.name ?? '') === normalizeName(nm));
 
   if (geocode.status === 'ambiguous') {
     const candidates = geocode.provinces

@@ -1,6 +1,6 @@
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
-import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { router as clientRoutes } from './client/client.routes.js';
 import { router as localityRoutes } from './locality/locality.routes.js';
 import { router as provinceRoutes } from './province/province.routes.js';
@@ -44,7 +44,7 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   }
 
   // Prisma unique constraint violation (e.g. duplicate email / dni)
-  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+  if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
     res.status(409).json({
       error: 'Ya existe un registro con ese identificador o email.',
     });
@@ -52,13 +52,13 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   }
 
   // Prisma record not found (update/delete on a non-existent row)
-  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+  if (err instanceof PrismaClientKnownRequestError && err.code === 'P2025') {
     res.status(404).json({ error: 'Registro no encontrado.' });
     return;
   }
 
   // Prisma foreign key constraint violation (delete of a referenced record)
-  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+  if (err instanceof PrismaClientKnownRequestError && err.code === 'P2003') {
     res.status(409).json({
       error: 'No se puede realizar esta operacion porque existen registros dependientes.',
     });

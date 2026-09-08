@@ -36,10 +36,10 @@
 
 ### Adicionales para Aprobación
 
-| Req      | Detalle                                                                                                                                                                             |
-| :------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CRUD     | 1. CRUD Reserva<br>2. CRUD Viaje<br>3. CRUD Trayecto<br>4. CRUD Localidad(reg)<br>5. CRUD Conductor<br>6. CRUD Vehiculo(reg)<br>7. CRUD Cliente(reg) <br>8. CRUD Provincia(reg)     |
-| CUU/Epic | 1. Registrar una Reserva para viajar<br>2. Dar de alta un Cliente<br>3. Cancelar una Reserva<br>4. Dar de alta Viaje<br>5. Dar de alta Conductor<br>6. Consultar Viajes disponibles |
+| Req      | Detalle                                                                                                                                                                                                          |
+| :------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CRUD     | 1. CRUD Reserva<br>2. CRUD Viaje<br>3. CRUD Trayecto<br>4. CRUD Localidad(reg)<br>5. CRUD Conductor<br>6. CRUD Vehiculo(reg)<br>7. CRUD Cliente(reg) <br>8. CRUD Provincia(reg) <br>9. CRUD Categorias y Precios |
+| CUU/Epic | 1. Registrar una Reserva para viajar<br>2. Dar de alta un Cliente<br>3. Cancelar una Reserva<br>4. Dar de alta Viaje<br>5. Dar de alta Conductor<br>6. Consultar Viajes disponibles                              |
 
 Ademas, proponemos el calculo de un precio dinamico para el pasaje en tiempo real,
 segun el valor del combustible en el momento, el trayecto del viaje y un porcentaje de servicio.

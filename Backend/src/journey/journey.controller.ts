@@ -269,7 +269,7 @@ async function remove(req: Request, res: Response) {
   try {
     const deletedJourney = await repository.deactivate({ id });
     if (deletedJourney) {
-      res.json({ message: 'Trayecto eliminado' });
+      res.json({ message: 'Trayecto dado de baja correctamente' });
     } else {
       res.status(404).json({ error: 'Trayecto no encontrado' });
     }

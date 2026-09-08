@@ -48,7 +48,7 @@ export function useJourneys() {
 
   const remove = async (id) => {
     await api.journeys.delete(id);
-    await fetchAll();
+    await Promise.all([fetchAll(), fetchInactive()]);
   };
 
   const reactivate = async (id) => {

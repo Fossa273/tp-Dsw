@@ -227,6 +227,15 @@ const ClientsPage = () => {
   const handleDraftSave = async (id) => {
     const draft = drafts[String(id)];
     if (!draft) return;
+    const current = clients.find((client) => String(client.id) === String(id));
+    const fields = ['firstName', 'lastName', 'dni', 'email', 'phone'];
+    const hasChanges = current && fields.some(
+      (field) => String(draft[field] || '').trim() !== String(current[field] || '').trim()
+    );
+    if (!hasChanges) {
+      showMessage('No hay cambios para guardar', 'error');
+      return;
+    }
     const err = validateClient(draft);
     if (err) {
       showMessage(err, 'error');
@@ -240,10 +249,23 @@ const ClientsPage = () => {
         email: draft.email.trim(),
         phone: draft.phone.trim(),
       });
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[String(id)];
+        return next;
+      });
       showMessage('Datos actualizados correctamente');
     } catch (errMsg) {
       showMessage(errMsg.message, 'error');
     }
+  };
+
+  const handleDraftCancel = (id) => {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[String(id)];
+      return next;
+    });
   };
 
   const handleDelete = async (id) => {
@@ -623,6 +645,12 @@ const ClientsPage = () => {
                           >
                             <CheckIcon /> Guardar
                           </button>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => handleDraftCancel(c.id)}
+                          >
+                            Cancelar
+                          </button>
                           {deleteConfirmId === c.id ? (
                             <span className="confirm-msg">¿Eliminar?</span>
                           ) : null}
@@ -648,19 +676,17 @@ const ClientsPage = () => {
                           <button
                             className="btn btn-sm btn-edit"
                             onClick={() => {
-                              if (!editMode) {
-                                setDrafts((prev) => ({
-                                  ...prev,
-                                  [String(c.id)]: {
-                                    firstName: c.firstName || '',
-                                    lastName: c.lastName || '',
-                                    dni: c.dni || '',
-                                    email: c.email || '',
-                                    phone: c.phone || '',
-                                  },
-                                }));
-                                setEditMode(true);
-                              }
+                              setDrafts((prev) => ({
+                                ...prev,
+                                [String(c.id)]: {
+                                  firstName: c.firstName || '',
+                                  lastName: c.lastName || '',
+                                  dni: c.dni || '',
+                                  email: c.email || '',
+                                  phone: c.phone || '',
+                                },
+                              }));
+                              setEditMode(true);
                             }}
                           >
                             <PencilIcon /> Editar

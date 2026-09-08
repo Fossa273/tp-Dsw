@@ -126,7 +126,7 @@ const JourneysPage = () => {
         setEditingId(null);
         setForm({ originId: '', destinationId: '' });
       }
-      showMessage('Trayecto eliminado correctamente');
+      showMessage('Trayecto dado de baja correctamente');
     } catch (err) {
       showMessage(err.message, 'error');
     }

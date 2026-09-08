@@ -7,7 +7,8 @@
     "dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node ./dist/app.js\"",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
-    "db:reset": "prisma db push --force-reset && prisma db seed"
+    "db:reset": "prisma db push --force-reset && prisma db seed",
+    "typecheck:seed": "tsc -p tsconfig.seed.json --noEmit"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

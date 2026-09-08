@@ -4,7 +4,6 @@ import { ProvinceRepository } from '../province/province.repository.js';
 import {
   geocodeName,
   normalizeName,
-  getApiKeyConfigured,
 } from '../shared/maps.service.js';
 
 const repository = new LocalityRepository();
@@ -32,14 +31,21 @@ function normalizeProvinceId(value: unknown): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-// Verifies with Google Maps that a locality name belongs to a province.
+function normalizeProvinceName(value: string): string {
+  const normalized = normalizeName(value);
+  return normalized === 'ciudad autonoma de buenos aires'
+    ? 'buenos aires'
+    : normalized;
+}
+
+// Verifies with OpenStreetMap that a locality name belongs to a province.
 // Returns:
 //   { error: string | null, warning: string | null, candidates: ... , provinceId: number | null }
 // When Google finds the name in several provinces, `ambiguous` is true and
 // the caller must ask the user to clarify which province it is.
 type VerifyResult = {
   ambiguous?: boolean;
-  candidates?: { name: string; abbreviation: string | null }[];
+  candidates?: { id: number | null; name: string; abbreviation: string | null }[];
   warning?: string | null;
   provinceId?: number | null;
 };
@@ -48,17 +54,13 @@ async function verifyLocality(
   name: string,
   provinceId: number | null
 ): Promise<VerifyResult> {
-  if (!getApiKeyConfigured()) {
-    return { warning: 'No se configuro la API key de Google Maps', provinceId };
-  }
-
   let geocode;
   try {
     geocode = await geocodeName(name);
   } catch {
     return {
       warning:
-        'No se pudo verificar la localidad con Google Maps; se guarda de todos modos.',
+        'No se pudo verificar la localidad con OpenStreetMap; se guarda de todos modos.',
       provinceId,
     };
   }
@@ -66,34 +68,56 @@ async function verifyLocality(
   if (geocode.status === 'not_found') {
     return {
       warning:
-        'Google Maps no encontro la localidad; se guarda de todos modos.',
+        'OpenStreetMap no encontro la localidad; se guarda de todos modos.',
       provinceId,
     };
   }
 
   const allProvinces = await provinceRepository.findAll();
   const findByName = (nm: string) =>
-    allProvinces.find((p: { name?: string | null }) => normalizeName(p.name ?? '') === normalizeName(nm));
+    allProvinces.find(
+      (p: { name?: string | null }) =>
+        normalizeProvinceName(p.name ?? '') === normalizeProvinceName(nm)
+    );
 
   if (geocode.status === 'ambiguous') {
     const candidates = geocode.provinces
       .map((nm) => {
         const p = findByName(nm);
-        return { name: p?.name ?? nm, abbreviation: p?.abbreviation ?? null };
+        return {
+          id: p?.id ?? null,
+          name: p?.name ?? nm,
+          abbreviation: p?.abbreviation ?? null,
+        };
       })
       .filter((c) => c.name);
+
+    // A province selected by the user resolves the ambiguity. The previous
+    // implementation returned 409 again unconditionally, so the locality
+    // could never be created after selecting a candidate.
+    if (provinceId !== null) {
+      const selectedProvince = allProvinces.find((p) => p.id === provinceId);
+      const selectedName = normalizeProvinceName(selectedProvince?.name ?? '');
+      const matchesSelected = geocode.provinces.some(
+        (name) => normalizeProvinceName(name) === selectedName
+      );
+      if (matchesSelected) {
+        return { provinceId };
+      }
+    }
+
     return {
       ambiguous: true,
       candidates,
       warning:
-        'El nombre de la localidad existe en varias provincias. Indique de cual se trata.',
+        'OpenStreetMap encontro el nombre en varias provincias. Indique de cual se trata.',
     };
   }
 
   const provinceName = geocode.province;
   const resolved = findByName(provinceName);
 
-  // Google resolved it to a single province.
+  // OpenStreetMap resolved it to a single province.
   const matchesSelected =
     provinceId !== null &&
     resolved !== undefined &&
@@ -106,7 +130,7 @@ async function verifyLocality(
 
   if (provinceId !== null && !matchesSelected && resolved) {
     return {
-      warning: `Google Maps ubica "${name}" en ${provinceName}, no en la provincia seleccionada. Se guarda de todos modos.`,
+      warning: `OpenStreetMap ubica "${name}" en ${provinceName}, no en la provincia seleccionada. Se guarda de todos modos.`,
       provinceId,
     };
   }
@@ -118,13 +142,6 @@ async function add(req: Request, res: Response) {
   const { name, provinceId: rawProvinceId } = req.body.sanitizeInput;
   if (!name) {
     res.status(400).json({ error: 'El nombre es obligatorio' });
-    return;
-  }
-  const existing = await repository.findByName(name);
-  if (existing) {
-    res.status(409).json({
-      error: `Ya existe una localidad con el nombre "${name}"`,
-    });
     return;
   }
 
@@ -139,15 +156,32 @@ async function add(req: Request, res: Response) {
 
   const verification = await verifyLocality(name, provinceId);
   if (verification.ambiguous) {
+    const availableCandidates = [];
+    for (const candidate of verification.candidates ?? []) {
+      if (
+        candidate.id !== null &&
+        !(await repository.findByNameAndProvince(name, candidate.id))
+      ) {
+        availableCandidates.push(candidate);
+      }
+    }
     res.status(409).json({
       error:
         'El nombre de la localidad existe en varias provincias. Indique de cual se trata.',
-      candidates: verification.candidates ?? [],
+      candidates: availableCandidates,
     });
     return;
   }
   if (verification.provinceId !== undefined) {
     provinceId = verification.provinceId;
+  }
+
+  const existing = await repository.findByNameAndProvince(name, provinceId);
+  if (existing) {
+    res.status(409).json({
+      error: `Ya existe una localidad llamada "${name}" en la provincia seleccionada`,
+    });
+    return;
   }
 
   const created = await repository.add({ name, provinceId });
@@ -162,13 +196,6 @@ async function update(req: Request, res: Response) {
   const id = Number(req.params.id);
   if (!name) {
     res.status(400).json({ error: 'El nombre es obligatorio' });
-    return;
-  }
-  const existing = await repository.findByName(name);
-  if (existing && existing.id !== id) {
-    res.status(409).json({
-      error: `Ya existe una localidad con el nombre "${name}"`,
-    });
     return;
   }
 
@@ -198,6 +225,14 @@ async function update(req: Request, res: Response) {
   }
   if (verification.provinceId !== undefined) {
     provinceId = verification.provinceId;
+  }
+
+  const existing = await repository.findByNameAndProvince(name, provinceId, id);
+  if (existing) {
+    res.status(409).json({
+      error: `Ya existe una localidad llamada "${name}" en la provincia seleccionada`,
+    });
+    return;
   }
 
   const updated = await repository.update({

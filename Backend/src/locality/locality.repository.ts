@@ -28,9 +28,16 @@ export class LocalityRepository {
     });
   }
 
-  // Find a locality by name (to validate duplicates)
-  public async findByName(name: string) {
-    return prisma.locality.findFirst({ where: { name } });
+  // A locality name may exist in different provinces. It is only a duplicate
+  // when both its name and province match.
+  public async findByNameAndProvince(name: string, provinceId: number | null, excludeId?: number) {
+    return prisma.locality.findFirst({
+      where: {
+        name,
+        provinceId,
+        ...(excludeId !== undefined ? { id: { not: excludeId } } : {}),
+      },
+    });
   }
 
   public async add(item: LocalityData) {

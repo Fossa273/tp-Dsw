@@ -5,9 +5,12 @@ export interface TripData {
   journeyId?: number;
   driverId?: number;
   vehicleId?: number;
+  scheduleType?: string;
   dayOfWeek?: number;
   departureTime?: string;
   arrivalTime?: string;
+  departureDate?: Date | null;
+  arrivalDate?: Date | null;
   arrivesNextDay?: boolean;
   active?: number;
 }
@@ -34,7 +37,7 @@ const TRIP_INCLUDE = {
   driver: {
     select: { id: true, firstName: true, lastName: true, active: true },
   },
-  vehicle: { select: { id: true, maxCapacity: true } },
+  vehicle: { select: { id: true, maxCapacity: true, categoryRelation: true, hasBathroom: true, maintenance: true } },
 } as const;
 
 export class TripRepository {
@@ -63,15 +66,39 @@ export class TripRepository {
     });
   }
 
+  public async findActiveByResources(driverId: number, vehicleId: number) {
+    return prisma.trip.findMany({
+      where: {
+        active: 1,
+        OR: [{ driverId }, { vehicleId }],
+      },
+      select: {
+        id: true,
+        driverId: true,
+        vehicleId: true,
+        scheduleType: true,
+        dayOfWeek: true,
+        departureTime: true,
+        arrivalTime: true,
+        departureDate: true,
+        arrivalDate: true,
+        arrivesNextDay: true,
+      },
+    });
+  }
+
   public async add(item: TripData) {
     return prisma.trip.create({
       data: {
         journeyId: item.journeyId!,
         driverId: item.driverId!,
         vehicleId: item.vehicleId!,
+        scheduleType: item.scheduleType ?? 'weekly',
         dayOfWeek: item.dayOfWeek!,
         departureTime: item.departureTime!,
         arrivalTime: item.arrivalTime ?? null,
+        departureDate: item.departureDate ?? null,
+        arrivalDate: item.arrivalDate ?? null,
         arrivesNextDay: item.arrivesNextDay ?? false,
         active: 1,
       },
@@ -87,9 +114,12 @@ export class TripRepository {
     if (item.journeyId !== undefined) data.journeyId = item.journeyId;
     if (item.driverId !== undefined) data.driverId = item.driverId;
     if (item.vehicleId !== undefined) data.vehicleId = item.vehicleId;
+    if (item.scheduleType !== undefined) data.scheduleType = item.scheduleType;
     if (item.dayOfWeek !== undefined) data.dayOfWeek = item.dayOfWeek;
     if (item.departureTime !== undefined) data.departureTime = item.departureTime;
     if (item.arrivalTime !== undefined) data.arrivalTime = item.arrivalTime;
+    if (item.departureDate !== undefined) data.departureDate = item.departureDate;
+    if (item.arrivalDate !== undefined) data.arrivalDate = item.arrivalDate;
     if (item.arrivesNextDay !== undefined) data.arrivesNextDay = item.arrivesNextDay;
 
     if (Object.keys(data).length === 0) {

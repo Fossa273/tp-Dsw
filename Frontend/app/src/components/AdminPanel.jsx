@@ -25,6 +25,13 @@ const ADMIN_ITEMS = [
     ),
   },
   {
+    key: 'vehicle-categories',
+    title: 'Categorias y precios',
+    description: 'Modificar precios base y consultar su historial.',
+    iconClass: 'vehicles',
+    icon: <span aria-hidden="true">$</span>,
+  },
+  {
     key: 'drivers',
     title: 'Conductores',
     description: 'Gestionar el personal de choferes y su estado de actividad.',

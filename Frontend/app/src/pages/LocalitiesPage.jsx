@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalities } from '../hooks/useLocalities';
 import { useProvinces } from '../hooks/useProvinces';
 import { api } from '../services/api';
-import { localityLabel } from '../utils/format';
 
 const PlusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -68,7 +67,7 @@ const LocalitiesPage = () => {
       setForm({ name: '', provinceId: '' });
       await refetch();
     } catch (err) {
-      if (err.data?.candidates) {
+      if (Array.isArray(err.data?.candidates) && err.data.candidates.length > 0) {
         setPendingName(name);
         setPendingEditId(editId);
         setCandidates(err.data.candidates);
@@ -106,6 +105,13 @@ const LocalitiesPage = () => {
     setPendingName('');
     setPendingEditId(null);
   };
+
+  const normalizeName = (value) =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
 
   const handleEdit = (locality) => {
     setEditingId(locality.id);
@@ -187,7 +193,7 @@ const LocalitiesPage = () => {
         <div className="profile-section" style={{ marginBottom: '1rem' }}>
           <h2>De cual provincia es "{pendingName}"?</h2>
           <p className="profile-section-desc">
-            Google Maps encontro este nombre en varias provincias. Seleccione la
+            OpenStreetMap encontro este nombre en varias provincias. Seleccione la
             correcta para continuar.
           </p>
           <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -196,11 +202,14 @@ const LocalitiesPage = () => {
                 key={c.name}
                 type="button"
                 className="btn btn-primary btn-sm"
+                disabled={c.id === null}
                 onClick={() => {
-                  const match = provinces.find(
-                    (p) => (p.name || '').toLowerCase() === (c.name || '').toLowerCase()
-                  );
-                  handleCandidatePick(match?.id ?? null);
+                  const match = c.id !== null
+                    ? c.id
+                    : provinces.find(
+                        (p) => normalizeName(p.name || '') === normalizeName(c.name || '')
+                      )?.id;
+                  handleCandidatePick(match ?? null);
                 }}
               >
                 {c.name} {c.abbreviation ? `(${c.abbreviation})` : ''}
@@ -239,7 +248,7 @@ const LocalitiesPage = () => {
             onChange={handleChange}
             disabled={loadingProvinces}
           >
-            <option value="">-- Sin provincia (Google lo verificara) --</option>
+            <option value="">-- Sin provincia (OpenStreetMap lo verificara) --</option>
             {provincesSorted.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} {p.abbreviation ? `(${p.abbreviation})` : ''}

@@ -9,12 +9,23 @@ export interface JourneyData {
 }
 
 export class JourneyRepository {
+  private readonly journeyInclude = {
+    origin: { select: { id: true, name: true, province: { select: { id: true, name: true, abbreviation: true } } } },
+    destination: { select: { id: true, name: true, province: { select: { id: true, name: true, abbreviation: true } } } },
+  } as const;
+
   public async findAll() {
     return prisma.journey.findMany({
-      include: {
-        origin: { select: { id: true, name: true } },
-        destination: { select: { id: true, name: true } },
-      },
+      where: { active: 1 },
+      include: this.journeyInclude,
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  public async findAllInactive() {
+    return prisma.journey.findMany({
+      where: { active: 0 },
+      include: this.journeyInclude,
       orderBy: { id: 'asc' },
     });
   }
@@ -22,17 +33,14 @@ export class JourneyRepository {
   public async findOne(item: { id: number }) {
     return prisma.journey.findUnique({
       where: { id: item.id },
-      include: {
-        origin: { select: { id: true, name: true } },
-        destination: { select: { id: true, name: true } },
-      },
+      include: this.journeyInclude,
     });
   }
 
   // A journey is identified by its origin+destination pair.
   public async findByJourney(originId: number, destinationId: number) {
     return prisma.journey.findFirst({
-      where: { originId, destinationId },
+      where: { originId, destinationId, active: 1 },
     });
   }
 
@@ -44,10 +52,7 @@ export class JourneyRepository {
         distanceKm: item.distanceKm ?? 0,
         durationMinutes: item.durationMinutes ?? 0,
       },
-      include: {
-        origin: { select: { id: true, name: true } },
-        destination: { select: { id: true, name: true } },
-      },
+      include: this.journeyInclude,
     });
   }
 
@@ -70,7 +75,29 @@ export class JourneyRepository {
     });
   }
 
-  public async delete(item: { id: number }) {
-    return prisma.journey.delete({ where: { id: item.id } });
+  public async deactivate(item: { id: number }) {
+    return prisma.$transaction(async (transaction) => {
+      const activeTrips = await transaction.trip.count({
+        where: { journeyId: item.id, active: 1 },
+      });
+      if (activeTrips > 0) {
+        const error = new Error('El trayecto tiene viajes activos');
+        (error as Error & { code?: string }).code = 'ACTIVE_TRIPS';
+        throw error;
+      }
+
+      return transaction.journey.update({
+        where: { id: item.id },
+        data: { active: 0 },
+      });
+    });
+  }
+
+  public async reactivate(item: { id: number }) {
+    const result = await prisma.journey.updateMany({
+      where: { id: item.id, active: 0 },
+      data: { active: 1 },
+    });
+    return result.count > 0;
   }
 }

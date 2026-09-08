@@ -8,6 +8,9 @@ function sanitizeVehicleInput(
   req.body.sanitizeInput = {
     id: req.body.id,
     maxCapacity: req.body.maxCapacity,
+    categoryId: req.body.categoryId,
+    hasBathroom: req.body.hasBathroom,
+    maintenance: req.body.maintenance,
   };
   Object.keys(req.body.sanitizeInput).forEach((key) => {
     if (req.body.sanitizeInput[key] === undefined) {

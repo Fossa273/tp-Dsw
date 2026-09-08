@@ -6,6 +6,7 @@ export interface BookingData {
   tripId?: number;
   numSeats?: number;
   state?: string;
+  price?: number;
 }
 
 const BOOKING_INCLUDE = {
@@ -18,7 +19,7 @@ const BOOKING_INCLUDE = {
           destination: { select: { id: true, name: true } },
         },
       },
-      vehicle: { select: { id: true, maxCapacity: true } },
+      vehicle: { select: { id: true, maxCapacity: true, categoryRelation: true } },
       driver: { select: { id: true, firstName: true, lastName: true } },
     },
   },
@@ -60,6 +61,7 @@ export class BookingRepository {
         tripId: item.tripId!,
         numSeats: item.numSeats ?? 1,
         state: item.state ?? 'pending',
+        price: item.price ?? 0,
       },
       include: BOOKING_INCLUDE,
     });
@@ -74,6 +76,7 @@ export class BookingRepository {
     if (item.tripId !== undefined) data.tripId = item.tripId;
     if (item.numSeats !== undefined) data.numSeats = item.numSeats;
     if (item.state !== undefined) data.state = item.state;
+    if (item.price !== undefined) data.price = item.price;
 
     if (Object.keys(data).length === 0) {
       return prisma.booking.findUnique({ where: { id: item.id }, include: BOOKING_INCLUDE });

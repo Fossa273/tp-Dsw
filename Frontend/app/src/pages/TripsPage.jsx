@@ -19,12 +19,12 @@ const formatDate = (iso) => {
   return d.toLocaleString('es-AR', opts);
 };
 
-const toLocalInputValue = (iso) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('sv-SE').replace('T', ' ').slice(0, 16);
-};
+const DAYS = [
+  { id: 0, name: 'Domingo' }, { id: 1, name: 'Lunes' },
+  { id: 2, name: 'Martes' }, { id: 3, name: 'Miercoles' },
+  { id: 4, name: 'Jueves' }, { id: 5, name: 'Viernes' },
+  { id: 6, name: 'Sabado' },
+];
 
 const TripsPage = () => {
   const { trips, loading, error, create, update, remove, refetch } = useTrips();
@@ -37,8 +37,10 @@ const TripsPage = () => {
     journeyId: '',
     driverId: '',
     vehicleId: '',
+    scheduleType: 'weekly',
+    dayOfWeek: '',
+    departureTime: '',
     departureDate: '',
-    arrivalDate: '',
   });
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -68,38 +70,25 @@ const TripsPage = () => {
       showMessage('Debe seleccionar trayecto, conductor y vehiculo', 'error');
       return;
     }
-    if (!form.departureDate) {
-      showMessage('La fecha de salida es obligatoria', 'error');
+    if (form.scheduleType === 'weekly' && (!form.dayOfWeek || !form.departureTime)) {
+      showMessage('Debe seleccionar el dia y la hora de salida', 'error');
       return;
     }
-    const departure = new Date(form.departureDate);
-    if (Number.isNaN(departure.getTime())) {
-      showMessage('La fecha de salida es invalida', 'error');
+    if (form.scheduleType === 'specific' && !form.departureDate) {
+      showMessage('La fecha y hora de salida son obligatorias', 'error');
       return;
-    }
-    if (form.arrivalDate) {
-      const arrival = new Date(form.arrivalDate);
-      if (Number.isNaN(arrival.getTime())) {
-        showMessage('La fecha de llegada es invalida', 'error');
-        return;
-      }
-      if (arrival <= departure) {
-        showMessage(
-          'La fecha de llegada debe ser posterior a la de salida',
-          'error'
-        );
-        return;
-      }
     }
 
     const payload = {
       journeyId: Number(form.journeyId),
       driverId: Number(form.driverId),
       vehicleId: Number(form.vehicleId),
-      departureDate: departure.toISOString(),
-      arrivalDate: form.arrivalDate
-        ? new Date(form.arrivalDate).toISOString()
-        : null,
+      scheduleType: form.scheduleType,
+      dayOfWeek: form.scheduleType === 'weekly' ? Number(form.dayOfWeek) : undefined,
+      departureTime: form.scheduleType === 'weekly' ? form.departureTime : undefined,
+      departureDate: form.scheduleType === 'specific'
+        ? new Date(form.departureDate).toISOString()
+        : undefined,
     };
 
     try { setSubmitting(true);
@@ -111,7 +100,7 @@ const TripsPage = () => {
         await create(payload);
         showMessage('Viaje creado correctamente');
       }
-      setForm({ journeyId: '', driverId: '', vehicleId: '', departureDate: '', arrivalDate: '' });
+      setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '' });
     } catch (err) {
       showMessage(err.message, 'error');
     } finally {
@@ -126,8 +115,10 @@ const TripsPage = () => {
       journeyId: String(trip.journeyId ?? ''),
       driverId: String(trip.driverId ?? ''),
       vehicleId: String(trip.vehicleId ?? ''),
-      departureDate: toLocalInputValue(trip.departureDate),
-      arrivalDate: toLocalInputValue(trip.arrivalDate),
+      scheduleType: trip.scheduleType || 'weekly',
+      dayOfWeek: String(trip.dayOfWeek ?? ''),
+      departureTime: trip.departureTime || '',
+      departureDate: trip.departureDate ? new Date(trip.departureDate).toLocaleString('sv-SE').replace('T', ' ').slice(0, 16) : '',
     });
   };
 
@@ -141,7 +132,7 @@ const TripsPage = () => {
       await remove(id);
       if (String(editingId) === String(id)) {
         setEditingId(null);
-        setForm({ journeyId: '', driverId: '', vehicleId: '', departureDate: '', arrivalDate: '' });
+        setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '' });
       }
       showMessage('Viaje eliminado correctamente');
     } catch (err) {
@@ -151,7 +142,7 @@ const TripsPage = () => {
 
   const handleCancel = () => {
     setEditingId(null);
-    setForm({ journeyId: '', driverId: '', vehicleId: '', departureDate: '', arrivalDate: '' });
+    setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '' });
   };
 
   const filtered = useMemo(() => {
@@ -254,38 +245,51 @@ const TripsPage = () => {
             required
           >
             <option value="">-- Seleccionar vehiculo --</option>
-            {vehicles.map((v) => (
+            {vehicles.filter((v) => !v.maintenance || String(v.id) === String(form.vehicleId)).map((v) => (
               <option key={v.id} value={v.id}>
-                Unidad #{v.id} ({v.maxCapacity} asientos)
+                Unidad #{v.id} ({v.category}, {v.maxCapacity} asientos{v.hasBathroom ? ', con baño' : ''}{v.maintenance ? ', en mantenimiento' : ''})
               </option>
             ))}
           </select>
         </div>
         <div className="form-row">
-          <label htmlFor="viaje-salida" className="form-label">
-            Fecha y hora de salida
+          <label htmlFor="viaje-tipo" className="form-label">
+            Programacion
           </label>
-          <input
-            id="viaje-salida"
-            name="departureDate"
-            type="datetime-local"
-            value={form.departureDate}
+          <select
+            id="viaje-tipo"
+            name="scheduleType"
+            value={form.scheduleType}
             onChange={handleChange}
             required
-          />
+          >
+            <option value="weekly">Fijo semanal</option>
+            <option value="specific">Fecha especifica</option>
+          </select>
         </div>
-        <div className="form-row">
-          <label htmlFor="viaje-llegada" className="form-label">
-            Fecha y hora de llegada
-          </label>
-          <input
-            id="viaje-llegada"
-            name="arrivalDate"
-            type="datetime-local"
-            value={form.arrivalDate}
-            onChange={handleChange}
-          />
-        </div>
+        {form.scheduleType === 'weekly' ? (
+          <>
+            <div className="form-row">
+              <label htmlFor="viaje-dia" className="form-label">Dia de la semana</label>
+              <select id="viaje-dia" name="dayOfWeek" value={form.dayOfWeek} onChange={handleChange} required>
+                <option value="">-- Seleccionar dia --</option>
+                {DAYS.map((day) => <option key={day.id} value={day.id}>{day.id} - {day.name}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <label htmlFor="viaje-hora" className="form-label">Hora de salida</label>
+              <input id="viaje-hora" name="departureTime" type="time" value={form.departureTime} onChange={handleChange} required />
+            </div>
+          </>
+        ) : (
+          <div className="form-row">
+            <label htmlFor="viaje-salida" className="form-label">Fecha y hora de salida</label>
+            <input id="viaje-salida" name="departureDate" type="datetime-local" value={form.departureDate} onChange={handleChange} required />
+          </div>
+        )}
+        <p className="profile-section-desc">
+          La fecha y hora de llegada se calculan automaticamente sumando la duracion del trayecto.
+        </p>
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
             <PlusIcon />
@@ -340,8 +344,8 @@ const TripsPage = () => {
                 <td>
                   Unidad #{v.vehicle?.id ?? v.vehicleId} ({v.vehicle?.maxCapacity ?? '-'} asientos)
                 </td>
-                <td>{formatDate(v.departureDate)}</td>
-                <td>{formatDate(v.arrivalDate)}</td>
+                <td>{v.departureDate ? formatDate(v.departureDate) : `${DAYS[v.dayOfWeek]?.name || '-'} ${v.departureTime || '-'}`}</td>
+                <td>{v.arrivalDate ? formatDate(v.arrivalDate) : v.arrivalTime || '-'}</td>
                 <td className="actions">
                   {pendingDelete === v.id ? (
                     <>

@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 
 const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
+const FUEL_PRICE_PER_KM = Number(process.env.FUEL_PRICE_PER_KM ?? 100);
 
 const ADMIN_PASSWORD_HASH =
   '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; // admin123
@@ -24,6 +25,23 @@ async function main() {
       { id: 4, name: 'Mendoza', abbreviation: 'MZA' },
       { id: 5, name: 'Tucumán', abbreviation: 'TUC' },
       { id: 6, name: 'Río Negro', abbreviation: 'RN' },
+      { id: 7, name: 'Catamarca', abbreviation: 'CAT' },
+      { id: 8, name: 'Chaco', abbreviation: 'CHC' },
+      { id: 9, name: 'Chubut', abbreviation: 'CHU' },
+      { id: 10, name: 'Corrientes', abbreviation: 'CTES' },
+      { id: 11, name: 'Entre Ríos', abbreviation: 'ER' },
+      { id: 12, name: 'Formosa', abbreviation: 'FSA' },
+      { id: 13, name: 'Jujuy', abbreviation: 'JUJ' },
+      { id: 14, name: 'La Pampa', abbreviation: 'LP' },
+      { id: 15, name: 'La Rioja', abbreviation: 'LR' },
+      { id: 16, name: 'Misiones', abbreviation: 'MNS' },
+      { id: 17, name: 'Neuquén', abbreviation: 'NQN' },
+      { id: 18, name: 'Salta', abbreviation: 'SAL' },
+      { id: 19, name: 'San Juan', abbreviation: 'SJ' },
+      { id: 20, name: 'San Luis', abbreviation: 'SL' },
+      { id: 21, name: 'Santa Cruz', abbreviation: 'SC' },
+      { id: 22, name: 'Santiago del Estero', abbreviation: 'SDE' },
+      { id: 23, name: 'Tierra del Fuego', abbreviation: 'TDF' },
     ],
     skipDuplicates: true,
   });
@@ -51,13 +69,31 @@ async function main() {
     skipDuplicates: true,
   });
 
+  await prisma.vehicleCategory.createMany({
+    data: [
+      { idCategoria: 1, nombreCategoria: 'Combi', precioBase: 10000 },
+      { idCategoria: 2, nombreCategoria: 'Colectivo', precioBase: 18000 },
+      { idCategoria: 3, nombreCategoria: 'Colectivo alto', precioBase: 25000 },
+    ],
+    skipDuplicates: true,
+  });
+
+  for (const price of [
+    { categoryId: 1, precioBase: 10000 },
+    { categoryId: 2, precioBase: 18000 },
+    { categoryId: 3, precioBase: 25000 },
+  ]) {
+    const history = await prisma.vehicleCategoryPrice.findFirst({ where: price });
+    if (!history) await prisma.vehicleCategoryPrice.create({ data: price });
+  }
+
   await prisma.vehicle.createMany({
     data: [
-      { id: 1, maxCapacity: 45 },
-      { id: 2, maxCapacity: 30 },
-      { id: 3, maxCapacity: 60 },
-      { id: 4, maxCapacity: 20 },
-      { id: 5, maxCapacity: 50 },
+      { id: 1, maxCapacity: 45, categoryId: 2, category: 'Colectivo', hasBathroom: false, maintenance: false },
+      { id: 2, maxCapacity: 30, categoryId: 1, category: 'Combi', hasBathroom: false, maintenance: false },
+      { id: 3, maxCapacity: 60, categoryId: 3, category: 'Colectivo alto', hasBathroom: true, maintenance: false },
+      { id: 4, maxCapacity: 20, categoryId: 1, category: 'Combi', hasBathroom: false, maintenance: false },
+      { id: 5, maxCapacity: 50, categoryId: 2, category: 'Colectivo', hasBathroom: true, maintenance: false },
     ],
     skipDuplicates: true,
   });
@@ -209,11 +245,11 @@ async function main() {
   // ------------------------------------------------------------
   await prisma.booking.createMany({
     data: [
-      { id: 1, clientId: 1, tripId: 1, numSeats: 2, state: 'confirmed' },
-      { id: 2, clientId: 2, tripId: 2, numSeats: 1, state: 'pending' },
-      { id: 3, clientId: 3, tripId: 1, numSeats: 4, state: 'confirmed' },
-      { id: 4, clientId: 4, tripId: 3, numSeats: 2, state: 'cancelled' },
-      { id: 5, clientId: 5, tripId: 5, numSeats: 1, state: 'pending' },
+      { id: 1, clientId: 1, tripId: 1, numSeats: 2, state: 'confirmed', price: 18000 + (60 * FUEL_PRICE_PER_KM) },
+      { id: 2, clientId: 2, tripId: 2, numSeats: 1, state: 'pending', price: 10000 + (300 * FUEL_PRICE_PER_KM) },
+      { id: 3, clientId: 3, tripId: 1, numSeats: 4, state: 'confirmed', price: 18000 + (60 * FUEL_PRICE_PER_KM) },
+      { id: 4, clientId: 4, tripId: 3, numSeats: 2, state: 'cancelled', price: 25000 + (380 * FUEL_PRICE_PER_KM) },
+      { id: 5, clientId: 5, tripId: 5, numSeats: 1, state: 'pending', price: 18000 + (1600 * FUEL_PRICE_PER_KM) },
     ],
     skipDuplicates: true,
   });

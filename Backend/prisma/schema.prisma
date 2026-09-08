@@ -36,12 +36,38 @@ model Driver {
 }
 
 model Vehicle {
-  id          Int  @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   maxCapacity Int
+  categoryId  Int     @default(1)
+  category    String  @default("Combi")
+  categoryRelation VehicleCategory @relation(fields: [categoryId], references: [idCategoria])
+  hasBathroom Boolean @default(false)
+  maintenance Boolean @default(false)
 
   trips Trip[]
 
   @@map("vehicles")
+}
+
+model VehicleCategory {
+  idCategoria     Int      @id @default(autoincrement()) @map("idcategoria")
+  nombreCategoria String   @map("nombrecategoria")
+  precioBase      Float    @map("preciobase")
+  vehicles        Vehicle[]
+  priceHistory    VehicleCategoryPrice[]
+
+  @@map("vehicle_categories")
+}
+
+model VehicleCategoryPrice {
+  id         Int      @id @default(autoincrement())
+  categoryId Int      @map("category_id")
+  precioBase Float    @map("preciobase")
+  createdAt  DateTime @default(now()) @map("created_at")
+  category   VehicleCategory @relation(fields: [categoryId], references: [idCategoria])
+
+  @@index([categoryId, createdAt])
+  @@map("vehicle_category_price_history")
 }
 
 model Locality {
@@ -61,6 +87,7 @@ model Journey {
   destinationId   Int
   distanceKm      Int      @default(0)
   durationMinutes Int      @default(0)
+  active          Int      @default(1)
 
   origin      Locality @relation("JourneyOrigin", fields: [originId], references: [id])
   destination Locality @relation("JourneyDestination", fields: [destinationId], references: [id])
@@ -88,6 +115,9 @@ model Trip {
   dayOfWeek     Int
   departureTime String
   arrivalTime   String?
+  scheduleType  String  @default("weekly")
+  departureDate DateTime?
+  arrivalDate   DateTime?
   arrivesNextDay Boolean @default(false)
   active        Int     @default(1)
 
@@ -105,6 +135,7 @@ model Booking {
   tripId   Int
   numSeats Int    @default(1)
   state    String @default("pending")
+  price    Float  @default(0)
 
   client Client @relation(fields: [clientId], references: [id])
   trip   Trip   @relation(fields: [tripId], references: [id])

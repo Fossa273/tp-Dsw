@@ -8,6 +8,13 @@ const clientRepository = new ClientRepository();
 const tripRepository = new TripRepository();
 
 const VALID_STATES = ['pending', 'confirmed', 'cancelled'];
+const FUEL_PRICE_PER_KM = Number(process.env.FUEL_PRICE_PER_KM ?? 100);
+
+async function calculatePrice(tripId: number) {
+  const trip = await tripRepository.findOne({ id: tripId });
+  if (!trip || !trip.vehicle?.categoryRelation) return null;
+  return trip.vehicle.categoryRelation.precioBase + (trip.journey.distanceKm * FUEL_PRICE_PER_KM);
+}
 
 function normalizeNumSeats(value: unknown): number | null {
   const n = Number(value);
@@ -90,12 +97,15 @@ async function add(req: Request, res: Response) {
     res.status(400).json({ error: capacityError });
     return;
   }
+  const price = await calculatePrice(Number(tripId));
+  if (price === null) { res.status(400).json({ error: 'El vehiculo no tiene una categoria con precio base asignado' }); return; }
 
   const newBooking = await repository.add({
     clientId: Number(clientId),
     tripId: Number(tripId),
     numSeats: seats,
     state: state ? state.toLowerCase() : 'pending',
+    price,
   });
   res.status(201).json(newBooking);
 }
@@ -150,6 +160,14 @@ async function update(req: Request, res: Response) {
     }
   }
 
+  const updatedPrice = tripId !== undefined && tripId !== null
+    ? await calculatePrice(Number(tripId))
+    : undefined;
+  if (tripId !== undefined && updatedPrice === null) {
+    res.status(400).json({ error: 'El vehiculo no tiene una categoria con precio base asignado' });
+    return;
+  }
+
   const updatedBooking = await repository.update({
     id,
     clientId: clientId !== undefined ? Number(clientId) : undefined,
@@ -157,6 +175,7 @@ async function update(req: Request, res: Response) {
     numSeats:
       numSeats === undefined ? undefined : normalizeNumSeats(numSeats) ?? undefined,
     state: state === undefined ? undefined : String(state).toLowerCase(),
+    price: updatedPrice ?? undefined,
   });
   if (updatedBooking) {
     res.status(200).json(updatedBooking);

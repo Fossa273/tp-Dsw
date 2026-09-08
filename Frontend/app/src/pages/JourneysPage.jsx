@@ -26,7 +26,17 @@ const formatDuration = (minutes) => {
 };
 
 const JourneysPage = () => {
-  const { journeys, loading, error, create, update, remove, refetch } = useJourneys();
+  const {
+    journeys,
+    inactive,
+    loading,
+    error,
+    create,
+    update,
+    remove,
+    reactivate,
+    refetch,
+  } = useJourneys();
   const { localities, loading: loadingLocalities } = useLocalities();
 
   const [editingId, setEditingId] = useState(null);
@@ -41,6 +51,8 @@ const JourneysPage = () => {
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('distance-asc');
+  const [showInactive, setShowInactive] = useState(true);
+  const [loadingInactive, setLoadingInactive] = useState(false);
   const msgTimer = useRef(null);
 
   const showMessage = (text, type = 'success') => {
@@ -125,9 +137,21 @@ const JourneysPage = () => {
     setForm({ originId: '', destinationId: '' });
   };
 
+  const handleReactivate = async (id) => {
+    try {
+      setLoadingInactive(true);
+      await reactivate(id);
+      showMessage('Trayecto dado de alta correctamente');
+    } catch (err) {
+      showMessage(err.message, 'error');
+    } finally {
+      setLoadingInactive(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    let result = journeys;
+    let result = showInactive ? [...journeys, ...inactive] : journeys;
     if (term) {
       result = result.filter(
         (t) =>
@@ -157,7 +181,7 @@ const JourneysPage = () => {
         break;
     }
     return sorted;
-  }, [journeys, search, sort]);
+  }, [journeys, inactive, showInactive, search, sort]);
 
   if (loading) return <div className="loading">Cargando trayectos...</div>;
   if (error) return (
@@ -188,8 +212,8 @@ const JourneysPage = () => {
       <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Trayecto' : 'Nuevo Trayecto'}</h2>
         <p className="profile-section-desc">
-          La distancia y duracion se calculan automaticamente con Google Maps
-          y una velocidad promedio de 90 km/h.
+          La distancia se calcula automaticamente con OpenStreetMap y una
+          velocidad promedio de 90 km/h.
         </p>
         <div className="form-row">
           <label htmlFor="tray-origen" className="form-label">
@@ -275,6 +299,15 @@ const JourneysPage = () => {
             ))}
           </select>
         </div>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          title={showInactive ? 'Ocultar trayectos inactivos' : 'Mostrar trayectos inactivos'}
+          onClick={() => setShowInactive((previous) => !previous)}
+          disabled={loadingInactive}
+        >
+          {showInactive ? 'Ocultar inactivos' : 'Mostrar inactivos'}
+        </button>
       </div>
 
       <div className="crud-table-wrapper">
@@ -290,13 +323,21 @@ const JourneysPage = () => {
           </thead>
           <tbody>
             {filtered.map((t) => (
-              <tr key={t.id}>
+              <tr key={t.id} className={t.active === 0 ? 'row-inactive' : ''}>
                 <td>{localityLabel(t.origin)}</td>
                 <td>{localityLabel(t.destination)}</td>
                 <td>{t.distanceKm > 0 ? `${t.distanceKm} km` : '-'}</td>
                 <td>{formatDuration(t.durationMinutes)}</td>
                 <td className="actions">
-                  {pendingDelete === t.id ? (
+                  {t.active === 0 ? (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleReactivate(t.id)}
+                    >
+                      Dar de alta
+                    </button>
+                  ) : (
+                  pendingDelete === t.id ? (
                     <>
                       <span className="confirm-msg">¿Eliminar este trayecto?</span>
                       <button
@@ -327,6 +368,7 @@ const JourneysPage = () => {
                         Eliminar
                       </button>
                     </>
+                  )
                   )}
                 </td>
               </tr>

@@ -54,6 +54,10 @@ async function findAll(req: Request, res: Response) {
   res.json({ data: await repository.findAll() });
 }
 
+async function findAllInactive(req: Request, res: Response) {
+  res.json({ data: await repository.findAllInactive() });
+}
+
 async function findOne(req: Request, res: Response) {
   const id = Number(req.params.id);
   const journey = await repository.findOne({ id });
@@ -64,8 +68,8 @@ async function findOne(req: Request, res: Response) {
   }
 }
 
-// Computes distanceKm (Google Maps) and durationMinutes (fixed 90 km/h).
-// With manualDistanceKm === null, relies on the Distance Matrix API.
+// Computes distanceKm (OpenStreetMap) and durationMinutes (fixed 90 km/h).
+// With manualDistanceKm === null, relies on Nominatim and OSRM.
 // Returns { distanceKm, durationMinutes, warning? } or { error }.
 async function resolveDistanceAndDuration(
   originId: number,
@@ -263,7 +267,7 @@ async function update(req: Request, res: Response) {
 async function remove(req: Request, res: Response) {
   const id = Number(req.params.id);
   try {
-    const deletedJourney = await repository.delete({ id });
+    const deletedJourney = await repository.deactivate({ id });
     if (deletedJourney) {
       res.json({ message: 'Trayecto eliminado' });
     } else {
@@ -274,15 +278,26 @@ async function remove(req: Request, res: Response) {
       res.status(404).json({ error: 'Trayecto no encontrado' });
       return;
     }
-    if (err?.code === 'P2003') {
+    if (err?.code === 'ACTIVE_TRIPS' || err?.code === 'P2003') {
       res.status(409).json({
         error:
-          'No se puede eliminar el trayecto porque tiene viajes asociados',
+          'No se puede eliminar el trayecto porque tiene viajes activos. Elimine esos viajes primero.',
       });
       return;
     }
     throw err;
   }
+
 }
 
-export { findAll, findOne, add, update, remove };
+async function reactivate(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  const ok = await repository.reactivate({ id });
+  if (!ok) {
+    res.status(404).json({ error: 'No se encontro un trayecto dado de baja con ese id' });
+    return;
+  }
+  res.json({ message: 'Trayecto dado de alta correctamente' });
+}
+
+export { findAll, findAllInactive, findOne, update, add, remove, reactivate };

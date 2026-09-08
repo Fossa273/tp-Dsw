@@ -6,6 +6,7 @@ export function useJourneys() {
   const [journeys, setJourneys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [inactive, setInactive] = useState([]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -19,9 +20,19 @@ export function useJourneys() {
     }
   }, []);
 
+  const fetchInactive = useCallback(async () => {
+    try {
+      const res = await api.journeys.getInactive();
+      setInactive(res.data || []);
+    } catch {
+      setInactive([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+    fetchInactive();
+  }, [fetchAll, fetchInactive]);
 
   const create = async (journey) => {
     const res = await api.journeys.create(journey);
@@ -40,13 +51,21 @@ export function useJourneys() {
     await fetchAll();
   };
 
+  const reactivate = async (id) => {
+    await api.journeys.reactivate(id);
+    await Promise.all([fetchAll(), fetchInactive()]);
+  };
+
   return {
     journeys,
+    inactive,
     loading,
     error,
     create,
     update,
     remove,
+    reactivate,
+    fetchInactive,
     refetch: fetchAll,
   };
 }

@@ -1,10 +1,12 @@
 import express, { NextFunction, Request, Response } from 'express';
+import 'dotenv/config';
 import cors from 'cors';
 import { Prisma } from '@prisma/client';
 import { router as clientRoutes } from './client/client.routes.js';
 import { router as localityRoutes } from './locality/locality.routes.js';
 import { router as provinceRoutes } from './province/province.routes.js';
 import { router as vehicleRoutes } from './vehicle/vehicle.routes.js';
+import { router as vehicleCategoryRoutes } from './vehicle-category/vehicle-category.routes.js';
 import { router as driverRoutes } from './driver/driver.routes.js';
 import { router as journeyRoutes } from './journey/journey.routes.js';
 import { router as tripRoutes } from './trip/trip.routes.js';
@@ -23,6 +25,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/localities', localityRoutes);
 app.use('/api/provinces', provinceRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/vehicle-categories', vehicleCategoryRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
@@ -45,8 +48,12 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 
   // Prisma unique constraint violation (e.g. duplicate email / dni)
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+    const targetValue = err.meta?.target;
+    const target = Array.isArray(targetValue) ? targetValue.join(',') : '';
     res.status(409).json({
-      error: 'Ya existe un registro con ese identificador o email.',
+      error: target.includes('originId') && target.includes('destinationId')
+        ? 'Ya existe un trayecto con ese origen y destino, aunque puede estar dado de baja. Revise los trayectos inactivos.'
+        : 'Ya existe un registro con ese identificador o email.',
     });
     return;
   }

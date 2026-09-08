@@ -6,6 +6,7 @@ import ClientsPage from './pages/ClientsPage';
 import LocalitiesPage from './pages/LocalitiesPage';
 import ProvincesPage from './pages/ProvincesPage';
 import VehiclesPage from './pages/VehiclesPage';
+import VehicleCategoriesPage from './pages/VehicleCategoriesPage';
 import DriversPage from './pages/DriversPage';
 import JourneysPage from './pages/JourneysPage';
 import TripsPage from './pages/TripsPage';
@@ -108,6 +109,7 @@ const AppContent = () => {
               </RequireAdmin>
             }
           />
+          <Route path="/vehicle-categories" element={<RequireAdmin><VehicleCategoriesPage /></RequireAdmin>} />
           <Route
             path="/drivers"
             element={

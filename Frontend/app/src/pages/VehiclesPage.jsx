@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVehicles } from '../hooks/useVehicles';
+import { api } from '../services/api';
 
 const PlusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -8,23 +9,19 @@ const PlusIcon = () => (
   </svg>
 );
 
-const SORT_OPTIONS = [
-  { value: 'capacity-asc', label: 'Capacidad (menor a mayor)' },
-  { value: 'capacity-desc', label: 'Capacidad (mayor a menor)' },
-];
-
 const VehiclesPage = () => {
   const { vehicles, loading, error, create, update, remove, refetch } = useVehicles();
 
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ maxCapacity: '' });
+  const [categories, setCategories] = useState([]);
+  const [form, setForm] = useState({ maxCapacity: '', categoryId: '1', hasBathroom: false });
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
 
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('capacity-asc');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [bathroomFilter, setBathroomFilter] = useState('all');
 
   const msgTimer = useRef(null);
 
@@ -36,6 +33,7 @@ const VehiclesPage = () => {
   };
 
   useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
+  useEffect(() => { api.vehicleCategories.getAll().then((res) => setCategories(res.data || [])).catch(() => setCategories([])); }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -63,7 +61,7 @@ const VehiclesPage = () => {
     }
     try {
       setSubmitting(true);
-      const payload = { maxCapacity: value };
+      const payload = { ...form, maxCapacity: value };
       if (editingId) {
         await update(editingId, payload);
         showMessage('Vehiculo actualizado correctamente');
@@ -72,7 +70,9 @@ const VehiclesPage = () => {
         await create(payload);
         showMessage('Vehiculo creado correctamente');
       }
-      setForm({ maxCapacity: '' });
+      setForm({ maxCapacity: '', categoryId: '1', hasBathroom: false });
+    } catch (err) {
+      showMessage(err.message, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -81,7 +81,7 @@ const VehiclesPage = () => {
   const handleEdit = (vehicle) => {
     setEditingId(vehicle.id);
     setPendingDelete(null);
-    setForm({ maxCapacity: vehicle.maxCapacity || '' });
+    setForm({ maxCapacity: vehicle.maxCapacity || '', categoryId: String(vehicle.categoryId || vehicle.categoryRelation?.idCategoria || 1), hasBathroom: Boolean(vehicle.hasBathroom) });
   };
 
   const handleDelete = async (id) => {
@@ -94,7 +94,7 @@ const VehiclesPage = () => {
       await remove(id);
       if (String(editingId) === String(id)) {
         setEditingId(null);
-        setForm({ maxCapacity: '' });
+        setForm({ maxCapacity: '', categoryId: '1', hasBathroom: false });
       }
       showMessage('Vehiculo eliminado correctamente');
     } catch (err) {
@@ -104,35 +104,15 @@ const VehiclesPage = () => {
 
   const handleCancel = () => {
     setEditingId(null);
-    setForm({ maxCapacity: '' });
+    setForm({ maxCapacity: '', categoryId: '1', hasBathroom: false });
   };
 
   const filtered = useMemo(() => {
-    const term = search.trim();
-    let result = vehicles;
-    if (term) {
-      const num = Number(term);
-      if (!Number.isNaN(num)) {
-        result = result.filter((v) => v.maxCapacity === num);
-      } else {
-        result = result.filter((v) =>
-          String(v.maxCapacity).includes(term.toLowerCase())
-        );
-      }
-    }
-    const sorted = [...result];
-    switch (sort) {
-      case 'capacity-asc':
-        sorted.sort((a, b) => Number(a.maxCapacity) - Number(b.maxCapacity));
-        break;
-      case 'capacity-desc':
-        sorted.sort((a, b) => Number(b.maxCapacity) - Number(a.maxCapacity));
-        break;
-      default:
-        break;
-    }
-    return sorted;
-  }, [vehicles, search, sort]);
+    return vehicles.filter((vehicle) =>
+      (categoryFilter === 'all' || String(vehicle.categoryId) === categoryFilter) &&
+      (bathroomFilter === 'all' || Boolean(vehicle.hasBathroom) === (bathroomFilter === 'yes'))
+    );
+  }, [vehicles, categoryFilter, bathroomFilter]);
 
   if (loading) return <div className="loading">Cargando vehiculos...</div>;
   if (error) return (
@@ -170,6 +150,18 @@ const VehiclesPage = () => {
             required
           />
         </div>
+        <div className="form-row">
+          <label className="form-label" htmlFor="veh-category">Categoria</label>
+          <select id="veh-category" name="categoryId" value={form.categoryId} onChange={handleChange} required>
+            {categories.map((category) => <option key={category.idCategoria} value={category.idCategoria}>{category.nombreCategoria} (${category.precioBase})</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <label className="form-label">
+            <input type="checkbox" name="hasBathroom" checked={form.hasBathroom} onChange={(e) => setForm({ ...form, hasBathroom: e.target.checked })} />
+            Baño
+          </label>
+        </div>
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
             <PlusIcon />
@@ -188,26 +180,19 @@ const VehiclesPage = () => {
       </form>
 
       <div className="crud-toolbar">
-        <div className="crud-search">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Buscar por capacidad..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="crud-sort">
+          <label htmlFor="veh-category-filter">Categoria</label>
+          <select id="veh-category-filter" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="all">Todas</option>
+            {categories.map((category) => <option key={category.idCategoria} value={category.idCategoria}>{category.nombreCategoria}</option>)}
+          </select>
         </div>
         <div className="crud-sort">
-          <label htmlFor="veh-sort">Ordenar</label>
-          <select id="veh-sort" value={sort} onChange={(e) => setSort(e.target.value)}>
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
+          <label htmlFor="veh-bathroom-filter">Baño</label>
+          <select id="veh-bathroom-filter" value={bathroomFilter} onChange={(e) => setBathroomFilter(e.target.value)}>
+            <option value="all">Todos</option>
+            <option value="yes">Con baño</option>
+            <option value="no">Sin baño</option>
           </select>
         </div>
       </div>
@@ -217,6 +202,9 @@ const VehiclesPage = () => {
           <thead>
             <tr>
               <th>Capacidad Maxima</th>
+              <th>Categoria (precio base)</th>
+              <th>Baño</th>
+              <th>En mantenimiento</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -224,6 +212,11 @@ const VehiclesPage = () => {
             {filtered.map((v) => (
               <tr key={v.id}>
                 <td>{v.maxCapacity} pasajeros</td>
+                <td>{v.categoryRelation?.nombreCategoria || '-'} (${v.categoryRelation?.precioBase ?? '-'})</td>
+                <td>{v.hasBathroom ? 'Si' : 'No'}</td>
+                <td>
+                  <input type="checkbox" checked={Boolean(v.maintenance)} onChange={(e) => update(v.id, { maxCapacity: v.maxCapacity, categoryId: v.categoryId, hasBathroom: Boolean(v.hasBathroom), maintenance: e.target.checked })} aria-label={`Mantenimiento vehiculo ${v.id}`} />
+                </td>
                 <td className="actions">
                   {pendingDelete === v.id ? (
                     <>

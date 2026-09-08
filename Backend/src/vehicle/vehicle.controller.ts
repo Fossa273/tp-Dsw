@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { VehicleRepository } from './vehicle.repository.js';
 
 const repository = new VehicleRepository();
+const VALID_CATEGORY_IDS = [1, 2, 3];
 
 async function findAll(req: Request, res: Response) {
   res.json({ data: await repository.findAll() });
@@ -18,7 +19,7 @@ async function findOne(req: Request, res: Response) {
 }
 
 async function add(req: Request, res: Response) {
-  const { maxCapacity } = req.body.sanitizeInput;
+  const { maxCapacity, categoryId, hasBathroom, maintenance } = req.body.sanitizeInput;
   if (maxCapacity === undefined || maxCapacity === null) {
     res.status(400).json({ error: 'La capacidad maxima es obligatoria' });
     return;
@@ -30,12 +31,16 @@ async function add(req: Request, res: Response) {
       .json({ error: 'La capacidad maxima debe ser un entero mayor a 0' });
     return;
   }
-  const newVehicle = await repository.add({ maxCapacity: cap });
+  if (!VALID_CATEGORY_IDS.includes(Number(categoryId))) {
+    res.status(400).json({ error: 'La categoria del vehiculo no es valida' });
+    return;
+  }
+  const newVehicle = await repository.add({ maxCapacity: cap, categoryId: Number(categoryId), hasBathroom: Boolean(hasBathroom), maintenance: Boolean(maintenance) });
   res.status(201).json(newVehicle);
 }
 
 async function update(req: Request, res: Response) {
-  const { maxCapacity } = req.body.sanitizeInput;
+  const { maxCapacity, categoryId, hasBathroom, maintenance } = req.body.sanitizeInput;
   if (maxCapacity === undefined || maxCapacity === null) {
     res.status(400).json({ error: 'La capacidad maxima es obligatoria' });
     return;
@@ -45,11 +50,18 @@ async function update(req: Request, res: Response) {
     res
       .status(400)
       .json({ error: 'La capacidad maxima debe ser un entero mayor a 0' });
+    return;
+  }
+  if (!VALID_CATEGORY_IDS.includes(Number(categoryId))) {
+    res.status(400).json({ error: 'La categoria del vehiculo no es valida' });
     return;
   }
   const updatedVehicle = await repository.update({
     id: Number(req.params.id),
     maxCapacity: cap,
+    categoryId: Number(categoryId),
+    hasBathroom: Boolean(hasBathroom),
+    ...(maintenance !== undefined ? { maintenance: Boolean(maintenance) } : {}),
   });
   if (updatedVehicle) {
     res.status(200).json(updatedVehicle);

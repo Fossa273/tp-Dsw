@@ -64,6 +64,8 @@ const ProvincesPage = () => {
         showMessage('Provincia creada correctamente');
       }
       setForm({ name: '' });
+    } catch (err) {
+      showMessage(err.message, 'error');
     } finally {
       setSubmitting(false);
     }

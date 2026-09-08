@@ -27,6 +27,9 @@ async function validateDependencies(
   if (!vehicle) {
     return { error: 'El vehiculo seleccionado no existe' };
   }
+  if (vehicle.maintenance) {
+    return { error: 'El vehiculo seleccionado esta en mantenimiento' };
+  }
   return { journey, driver, vehicle };
 }
 
@@ -72,6 +75,8 @@ const DAYS: Record<string, number> = {
   saturday: 6,
 };
 
+const ROTATION_BUFFER_MINUTES = 10;
+
 function dayOfWeekToNumber(value: unknown): number | null {
   if (value === undefined || value === null || value === '') {
     return null;
@@ -89,6 +94,71 @@ function dayOfWeekToNumber(value: unknown): number | null {
     return byName === undefined ? null : byName;
   }
   return null;
+}
+
+type ScheduleInput = {
+  scheduleType: string;
+  dayOfWeek: number;
+  departureMinutes: number;
+  departureDate: Date | null;
+  durationMinutes: number;
+};
+
+function intervalsOverlap(startA: number, endA: number, startB: number, endB: number) {
+  return startA < endB && startB < endA;
+}
+
+function weeklyIntervals(day: number, start: number, duration: number) {
+  const end = start + duration + ROTATION_BUFFER_MINUTES;
+  const intervals = [{ day, start, end: Math.min(end, 1440) }];
+  if (end > 1440) intervals.push({ day: (day + 1) % 7, start: 0, end: end - 1440 });
+  return intervals;
+}
+
+function schedulesOverlap(existing: any, candidate: ScheduleInput) {
+  if (candidate.scheduleType === 'specific' && existing.scheduleType === 'specific') {
+    if (!candidate.departureDate || !existing.departureDate || !existing.arrivalDate) return false;
+    return candidate.departureDate < new Date(existing.arrivalDate.getTime() + ROTATION_BUFFER_MINUTES * 60000) &&
+      new Date(candidate.departureDate.getTime() + (candidate.durationMinutes + ROTATION_BUFFER_MINUTES) * 60000) > existing.departureDate;
+  }
+
+  const existingStart = existing.scheduleType === 'specific'
+    ? existing.departureDate.getHours() * 60 + existing.departureDate.getMinutes()
+    : parseTime(existing.departureTime)!;
+  const existingDay = existing.scheduleType === 'specific'
+    ? existing.departureDate.getDay()
+    : existing.dayOfWeek;
+  const existingDuration = existing.scheduleType === 'specific' && existing.arrivalDate
+    ? (existing.arrivalDate.getTime() - existing.departureDate.getTime()) / 60000
+    : (() => {
+        const end = parseTime(existing.arrivalTime)!;
+        return (end - existingStart + (existing.arrivesNextDay ? 1440 : 0)) || 1440;
+      })();
+  const existingIntervals = weeklyIntervals(existingDay, existingStart, existingDuration);
+  const candidateIntervals = candidate.scheduleType === 'specific'
+    ? weeklyIntervals(candidate.departureDate!.getDay(), candidate.departureMinutes, candidate.durationMinutes)
+    : weeklyIntervals(candidate.dayOfWeek, candidate.departureMinutes, candidate.durationMinutes);
+  return existingIntervals.some((a) => candidateIntervals.some((b) =>
+    a.day === b.day && intervalsOverlap(a.start, a.end, b.start, b.end)
+  ));
+}
+
+async function validateResourceAvailability(
+  driverId: number,
+  vehicleId: number,
+  candidate: ScheduleInput,
+  excludeId?: number
+) {
+  const trips = await repository.findActiveByResources(driverId, vehicleId);
+  const conflict = trips.find((trip) => trip.id !== excludeId && schedulesOverlap(trip, candidate));
+  if (!conflict) return null;
+  const sameDriver = conflict.driverId === driverId;
+  const sameVehicle = conflict.vehicleId === vehicleId;
+  return sameDriver && sameVehicle
+    ? 'El conductor y el vehiculo ya estan asignados a otro viaje durante ese horario'
+    : sameDriver
+      ? 'El conductor ya esta asignado a otro viaje durante ese horario'
+      : 'El vehiculo ya esta asignado a otro viaje durante ese horario';
 }
 
 async function findAll(req: Request, res: Response) {
@@ -110,7 +180,7 @@ async function findOne(req: Request, res: Response) {
 }
 
 async function add(req: Request, res: Response) {
-  const { journeyId, driverId, vehicleId, dayOfWeek, departureTime, arrivalTime } =
+  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate } =
     req.body.sanitizeInput;
 
   if (
@@ -127,7 +197,13 @@ async function add(req: Request, res: Response) {
     return;
   }
 
-  const day = dayOfWeekToNumber(dayOfWeek);
+  const mode = scheduleType === 'specific' ? 'specific' : 'weekly';
+  const parsedDepartureDate = mode === 'specific' ? new Date(departureDate) : null;
+  if (mode === 'specific' && (!departureDate || Number.isNaN(parsedDepartureDate!.getTime()))) {
+    res.status(400).json({ error: 'Debe indicar una fecha y hora de salida validas' });
+    return;
+  }
+  const day = mode === 'specific' ? parsedDepartureDate!.getDay() : dayOfWeekToNumber(dayOfWeek);
   if (day === null) {
     res.status(400).json({
       error: 'Debe indicar un dia de la semana (0=Domingo ... 6=Sabado)',
@@ -135,7 +211,9 @@ async function add(req: Request, res: Response) {
     return;
   }
 
-  const departureMinutes = parseTime(departureTime);
+  const departureMinutes = mode === 'specific'
+    ? parsedDepartureDate!.getHours() * 60 + parsedDepartureDate!.getMinutes()
+    : parseTime(departureTime);
   if (departureMinutes === null) {
     res.status(400).json({
       error: 'La hora de salida es obligatoria (formato HH:MM)',
@@ -158,13 +236,24 @@ async function add(req: Request, res: Response) {
     departureMinutes,
     journey!.durationMinutes
   );
-  const finalArrivalTime =
-    arrivalTime !== undefined && arrivalTime !== null
-      ? arrivalTime
-      : autoArrival.arrivalTime;
-  const parsedArrival = parseTime(finalArrivalTime);
-  if (parsedArrival === null) {
-    res.status(400).json({ error: 'La hora de llegada es invalida (HH:MM)' });
+  const finalArrivalTime = autoArrival.arrivalTime;
+  const finalArrivalDate = mode === 'specific'
+    ? new Date(parsedDepartureDate!.getTime() + journey!.durationMinutes * 60_000)
+    : null;
+
+  const availabilityError = await validateResourceAvailability(
+    Number(driverId),
+    Number(vehicleId),
+    {
+      scheduleType: mode,
+      dayOfWeek: day,
+      departureMinutes,
+      departureDate: parsedDepartureDate,
+      durationMinutes: journey!.durationMinutes,
+    }
+  );
+  if (availabilityError) {
+    res.status(409).json({ error: availabilityError });
     return;
   }
 
@@ -172,18 +261,20 @@ async function add(req: Request, res: Response) {
     journeyId: Number(journeyId),
     driverId: Number(driverId),
     vehicleId: Number(vehicleId),
+    scheduleType: mode,
     dayOfWeek: day,
     departureTime: minutesToTime(departureMinutes),
     arrivalTime: finalArrivalTime,
-    arrivesNextDay:
-      autoArrival.arrivesNextDay || parsedArrival < departureMinutes,
+    departureDate: parsedDepartureDate,
+    arrivalDate: finalArrivalDate,
+    arrivesNextDay: autoArrival.arrivesNextDay,
   });
   res.status(201).json(newTrip);
 }
 
 async function update(req: Request, res: Response) {
   const id = Number(req.params.id);
-  const { journeyId, driverId, vehicleId, dayOfWeek, departureTime, arrivalTime } =
+  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate } =
     req.body.sanitizeInput;
 
   const current = await repository.findOne({ id });
@@ -215,8 +306,19 @@ async function update(req: Request, res: Response) {
     return;
   }
 
-  const day =
-    dayOfWeek === undefined ? null : dayOfWeekToNumber(dayOfWeek);
+  const mode = scheduleType === undefined
+    ? current.scheduleType
+    : scheduleType === 'specific' ? 'specific' : 'weekly';
+  const parsedDepartureDate = mode === 'specific'
+    ? new Date(departureDate ?? current.departureDate ?? '')
+    : null;
+  if (mode === 'specific' && Number.isNaN(parsedDepartureDate!.getTime())) {
+    res.status(400).json({ error: 'Debe indicar una fecha y hora de salida validas' });
+    return;
+  }
+  const day = mode === 'specific'
+    ? parsedDepartureDate!.getDay()
+    : dayOfWeek === undefined ? null : dayOfWeekToNumber(dayOfWeek);
   if (dayOfWeek !== undefined && day === null) {
     res.status(400).json({
       error: 'El dia de la semana es invalido (0=Domingo ... 6=Sabado)',
@@ -224,8 +326,9 @@ async function update(req: Request, res: Response) {
     return;
   }
 
-  const departureMinutes =
-    departureTime === undefined ? null : parseTime(departureTime);
+  const departureMinutes = mode === 'specific'
+    ? parsedDepartureDate!.getHours() * 60 + parsedDepartureDate!.getMinutes()
+    : departureTime === undefined ? null : parseTime(departureTime);
   if (departureTime !== undefined && departureMinutes === null) {
     res.status(400).json({ error: 'La hora de salida es invalida (HH:MM)' });
     return;
@@ -239,8 +342,7 @@ async function update(req: Request, res: Response) {
   const journeyChanged = current.journeyId !== finalJourneyId;
   const departureChanged = departureMinutes !== null;
 
-  // Recompute arrival when the journey or departure time changed and no
-  // manual arrival was provided.
+  // Arrival is always derived from departure plus journey duration.
   let finalArrivalTime: string | undefined;
   let finalArrivesNextDay: boolean | undefined;
 
@@ -249,37 +351,42 @@ async function update(req: Request, res: Response) {
       finalDepartureMinutes,
       journey!.durationMinutes
     );
-    const manualArrival =
-      arrivalTime !== undefined && arrivalTime !== null
-        ? parseTime(arrivalTime)
-        : null;
-    if (manualArrival !== null) {
-      finalArrivalTime = minutesToTime(manualArrival);
-      finalArrivesNextDay = manualArrival < finalDepartureMinutes;
-    } else {
-      finalArrivalTime = autoArrival.arrivalTime;
-      finalArrivesNextDay = autoArrival.arrivesNextDay;
-    }
-  } else if (arrivalTime !== undefined && arrivalTime !== null) {
-    const parsedArrival = parseTime(arrivalTime);
-    if (parsedArrival === null) {
-      res.status(400).json({ error: 'La hora de llegada es invalida (HH:MM)' });
-      return;
-    }
-    finalArrivalTime = minutesToTime(parsedArrival);
-    finalArrivesNextDay = parsedArrival < finalDepartureMinutes;
+    finalArrivalTime = autoArrival.arrivalTime;
+    finalArrivesNextDay = autoArrival.arrivesNextDay;
   }
 
   const data: TripData = { id };
   if (finalJourneyId !== current.journeyId) data.journeyId = finalJourneyId;
   if (finalDriverId !== current.driverId) data.driverId = finalDriverId;
   if (finalVehicleId !== current.vehicleId) data.vehicleId = finalVehicleId;
+  if (mode !== current.scheduleType) data.scheduleType = mode;
   if (day !== null) data.dayOfWeek = day;
   if (departureMinutes !== null) {
     data.departureTime = minutesToTime(finalDepartureMinutes);
   }
   if (finalArrivalTime !== undefined) data.arrivalTime = finalArrivalTime;
+  data.departureDate = mode === 'specific' ? parsedDepartureDate : null;
+  data.arrivalDate = mode === 'specific'
+    ? new Date(parsedDepartureDate!.getTime() + journey!.durationMinutes * 60_000)
+    : null;
   if (finalArrivesNextDay !== undefined) data.arrivesNextDay = finalArrivesNextDay;
+
+  const availabilityError = await validateResourceAvailability(
+    finalDriverId,
+    finalVehicleId,
+    {
+      scheduleType: mode,
+      dayOfWeek: day ?? current.dayOfWeek,
+      departureMinutes: finalDepartureMinutes,
+      departureDate: parsedDepartureDate,
+      durationMinutes: journey!.durationMinutes,
+    },
+    id
+  );
+  if (availabilityError) {
+    res.status(409).json({ error: availabilityError });
+    return;
+  }
 
   const updatedTrip = await repository.update(data);
   if (updatedTrip) {

@@ -304,6 +304,7 @@ const BookingsPage = () => {
               <th>Cliente</th>
               <th>Viaje</th>
               <th>Asientos</th>
+              <th>Precio final</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -314,6 +315,7 @@ const BookingsPage = () => {
                 <td>{r.client ? clientName(r.client) : '-'}</td>
                 <td>{viajeLabel(r.trip)}</td>
                 <td>{r.numSeats}</td>
+                <td>${Number(r.price || 0).toLocaleString('es-AR')}</td>
                 <td>
                   <span className={`status-badge status-${r.state || 'pending'}`}>
                     {STATE_LABEL[r.state] || r.state}

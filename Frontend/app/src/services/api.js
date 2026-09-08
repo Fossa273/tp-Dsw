@@ -122,6 +122,10 @@ export const api = {
       }),
     delete: (id) => request(`/vehicles/${id}`, { method: 'DELETE' }),
   },
+  vehicleCategories: {
+    getAll: () => request('/vehicle-categories'),
+    updatePrice: (id, precioBase) => request(`/vehicle-categories/${id}/price`, { method: 'PATCH', body: JSON.stringify({ precioBase }) }),
+  },
 
   drivers: {
     getAll: () => request('/drivers'),
@@ -143,6 +147,7 @@ export const api = {
 
   journeys: {
     getAll: () => request('/journeys'),
+    getInactive: () => request('/journeys/inactive'),
     getOne: (id) => request(`/journeys/${id}`),
     create: (journey) =>
       request('/journeys', {
@@ -155,6 +160,7 @@ export const api = {
         body: JSON.stringify(journey),
       }),
     delete: (id) => request(`/journeys/${id}`, { method: 'DELETE' }),
+    reactivate: (id) => request(`/journeys/${id}/reactivate`, { method: 'POST' }),
   },
 
   trips: {

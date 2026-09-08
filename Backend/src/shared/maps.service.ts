@@ -1,13 +1,15 @@
 import 'dotenv/config';
-import { request } from 'node:https';
 
-const API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
+const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
+const USER_AGENT = process.env.OSM_USER_AGENT || 'tp-dsw-rutabus/1.0';
+let lastNominatimRequestAt = 0;
 
 // Fixed average speed used to derive travel time from distance (km/h).
 export const REFERENCE_SPEED_KMH = 90;
 
 // Geocoding: given a locality name, returns the distinct Argentine provinces
-// where Google Maps finds it.
+// where OpenStreetMap finds it through Nominatim.
 //   - { status: 'not_found' }  : no results
 //   - { status: 'ambiguous', provinces: [...] } : found in multiple provinces
 //   - { status: 'ok', province: 'Buenos Aires' } : single province
@@ -16,30 +18,23 @@ export type GeocodeResult =
   | { status: 'ambiguous'; provinces: string[] }
   | { status: 'ok'; province: string };
 
-function httpsGetJson(url: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    request(url, { method: 'GET' }, (res) => {
-      let body = '';
-      res.setEncoding('utf8');
-      res.on('data', (chunk) => {
-        body += chunk;
-      });
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(body));
-        } catch {
-          reject(new Error('Respuesta invalida de Google Maps'));
-        }
-      });
-    })
-      .on('error', reject)
-      .end();
+async function getJson(url: URL): Promise<any> {
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
   });
+  if (!response.ok) {
+    throw new Error(`OpenStreetMap respondio con HTTP ${response.status}`);
+  }
+  return response.json();
 }
 
-function isProvinceComponent(component: any): boolean {
-  const types: string[] = Array.isArray(component?.types) ? component.types : [];
-  return types.includes('administrative_area_level_1');
+async function getNominatimJson(url: URL): Promise<any> {
+  const waitMs = Math.max(0, 1000 - (Date.now() - lastNominatimRequestAt));
+  if (waitMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  lastNominatimRequestAt = Date.now();
+  return getJson(url);
 }
 
 // Normalizes accents and case so "Córdoba" and "CORDOBA" compare equal.
@@ -51,33 +46,25 @@ function normalizeName(value: string): string {
     .trim();
 }
 
-export function getApiKeyConfigured(): boolean {
-  return API_KEY.length > 0;
-}
-
-// Verifies in which province(s) Google Maps places a locality name.
+// Verifies in which province(s) OpenStreetMap places a locality name.
 export async function geocodeName(name: string): Promise<GeocodeResult> {
-  if (!getApiKeyConfigured()) {
-    throw new Error(
-      'No se configuro la API key de Google Maps (GOOGLE_MAPS_API_KEY)'
-    );
-  }
+  const url = new URL(NOMINATIM_URL);
+  url.searchParams.set('q', `${name}, Argentina`);
+  url.searchParams.set('countrycodes', 'ar');
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('limit', '10');
 
-  const address = encodeURIComponent(`${name}, Argentina`);
-  const url =
-    `https://maps.googleapis.com/maps/api/geocode/json?` +
-    `address=${address}&components=country:AR&key=${API_KEY}`;
-
-  const data = await httpsGetJson(url);
-  if (data?.status !== 'OK' || !Array.isArray(data.results)) {
+  const results = await getNominatimJson(url);
+  if (!Array.isArray(results) || results.length === 0) {
     return { status: 'not_found' };
   }
 
   const provinces = new Set<string>();
-  for (const result of data.results) {
-    const comp = (result?.address_components || []).find(isProvinceComponent);
-    if (comp?.long_name) {
-      provinces.add(comp.long_name);
+  for (const result of results) {
+    const province = result?.address?.state;
+    if (typeof province === 'string' && province.trim()) {
+      provinces.add(province.trim());
     }
   }
 
@@ -91,33 +78,36 @@ export async function geocodeName(name: string): Promise<GeocodeResult> {
   return { status: 'ambiguous', provinces: list };
 }
 
-// Road distance (km) between two localities using the Distance Matrix API.
+// Road distance (km) between two localities using OSRM and Nominatim.
 export async function getDistanceKm(
   originLabel: string,
   destinationLabel: string
 ): Promise<number> {
-  if (!getApiKeyConfigured()) {
-    throw new Error(
-      'No se configuro la API key de Google Maps (GOOGLE_MAPS_API_KEY)'
-    );
+  const origin = await geocodeCoordinates(originLabel);
+  const destination = await geocodeCoordinates(destinationLabel);
+  const routeUrl = new URL(`${OSRM_URL}/${origin.lon},${origin.lat};${destination.lon},${destination.lat}`);
+  routeUrl.searchParams.set('overview', 'false');
+  const data = await getJson(routeUrl);
+  const distance = data?.routes?.[0]?.distance;
+  if (data?.code !== 'Ok' || typeof distance !== 'number') {
+    throw new Error('OpenStreetMap no pudo calcular la distancia entre las localidades');
   }
 
-  const origins = encodeURIComponent(`${originLabel}`);
-  const destinations = encodeURIComponent(`${destinationLabel}`);
-  const url =
-    `https://maps.googleapis.com/maps/api/distancematrix/json?` +
-    `origins=${origins}&destinations=${destinations}&units=metric&key=${API_KEY}`;
+  return Math.max(1, Math.round(distance / 1000));
+}
 
-  const data = await httpsGetJson(url);
-  const element = data?.rows?.[0]?.elements?.[0];
-  if (data?.status !== 'OK' || element?.status !== 'OK' || !element.distance) {
-    throw new Error(
-      'No se pudo calcular la distancia entre las localidades con Google Maps'
-    );
+async function geocodeCoordinates(label: string): Promise<{ lat: string; lon: string }> {
+  const url = new URL(NOMINATIM_URL);
+  url.searchParams.set('q', label);
+  url.searchParams.set('countrycodes', 'ar');
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('limit', '1');
+  const results = await getNominatimJson(url);
+  const result = results?.[0];
+  if (!result?.lat || !result?.lon) {
+    throw new Error(`OpenStreetMap no encontro la localidad "${label}"`);
   }
-
-  // distance.value is in meters
-  return Math.max(1, Math.round(element.distance.value / 1000));
+  return { lat: result.lat, lon: result.lon };
 }
 
 // Travel time in minutes for a given distance at the reference speed.
@@ -126,5 +116,5 @@ export function durationFromDistance(distanceKm: number): number {
 }
 
 // Normalized comparison helper exported so controllers can check whether the
-// province resolved by Google matches the stored province name.
+// province resolved by OpenStreetMap matches the stored province name.
 export { normalizeName };

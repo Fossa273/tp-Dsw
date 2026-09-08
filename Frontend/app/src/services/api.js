@@ -12,7 +12,7 @@ async function request(endpoint, options = {}) {
     response = await fetch(url, config);
   } catch {
     throw new Error(
-      'No se pudo conectar con el servidor. Verifique que el backend este corriendo en el puerto 3000.'
+      'No se pudo conectar con el servidor. Verifique que el backend este corriendo en el puerto 3000.',
     );
   }
 
@@ -24,7 +24,7 @@ async function request(endpoint, options = {}) {
     const text = await response.text();
     console.error('Respuesta no-JSON del servidor:', text.slice(0, 200));
     throw new Error(
-      `El servidor respondio con un formato inesperado (HTTP ${response.status}). Verifique que el backend y la base de datos esten funcionando.`
+      `El servidor respondio con un formato inesperado (HTTP ${response.status}). Verifique que el backend y la base de datos esten funcionando.`,
     );
   }
 
@@ -54,7 +54,8 @@ export const api = {
         body: JSON.stringify(client),
       }),
     delete: (id) => request(`/clients/${id}`, { method: 'DELETE' }),
-    reactivate: (id) => request(`/clients/${id}/reactivate`, { method: 'POST' }),
+    reactivate: (id) =>
+      request(`/clients/${id}/reactivate`, { method: 'POST' }),
   },
 
   auth: {
@@ -124,7 +125,11 @@ export const api = {
   },
   vehicleCategories: {
     getAll: () => request('/vehicle-categories'),
-    updatePrice: (id, precioBase) => request(`/vehicle-categories/${id}/price`, { method: 'PATCH', body: JSON.stringify({ precioBase }) }),
+    updatePrice: (id, precioBase) =>
+      request(`/vehicle-categories/${id}/price`, {
+        method: 'PATCH',
+        body: JSON.stringify({ precioBase }),
+      }),
   },
 
   drivers: {
@@ -142,7 +147,8 @@ export const api = {
         body: JSON.stringify(driver),
       }),
     delete: (id) => request(`/drivers/${id}`, { method: 'DELETE' }),
-    reactivate: (id) => request(`/drivers/${id}/reactivate`, { method: 'POST' }),
+    reactivate: (id) =>
+      request(`/drivers/${id}/reactivate`, { method: 'POST' }),
   },
 
   journeys: {
@@ -160,7 +166,8 @@ export const api = {
         body: JSON.stringify(journey),
       }),
     delete: (id) => request(`/journeys/${id}`, { method: 'DELETE' }),
-    reactivate: (id) => request(`/journeys/${id}/reactivate`, { method: 'POST' }),
+    reactivate: (id) =>
+      request(`/journeys/${id}/reactivate`, { method: 'POST' }),
   },
 
   trips: {
@@ -178,12 +185,12 @@ export const api = {
         body: JSON.stringify(trip),
       }),
     delete: (id) => request(`/trips/${id}`, { method: 'DELETE' }),
-    reactivate: (id) =>
-      request(`/trips/${id}/reactivate`, { method: 'POST' }),
+    reactivate: (id) => request(`/trips/${id}/reactivate`, { method: 'POST' }),
   },
 
   bookings: {
-    getAll: () => request('/bookings'),
+    getAll: (clientId) =>
+      request(clientId ? `/bookings?clientId=${clientId}` : '/bookings'),
     getOne: (id) => request(`/bookings/${id}`),
     create: (booking) =>
       request('/bookings', {
@@ -194,6 +201,11 @@ export const api = {
       request(`/bookings/${id}`, {
         method: 'PUT',
         body: JSON.stringify(booking),
+      }),
+    cancel: (id, clientId) =>
+      request(`/bookings/${id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ clientId }),
       }),
     delete: (id) => request(`/bookings/${id}`, { method: 'DELETE' }),
   },

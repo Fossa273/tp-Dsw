@@ -136,6 +136,7 @@ model Booking {
   numSeats Int    @default(1)
   state    String @default("pending")
   price    Float  @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
 
   client Client @relation(fields: [clientId], references: [id])
   trip   Trip   @relation(fields: [tripId], references: [id])

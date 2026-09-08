@@ -1,10 +1,7 @@
 import { Request, Response } from 'express';
 import { JourneyRepository } from './journey.repository.js';
 import { LocalityRepository } from '../locality/locality.repository.js';
-import {
-  getDistanceKm,
-  durationFromDistance,
-} from '../shared/maps.service.js';
+import { getDistanceKm, durationFromDistance } from '../shared/maps.service.js';
 
 const repository = new JourneyRepository();
 const localityRepository = new LocalityRepository();
@@ -121,16 +118,16 @@ async function add(req: Request, res: Response) {
   const originIdNum = Number(originId);
   const destinationIdNum = Number(destinationId);
 
-  const localityError = await validateLocalities(
-    originIdNum,
-    destinationIdNum
-  );
+  const localityError = await validateLocalities(originIdNum, destinationIdNum);
   if (localityError) {
     res.status(400).json({ error: localityError });
     return;
   }
 
-  const existing = await repository.findByJourney(originIdNum, destinationIdNum);
+  const existing = await repository.findByJourney(
+    originIdNum,
+    destinationIdNum
+  );
   if (existing) {
     res.status(409).json({
       error: 'Ya existe un trayecto entre esas localidades',
@@ -138,7 +135,7 @@ async function add(req: Request, res: Response) {
     return;
   }
 
-  // distanceKm provided -> manual override; otherwise auto-calculated by Google.
+  // distanceKm provided -> manual override; otherwise auto-calculated by OSRM.
   const isManualDistance =
     distanceKm !== undefined && distanceKm !== null && Number(distanceKm) > 0;
   const isManualDuration =
@@ -180,7 +177,10 @@ async function update(req: Request, res: Response) {
     return;
   }
 
-  const finalOriginId = originId !== undefined && originId !== null ? Number(originId) : current.originId;
+  const finalOriginId =
+    originId !== undefined && originId !== null
+      ? Number(originId)
+      : current.originId;
   const finalDestinationId =
     destinationId !== undefined && destinationId !== null
       ? Number(destinationId)
@@ -217,15 +217,22 @@ async function update(req: Request, res: Response) {
 
   // Recalculate when localities changed or no distance was provided.
   const needsRecompute =
-    originChanged || destinationChanged || current.distanceKm === null || !isManualDistance;
+    originChanged ||
+    destinationChanged ||
+    current.distanceKm === null ||
+    !isManualDistance;
 
   let distance: number | undefined;
   let duration: number | undefined;
   let warning: string | undefined;
 
   if (needsRecompute) {
-    const manualDistance = isManualDistance ? normalizePositiveInt(distanceKm, 0) : null;
-    const manualDuration = isManualDuration ? normalizePositiveInt(durationMinutes, 0) : null;
+    const manualDistance = isManualDistance
+      ? normalizePositiveInt(distanceKm, 0)
+      : null;
+    const manualDuration = isManualDuration
+      ? normalizePositiveInt(durationMinutes, 0)
+      : null;
     const resolved = await resolveDistanceAndDuration(
       finalOriginId,
       finalDestinationId,
@@ -241,7 +248,9 @@ async function update(req: Request, res: Response) {
     warning = resolved.warning;
   } else {
     // Keep changes to distance/duration only.
-    distance = isManualDistance ? normalizePositiveInt(distanceKm, 0) : undefined;
+    distance = isManualDistance
+      ? normalizePositiveInt(distanceKm, 0)
+      : undefined;
     duration = isManualDuration
       ? normalizePositiveInt(durationMinutes, 0)
       : undefined;
@@ -287,14 +296,15 @@ async function remove(req: Request, res: Response) {
     }
     throw err;
   }
-
 }
 
 async function reactivate(req: Request, res: Response) {
   const id = Number(req.params.id);
   const ok = await repository.reactivate({ id });
   if (!ok) {
-    res.status(404).json({ error: 'No se encontro un trayecto dado de baja con ese id' });
+    res
+      .status(404)
+      .json({ error: 'No se encontro un trayecto dado de baja con ese id' });
     return;
   }
   res.json({ message: 'Trayecto dado de alta correctamente' });

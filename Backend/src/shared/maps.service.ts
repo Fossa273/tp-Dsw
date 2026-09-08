@@ -3,6 +3,8 @@ import 'dotenv/config';
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
 const USER_AGENT = process.env.OSM_USER_AGENT || 'tp-dsw-rutabus/1.0';
+const OSM_EMAIL = process.env.OSM_EMAIL;
+const REQUEST_TIMEOUT_MS = 10_000;
 let lastNominatimRequestAt = 0;
 
 // Fixed average speed used to derive travel time from distance (km/h).
@@ -18,12 +20,26 @@ export type GeocodeResult =
   | { status: 'ambiguous'; provinces: string[] }
   | { status: 'ok'; province: string };
 
-async function getJson(url: URL): Promise<any> {
+type OsrmRouteResponse = {
+  code?: string;
+  routes?: { distance?: number }[];
+};
+
+async function getJson(url: URL): Promise<unknown> {
+  const headers = {
+    Accept: 'application/json',
+    'User-Agent': USER_AGENT,
+    Referer: process.env.OSM_REFERER || 'http://localhost:5173/',
+  };
   const response = await fetch(url, {
-    headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+    headers,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) {
-    throw new Error(`OpenStreetMap respondio con HTTP ${response.status}`);
+    const provider = url.hostname.includes('nominatim') ? 'Nominatim' : 'OSRM';
+    throw new Error(
+      `OpenStreetMap (${provider}) respondio con HTTP ${response.status}`
+    );
   }
   return response.json();
 }
@@ -53,7 +69,12 @@ export async function geocodeName(name: string): Promise<GeocodeResult> {
   url.searchParams.set('countrycodes', 'ar');
   url.searchParams.set('format', 'jsonv2');
   url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('accept-language', 'es');
+  url.searchParams.set('dedupe', '1');
   url.searchParams.set('limit', '10');
+  if (OSM_EMAIL) {
+    url.searchParams.set('email', OSM_EMAIL);
+  }
 
   const results = await getNominatimJson(url);
   if (!Array.isArray(results) || results.length === 0) {
@@ -85,23 +106,34 @@ export async function getDistanceKm(
 ): Promise<number> {
   const origin = await geocodeCoordinates(originLabel);
   const destination = await geocodeCoordinates(destinationLabel);
-  const routeUrl = new URL(`${OSRM_URL}/${origin.lon},${origin.lat};${destination.lon},${destination.lat}`);
+  const routeUrl = new URL(
+    `${OSRM_URL}/${origin.lon},${origin.lat};${destination.lon},${destination.lat}`
+  );
   routeUrl.searchParams.set('overview', 'false');
-  const data = await getJson(routeUrl);
+  const data = (await getJson(routeUrl)) as OsrmRouteResponse;
   const distance = data?.routes?.[0]?.distance;
   if (data?.code !== 'Ok' || typeof distance !== 'number') {
-    throw new Error('OpenStreetMap no pudo calcular la distancia entre las localidades');
+    throw new Error(
+      'OpenStreetMap no pudo calcular la distancia entre las localidades'
+    );
   }
 
   return Math.max(1, Math.round(distance / 1000));
 }
 
-async function geocodeCoordinates(label: string): Promise<{ lat: string; lon: string }> {
+async function geocodeCoordinates(
+  label: string
+): Promise<{ lat: string; lon: string }> {
   const url = new URL(NOMINATIM_URL);
   url.searchParams.set('q', label);
   url.searchParams.set('countrycodes', 'ar');
   url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('accept-language', 'es');
+  url.searchParams.set('addressdetails', '1');
   url.searchParams.set('limit', '1');
+  if (OSM_EMAIL) {
+    url.searchParams.set('email', OSM_EMAIL);
+  }
   const results = await getNominatimJson(url);
   const result = results?.[0];
   if (!result?.lat || !result?.lon) {

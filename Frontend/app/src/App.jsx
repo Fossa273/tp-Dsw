@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -109,7 +115,14 @@ const AppContent = () => {
               </RequireAdmin>
             }
           />
-          <Route path="/vehicle-categories" element={<RequireAdmin><VehicleCategoriesPage /></RequireAdmin>} />
+          <Route
+            path="/vehicle-categories"
+            element={
+              <RequireAdmin>
+                <VehicleCategoriesPage />
+              </RequireAdmin>
+            }
+          />
           <Route
             path="/drivers"
             element={
@@ -137,9 +150,9 @@ const AppContent = () => {
           <Route
             path="/bookings"
             element={
-              <RequireAdmin>
+              <RequireAuth>
                 <BookingsPage />
-              </RequireAdmin>
+              </RequireAuth>
             }
           />
         </Routes>

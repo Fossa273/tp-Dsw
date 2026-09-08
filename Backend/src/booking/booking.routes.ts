@@ -5,6 +5,7 @@ import {
   update,
   add,
   remove,
+  cancel,
 } from './booking.controller.js';
 import { sanitizeBookingInput } from './booking.validation.js';
 
@@ -15,4 +16,5 @@ router.get('/:id', findOne);
 router.post('/', sanitizeBookingInput, add);
 router.put('/:id', sanitizeBookingInput, update);
 router.patch('/:id', sanitizeBookingInput, update);
+router.post('/:id/cancel', cancel);
 router.delete('/:id', remove);

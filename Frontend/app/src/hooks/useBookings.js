@@ -2,14 +2,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useBookings() {
+export function useBookings(clientId) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchAll = useCallback(async () => {
     try {
-      const res = await api.bookings.getAll();
+      const res = await api.bookings.getAll(clientId);
       setBookings(res.data || []);
       setError(null);
     } catch (err) {
@@ -17,7 +17,7 @@ export function useBookings() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clientId]);
 
   useEffect(() => {
     fetchAll();

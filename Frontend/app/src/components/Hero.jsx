@@ -12,7 +12,11 @@ const Hero = ({ onNavigate }) => {
         <div className="hero-buttons">
           <button
             className="btn btn-primary"
-            onClick={() => onNavigate('login')}
+            onClick={() =>
+              document
+                .getElementById('trip-search')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
           >
             <svg
               width="20"
@@ -28,7 +32,7 @@ const Hero = ({ onNavigate }) => {
           </button>
           <button
             className="btn btn-secondary"
-            onClick={() => onNavigate('login')}
+            onClick={() => onNavigate('bookings')}
           >
             <svg
               width="20"
@@ -42,23 +46,6 @@ const Hero = ({ onNavigate }) => {
               <polyline points="14 2 14 8 20 8" />
             </svg>
             Gestiona tus reservas
-          </button>
-          <button
-            className="btn btn-accent"
-            onClick={() => onNavigate('login')}
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            Rastrea tu viaje
           </button>
         </div>
       </div>

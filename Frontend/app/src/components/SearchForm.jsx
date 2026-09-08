@@ -37,26 +37,46 @@ const SearchForm = () => {
     setError(null);
     setResults(null);
     try {
-      const res = await api.trips.getAll();
-      const trips = res.data || [];
+      if (!origin || !destination || !date) {
+        throw new Error('Selecciona origen, destino y fecha para buscar');
+      }
+      const [tripsRes, bookingsRes] = await Promise.all([
+        api.trips.getAll(),
+        api.bookings.getAll(),
+      ]);
+      const trips = tripsRes.data || [];
+      const bookings = bookingsRes.data || [];
+      const selectedDate = new Date(`${date}T12:00:00`);
+      const remainingSeats = (trip) => {
+        const reserved = bookings
+          .filter(
+            (booking) =>
+              booking.tripId === trip.id && booking.state !== 'cancelled',
+          )
+          .reduce((sum, booking) => sum + Number(booking.numSeats || 0), 0);
+        return Math.max(0, Number(trip.vehicle?.maxCapacity || 0) - reserved);
+      };
       const filtered = trips.filter((trip) => {
-        const matchOrigin =
-          !origin ||
-          String(trip.journey?.originId) === String(origin) ||
-          trip.journey?.origin?.name === origin;
+        const matchOrigin = String(trip.journey?.originId) === String(origin);
         const matchDest =
-          !destination ||
-          String(trip.journey?.destinationId) === String(destination) ||
-          trip.journey?.destination?.name === destination;
-        const matchDate =
-          !date ||
-          new Date(trip.departureDate).toISOString().slice(0, 10) === date;
-        const matchPassengers =
-          !passengers ||
-          (trip.vehicle?.maxCapacity ?? 0) >= Number(passengers);
+          String(trip.journey?.destinationId) === String(destination);
+        const specificDate =
+          trip.scheduleType === 'specific' && trip.departureDate
+            ? new Date(trip.departureDate)
+            : null;
+        const matchDate = specificDate
+          ? specificDate.toISOString().slice(0, 10) === date
+          : Number(trip.dayOfWeek) === selectedDate.getDay();
+        const matchPassengers = remainingSeats(trip) >= Number(passengers);
         return matchOrigin && matchDest && matchDate && matchPassengers;
       });
-      setResults(filtered);
+      setResults(
+        filtered.map((trip) => ({
+          ...trip,
+          availableSeats: remainingSeats(trip),
+          searchDate: date,
+        })),
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -65,11 +85,11 @@ const SearchForm = () => {
   };
 
   const sorted = [...localities].sort((a, b) =>
-    (a.name || '').localeCompare(b.name || '', 'es')
+    (a.name || '').localeCompare(b.name || '', 'es'),
   );
 
   return (
-    <section className="busqueda">
+    <section className="busqueda" id="trip-search">
       <h2>Busca tu viaje</h2>
       <form className="busqueda-form" onSubmit={handleSubmit}>
         <div className="form-group">
@@ -79,7 +99,7 @@ const SearchForm = () => {
             value={origin}
             onChange={(e) => setOrigin(e.target.value)}
           >
-            <option value="">Todos los origenes</option>
+            <option value="">Selecciona origen</option>
             {sorted.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
@@ -95,7 +115,7 @@ const SearchForm = () => {
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
           >
-            <option value="">Todos los destinos</option>
+            <option value="">Selecciona destino</option>
             {sorted.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
@@ -126,7 +146,11 @@ const SearchForm = () => {
           />
         </div>
 
-        <button type="submit" className="btn btn-primary btn-buscar" disabled={loadingResults}>
+        <button
+          type="submit"
+          className="btn btn-primary btn-buscar"
+          disabled={loadingResults}
+        >
           <svg
             width="20"
             height="20"
@@ -143,7 +167,10 @@ const SearchForm = () => {
       </form>
 
       {error && (
-        <p className="empty-msg" style={{ color: '#e74c3c', marginTop: '1rem' }}>
+        <p
+          className="empty-msg"
+          style={{ color: '#e74c3c', marginTop: '1rem' }}
+        >
           Error: {error}
         </p>
       )}
@@ -165,13 +192,16 @@ const SearchForm = () => {
                       {trip.journey?.destination?.name || '?'}
                     </h4>
                     <p className="destino-provincia">
-                      Salida: {formatDate(trip.departureDate)}
+                      Salida:{' '}
+                      {trip.scheduleType === 'specific'
+                        ? formatDate(trip.departureDate)
+                        : `${trip.searchDate} ${trip.departureTime || ''}`}
                       {trip.arrivalDate &&
                         ` | Llegada: ${formatDate(trip.arrivalDate)}`}
                     </p>
                     <div className="destino-footer">
                       <span className="destino-label">
-                        {trip.vehicle?.maxCapacity ?? '?'} asientos disponibles
+                        {trip.availableSeats} asientos disponibles
                       </span>
                     </div>
                   </div>

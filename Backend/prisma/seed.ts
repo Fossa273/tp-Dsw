@@ -3,15 +3,93 @@
 import 'dotenv/config';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '@prisma/client';
+import {
+  durationFromDistance,
+  getDistanceKm,
+} from '../src/shared/maps.service.js';
 
 const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
 const FUEL_PRICE_PER_KM = Number(process.env.FUEL_PRICE_PER_KM ?? 100);
+const OPERATING_COST_MULTIPLIER = 1.4;
 
 const ADMIN_PASSWORD_HASH =
   '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; // admin123
 const DEMO_PASSWORD_HASH =
   '09a31a7001e261ab1e056182a71d3cf57f582ca9a29cff5eb83be0f0549730a9'; // cliente123
+
+const seedJourneyDefinitions = [
+  {
+    id: 1,
+    originId: 1,
+    destinationId: 2,
+    origin: 'CABA, Buenos Aires, Argentina',
+    destination: 'La Plata, Buenos Aires, Argentina',
+  },
+  {
+    id: 2,
+    originId: 1,
+    destinationId: 4,
+    origin: 'CABA, Buenos Aires, Argentina',
+    destination: 'Rosario, Santa Fe, Argentina',
+  },
+  {
+    id: 3,
+    originId: 2,
+    destinationId: 3,
+    origin: 'La Plata, Buenos Aires, Argentina',
+    destination: 'Mar del Plata, Buenos Aires, Argentina',
+  },
+  {
+    id: 4,
+    originId: 4,
+    destinationId: 5,
+    origin: 'Rosario, Santa Fe, Argentina',
+    destination: 'San Miguel de Tucuman, Tucuman, Argentina',
+  },
+  {
+    id: 5,
+    originId: 1,
+    destinationId: 6,
+    origin: 'CABA, Buenos Aires, Argentina',
+    destination: 'Bariloche, Rio Negro, Argentina',
+  },
+] as const;
+
+async function calculateSeedJourneys() {
+  const journeys = [];
+  for (const journey of seedJourneyDefinitions) {
+    const distanceKm = await getDistanceKm(journey.origin, journey.destination);
+    journeys.push({
+      id: journey.id,
+      originId: journey.originId,
+      destinationId: journey.destinationId,
+      distanceKm,
+      durationMinutes: durationFromDistance(distanceKm),
+    });
+  }
+  return journeys;
+}
+
+async function calculateSeedBookingPrice(tripId: number, seats: number) {
+  const trip = await prisma.trip.findUnique({
+    where: { id: tripId },
+    include: {
+      journey: true,
+      vehicle: { include: { categoryRelation: true } },
+    },
+  });
+  if (!trip?.vehicle.categoryRelation || trip.vehicle.maxCapacity <= 0) {
+    throw new Error(`No se pudo calcular el precio del viaje ${tripId}`);
+  }
+
+  const fuelCost = trip.journey.distanceKm * FUEL_PRICE_PER_KM;
+  const fuelCostPerSeat =
+    (fuelCost * OPERATING_COST_MULTIPLIER) / trip.vehicle.maxCapacity;
+  const pricePerSeat =
+    fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase;
+  return Number((pricePerSeat * seats).toFixed(2));
+}
 
 async function main() {
   // ------------------------------------------------------------
@@ -58,16 +136,21 @@ async function main() {
     skipDuplicates: true,
   });
 
-  await prisma.journey.createMany({
-    data: [
-      { id: 1, originId: 1, destinationId: 2, distanceKm: 60, durationMinutes: 70 },
-      { id: 2, originId: 1, destinationId: 4, distanceKm: 300, durationMinutes: 240 },
-      { id: 3, originId: 2, destinationId: 3, distanceKm: 380, durationMinutes: 300 },
-      { id: 4, originId: 4, destinationId: 5, distanceKm: 810, durationMinutes: 600 },
-      { id: 5, originId: 1, destinationId: 6, distanceKm: 1600, durationMinutes: 840 },
-    ],
-    skipDuplicates: true,
-  });
+  const seedJourneys = await calculateSeedJourneys();
+  await prisma.$transaction(
+    seedJourneys.map((journey) =>
+      prisma.journey.upsert({
+        where: { id: journey.id },
+        create: journey,
+        update: {
+          originId: journey.originId,
+          destinationId: journey.destinationId,
+          distanceKm: journey.distanceKm,
+          durationMinutes: journey.durationMinutes,
+        },
+      })
+    )
+  );
 
   await prisma.vehicleCategory.createMany({
     data: [
@@ -83,28 +166,100 @@ async function main() {
     { categoryId: 2, precioBase: 18000 },
     { categoryId: 3, precioBase: 25000 },
   ]) {
-    const history = await prisma.vehicleCategoryPrice.findFirst({ where: price });
+    const history = await prisma.vehicleCategoryPrice.findFirst({
+      where: price,
+    });
     if (!history) await prisma.vehicleCategoryPrice.create({ data: price });
   }
 
   await prisma.vehicle.createMany({
     data: [
-      { id: 1, maxCapacity: 45, categoryId: 2, category: 'Colectivo', hasBathroom: false, maintenance: false },
-      { id: 2, maxCapacity: 30, categoryId: 1, category: 'Combi', hasBathroom: false, maintenance: false },
-      { id: 3, maxCapacity: 60, categoryId: 3, category: 'Colectivo alto', hasBathroom: true, maintenance: false },
-      { id: 4, maxCapacity: 20, categoryId: 1, category: 'Combi', hasBathroom: false, maintenance: false },
-      { id: 5, maxCapacity: 50, categoryId: 2, category: 'Colectivo', hasBathroom: true, maintenance: false },
+      {
+        id: 1,
+        maxCapacity: 45,
+        categoryId: 2,
+        category: 'Colectivo',
+        hasBathroom: false,
+        maintenance: false,
+      },
+      {
+        id: 2,
+        maxCapacity: 30,
+        categoryId: 1,
+        category: 'Combi',
+        hasBathroom: false,
+        maintenance: false,
+      },
+      {
+        id: 3,
+        maxCapacity: 60,
+        categoryId: 3,
+        category: 'Colectivo alto',
+        hasBathroom: true,
+        maintenance: false,
+      },
+      {
+        id: 4,
+        maxCapacity: 20,
+        categoryId: 1,
+        category: 'Combi',
+        hasBathroom: false,
+        maintenance: false,
+      },
+      {
+        id: 5,
+        maxCapacity: 50,
+        categoryId: 2,
+        category: 'Colectivo',
+        hasBathroom: true,
+        maintenance: false,
+      },
     ],
     skipDuplicates: true,
   });
 
   await prisma.driver.createMany({
     data: [
-      { id: 1, dni: '30123456', firstName: 'Carlos', lastName: 'Gutierrez', phone: '1112223334', active: 1 },
-      { id: 2, dni: '30234567', firstName: 'Marta', lastName: 'Sosa', phone: '2223334445', active: 1 },
-      { id: 3, dni: '30345678', firstName: 'Jorge', lastName: 'Fernandez', phone: '3334445556', active: 1 },
-      { id: 4, dni: '30456789', firstName: 'Silvia', lastName: 'Ramos', phone: '4445556667', active: 1 },
-      { id: 5, dni: '30567890', firstName: 'Diego', lastName: 'Alvarez', phone: '5556667778', active: 1 },
+      {
+        id: 1,
+        dni: '30123456',
+        firstName: 'Carlos',
+        lastName: 'Gutierrez',
+        phone: '1112223334',
+        active: 1,
+      },
+      {
+        id: 2,
+        dni: '30234567',
+        firstName: 'Marta',
+        lastName: 'Sosa',
+        phone: '2223334445',
+        active: 1,
+      },
+      {
+        id: 3,
+        dni: '30345678',
+        firstName: 'Jorge',
+        lastName: 'Fernandez',
+        phone: '3334445556',
+        active: 1,
+      },
+      {
+        id: 4,
+        dni: '30456789',
+        firstName: 'Silvia',
+        lastName: 'Ramos',
+        phone: '4445556667',
+        active: 1,
+      },
+      {
+        id: 5,
+        dni: '30567890',
+        firstName: 'Diego',
+        lastName: 'Alvarez',
+        phone: '5556667778',
+        active: 1,
+      },
     ],
     skipDuplicates: true,
   });
@@ -243,25 +398,48 @@ async function main() {
   // ------------------------------------------------------------
   // Bookings (reservas): client + trip + seats + state
   // ------------------------------------------------------------
-  await prisma.booking.createMany({
-    data: [
-      { id: 1, clientId: 1, tripId: 1, numSeats: 2, state: 'confirmed', price: 18000 + (60 * FUEL_PRICE_PER_KM) },
-      { id: 2, clientId: 2, tripId: 2, numSeats: 1, state: 'pending', price: 10000 + (300 * FUEL_PRICE_PER_KM) },
-      { id: 3, clientId: 3, tripId: 1, numSeats: 4, state: 'confirmed', price: 18000 + (60 * FUEL_PRICE_PER_KM) },
-      { id: 4, clientId: 4, tripId: 3, numSeats: 2, state: 'cancelled', price: 25000 + (380 * FUEL_PRICE_PER_KM) },
-      { id: 5, clientId: 5, tripId: 5, numSeats: 1, state: 'pending', price: 18000 + (1600 * FUEL_PRICE_PER_KM) },
-    ],
-    skipDuplicates: true,
-  });
+  const seedBookings = [
+    { id: 1, clientId: 1, tripId: 1, numSeats: 2, state: 'confirmed' },
+    { id: 2, clientId: 2, tripId: 2, numSeats: 1, state: 'pending' },
+    { id: 3, clientId: 3, tripId: 1, numSeats: 4, state: 'confirmed' },
+    { id: 4, clientId: 4, tripId: 3, numSeats: 2, state: 'cancelled' },
+    { id: 5, clientId: 5, tripId: 5, numSeats: 1, state: 'pending' },
+  ];
+
+  await prisma.$transaction(
+    (
+      await Promise.all(
+        seedBookings.map(async (booking) => ({
+          ...booking,
+          price: await calculateSeedBookingPrice(
+            booking.tripId,
+            booking.numSeats
+          ),
+        }))
+      )
+    ).map((booking) =>
+      prisma.booking.upsert({
+        where: { id: booking.id },
+        create: booking,
+        update: {
+          clientId: booking.clientId,
+          tripId: booking.tripId,
+          numSeats: booking.numSeats,
+          state: booking.state,
+          price: booking.price,
+        },
+      })
+    )
+  );
 
   // ------------------------------------------------------------
   // Administrator: client with id = 0
   // MySQL only stores 0 in an AUTO_INCREMENT column when
   // NO_AUTO_VALUE_ON_ZERO is enabled, so use raw SQL for this row.
   // ------------------------------------------------------------
-  const [adminRow] = await prisma.$queryRawUnsafe(
+  const [adminRow] = (await prisma.$queryRawUnsafe(
     `SELECT id FROM clients WHERE id = 0`
-  ) as { id: number }[];
+  )) as { id: number }[];
 
   if (!adminRow) {
     await prisma.$executeRawUnsafe(

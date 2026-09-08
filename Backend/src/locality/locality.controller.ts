@@ -1,10 +1,7 @@
 import { Request, Response } from 'express';
 import { LocalityRepository } from './locality.repository.js';
 import { ProvinceRepository } from '../province/province.repository.js';
-import {
-  geocodeName,
-  normalizeName,
-} from '../shared/maps.service.js';
+import { geocodeName, normalizeName } from '../shared/maps.service.js';
 
 const repository = new LocalityRepository();
 const provinceRepository = new ProvinceRepository();
@@ -41,11 +38,15 @@ function normalizeProvinceName(value: string): string {
 // Verifies with OpenStreetMap that a locality name belongs to a province.
 // Returns:
 //   { error: string | null, warning: string | null, candidates: ... , provinceId: number | null }
-// When Google finds the name in several provinces, `ambiguous` is true and
+// When OpenStreetMap finds the name in several provinces, `ambiguous` is true and
 // the caller must ask the user to clarify which province it is.
 type VerifyResult = {
   ambiguous?: boolean;
-  candidates?: { id: number | null; name: string; abbreviation: string | null }[];
+  candidates?: {
+    id: number | null;
+    name: string;
+    abbreviation: string | null;
+  }[];
   warning?: string | null;
   provinceId?: number | null;
 };
@@ -119,12 +120,10 @@ async function verifyLocality(
 
   // OpenStreetMap resolved it to a single province.
   const matchesSelected =
-    provinceId !== null &&
-    resolved !== undefined &&
-    resolved.id === provinceId;
+    provinceId !== null && resolved !== undefined && resolved.id === provinceId;
 
   if (provinceId === null && resolved) {
-    // Auto-assign the province Google found when the user did not pick one.
+    // Auto-assign the province OpenStreetMap found when the user did not pick one.
     return { provinceId: resolved.id };
   }
 
@@ -266,7 +265,8 @@ async function remove(req: Request, res: Response) {
     }
     if (err?.code === 'P2003') {
       res.status(409).json({
-        error: 'No se puede eliminar la localidad porque tiene trayectos asociados',
+        error:
+          'No se puede eliminar la localidad porque tiene trayectos asociados',
       });
       return;
     }

@@ -44,14 +44,28 @@ const validateDriver = (data) => {
 };
 
 const EyeIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
     <circle cx="12" cy="12" r="3" />
   </svg>
 );
 
 const EyeOffIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
     <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
     <path d="M14.12 14.12a3 3 0 11-4.24-4.24" />
@@ -60,21 +74,42 @@ const EyeOffIcon = () => (
 );
 
 const PencilIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
     <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
   </svg>
 );
 
 const PlusIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 
 const CheckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
@@ -129,7 +164,6 @@ const DriversPage = () => {
   const msgTimer = useRef(null);
 
   // Inline edit of the list
-  const [editMode, setEditMode] = useState(false);
   const [drafts, setDrafts] = useState({});
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
@@ -140,7 +174,12 @@ const DriversPage = () => {
     msgTimer.current = setTimeout(() => setMsg(null), 4000);
   };
 
-  useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (msgTimer.current) clearTimeout(msgTimer.current);
+    },
+    [],
+  );
 
   const handleRegisterChange = (e) => {
     setRegisterForm({ ...registerForm, [e.target.name]: e.target.value });
@@ -171,25 +210,6 @@ const DriversPage = () => {
     }
   };
 
-  const toggleEditMode = () => {
-    if (!editMode) {
-      const seed = {};
-      drivers.forEach((d) => {
-        seed[String(d.id)] = {
-          firstName: d.firstName || '',
-          lastName: d.lastName || '',
-          dni: d.dni || '',
-          phone: d.phone || '',
-        };
-      });
-      setDrafts(seed);
-      setEditMode(true);
-    } else {
-      setDrafts({});
-      setEditMode(false);
-    }
-  };
-
   const handleDraftChange = (id, field, value) => {
     setDrafts((prev) => ({
       ...prev,
@@ -212,10 +232,24 @@ const DriversPage = () => {
         dni: draft.dni.trim(),
         phone: draft.phone.trim(),
       });
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[String(id)];
+        return next;
+      });
       showMessage('Datos actualizados correctamente');
     } catch (errMsg) {
       showMessage(errMsg.message, 'error');
     }
+  };
+
+  const handleDraftCancel = (id) => {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[String(id)];
+      return next;
+    });
+    setDeleteConfirmId(null);
   };
 
   const handleDelete = async (id) => {
@@ -259,23 +293,23 @@ const DriversPage = () => {
         sorted.sort((a, b) =>
           String(a.dni ?? '').localeCompare(String(b.dni ?? ''), 'es', {
             numeric: true,
-          })
+          }),
         );
         break;
       case 'name-asc':
         sorted.sort((a, b) =>
           `${a.firstName} ${a.lastName}`.localeCompare(
             `${b.firstName} ${b.lastName}`,
-            'es'
-          )
+            'es',
+          ),
         );
         break;
       case 'name-desc':
         sorted.sort((a, b) =>
           `${b.firstName} ${b.lastName}`.localeCompare(
             `${a.firstName} ${a.lastName}`,
-            'es'
-          )
+            'es',
+          ),
         );
         break;
       default:
@@ -287,15 +321,18 @@ const DriversPage = () => {
   const isInactive = (id) => !drivers.some((d) => String(d.id) === String(id));
 
   if (loading) return <div className="loading">Cargando conductores...</div>;
-  if (error) return (
-    <div className="error">
-      <p>Error: {error}</p>
-      <button className="btn btn-primary" onClick={refetch}>Reintentar</button>
-    </div>
-  );
+  if (error)
+    return (
+      <div className="error">
+        <p>Error: {error}</p>
+        <button className="btn btn-primary" onClick={refetch}>
+          Reintentar
+        </button>
+      </div>
+    );
 
   const visibleDrivers = allDrivers.filter((d) =>
-    showInactive ? true : !isInactive(d.id)
+    showInactive ? true : !isInactive(d.id),
   );
 
   return (
@@ -315,7 +352,14 @@ const DriversPage = () => {
       {/* SECTION 1: REGISTRATION */}
       <section className="profile-section">
         <div className="profile-section-header">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <circle cx="12" cy="7" r="4" />
             <path d="M5.5 21v-1a6.5 6.5 0 0113 0v1" />
           </svg>
@@ -378,7 +422,11 @@ const DriversPage = () => {
             </div>
           </div>
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
+            <button
+              type="submit"
+              className="btn btn-primary btn-icon"
+              disabled={submitting}
+            >
               <PlusIcon />
               {submitting ? 'Guardando...' : 'Registrar conductor'}
             </button>
@@ -389,7 +437,14 @@ const DriversPage = () => {
       {/* SECTION 2: GENERAL LISTING */}
       <section className="profile-section">
         <div className="profile-section-header">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <line x1="16" y1="13" x2="8" y2="13" />
@@ -399,15 +454,22 @@ const DriversPage = () => {
             <h2>Listado general de conductores</h2>
             <p className="profile-section-desc">
               Todos los conductores identificados por DNI. Los que estan dados
-              de baja se muestran atenuados. Para modificar, active el lapiz y
-              edite directamente los campos de cada fila.
+              de baja se muestran atenuados. Puede modificar cada fila
+              directamente desde sus campos.
             </p>
           </div>
         </div>
 
         <div className="crud-toolbar">
           <div className="crud-search">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
@@ -420,7 +482,11 @@ const DriversPage = () => {
           </div>
           <div className="crud-sort">
             <label htmlFor="driver-sort">Ordenar</label>
-            <select id="driver-sort" value={sort} onChange={(e) => setSort(e.target.value)}>
+            <select
+              id="driver-sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+            >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -431,16 +497,11 @@ const DriversPage = () => {
           <button
             type="button"
             className="btn btn-secondary btn-icon"
-            title={editMode ? 'Terminar edicion' : 'Editar campos de la tabla'}
-            onClick={toggleEditMode}
-          >
-            <PencilIcon />
-            {editMode ? 'Terminar edicion' : 'Editar tabla'}
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-icon"
-            title={showInactive ? 'Ocultar conductores inactivos' : 'Mostrar conductores inactivos'}
+            title={
+              showInactive
+                ? 'Ocultar conductores inactivos'
+                : 'Mostrar conductores inactivos'
+            }
             onClick={() => setShowInactive((prev) => !prev)}
           >
             {showInactive ? <EyeIcon /> : <EyeOffIcon />}
@@ -468,7 +529,7 @@ const DriversPage = () => {
               {visibleDrivers.map((d) => {
                 const inactiveRow = isInactive(d.id);
                 const draft = drafts[String(d.id)];
-                const editing = editMode && draft;
+                const editing = Boolean(draft);
                 return (
                   <tr key={d.id} className={inactiveRow ? 'row-inactive' : ''}>
                     <td className="dni-cell">
@@ -476,7 +537,9 @@ const DriversPage = () => {
                         <input
                           className="inline-input"
                           value={draft.dni}
-                          onChange={(e) => handleDraftChange(d.id, 'dni', e.target.value)}
+                          onChange={(e) =>
+                            handleDraftChange(d.id, 'dni', e.target.value)
+                          }
                         />
                       ) : (
                         <strong>{d.dni || '-'}</strong>
@@ -522,7 +585,9 @@ const DriversPage = () => {
                       )}
                     </td>
                     <td>
-                      <span className={`status-badge ${inactiveRow ? 'badge-inactive' : 'badge-active'}`}>
+                      <span
+                        className={`status-badge ${inactiveRow ? 'badge-inactive' : 'badge-active'}`}
+                      >
                         {inactiveRow ? 'Inactivo' : 'Activo'}
                       </span>
                     </td>
@@ -542,13 +607,18 @@ const DriversPage = () => {
                           >
                             <CheckIcon /> Guardar
                           </button>
-                          {deleteConfirmId === d.id ? (
-                            <span className="confirm-msg">¿Eliminar?</span>
-                          ) : null}
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => handleDraftCancel(d.id)}
+                          >
+                            Cancelar
+                          </button>
                         </>
                       ) : deleteConfirmId === d.id ? (
                         <>
-                          <span className="confirm-msg">¿Eliminar conductor?</span>
+                          <span className="confirm-msg">
+                            ¿Eliminar conductor?
+                          </span>
                           <button
                             className="btn btn-sm btn-delete"
                             onClick={() => handleDelete(d.id)}
@@ -567,18 +637,15 @@ const DriversPage = () => {
                           <button
                             className="btn btn-sm btn-edit"
                             onClick={() => {
-                              if (!editMode) {
-                                setDrafts((prev) => ({
-                                  ...prev,
-                                  [String(d.id)]: {
-                                    firstName: d.firstName || '',
-                                    lastName: d.lastName || '',
-                                    dni: d.dni || '',
-                                    phone: d.phone || '',
-                                  },
-                                }));
-                                setEditMode(true);
-                              }
+                              setDrafts((prev) => ({
+                                ...prev,
+                                [String(d.id)]: {
+                                  firstName: d.firstName || '',
+                                  lastName: d.lastName || '',
+                                  dni: d.dni || '',
+                                  phone: d.phone || '',
+                                },
+                              }));
                             }}
                           >
                             <PencilIcon /> Editar

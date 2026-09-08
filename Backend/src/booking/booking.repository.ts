@@ -10,7 +10,9 @@ export interface BookingData {
 }
 
 const BOOKING_INCLUDE = {
-  client: { select: { id: true, firstName: true, lastName: true, email: true } },
+  client: {
+    select: { id: true, firstName: true, lastName: true, email: true },
+  },
   trip: {
     include: {
       journey: {
@@ -19,15 +21,18 @@ const BOOKING_INCLUDE = {
           destination: { select: { id: true, name: true } },
         },
       },
-      vehicle: { select: { id: true, maxCapacity: true, categoryRelation: true } },
+      vehicle: {
+        select: { id: true, maxCapacity: true, categoryRelation: true },
+      },
       driver: { select: { id: true, firstName: true, lastName: true } },
     },
   },
 } as const;
 
 export class BookingRepository {
-  public async findAll() {
+  public async findAll(clientId?: number) {
     return prisma.booking.findMany({
+      where: clientId === undefined ? undefined : { clientId },
       include: BOOKING_INCLUDE,
       orderBy: { id: 'desc' },
     });
@@ -79,7 +84,10 @@ export class BookingRepository {
     if (item.price !== undefined) data.price = item.price;
 
     if (Object.keys(data).length === 0) {
-      return prisma.booking.findUnique({ where: { id: item.id }, include: BOOKING_INCLUDE });
+      return prisma.booking.findUnique({
+        where: { id: item.id },
+        include: BOOKING_INCLUDE,
+      });
     }
     return prisma.booking.update({
       where: { id: item.id },

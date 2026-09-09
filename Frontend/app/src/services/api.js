@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
@@ -173,7 +173,15 @@ export const api = {
   trips: {
     getAll: () => request('/trips'),
     getInactive: () => request('/trips/inactive'),
+    getPromoted: () => request('/trips/promoted'),
     getOne: (id) => request(`/trips/${id}`),
+    search: (params) => {
+      const qs = new URLSearchParams();
+      if (params.originId) qs.set('originId', params.originId);
+      if (params.destinationId) qs.set('destinationId', params.destinationId);
+      if (params.date) qs.set('date', params.date);
+      return request(`/trips/search?${qs.toString()}`);
+    },
     create: (trip) =>
       request('/trips', {
         method: 'POST',
@@ -192,6 +200,8 @@ export const api = {
     getAll: (clientId) =>
       request(clientId ? `/bookings?clientId=${clientId}` : '/bookings'),
     getOne: (id) => request(`/bookings/${id}`),
+    seatsByTrips: (tripIds) =>
+      request(`/bookings/seats?tripIds=${tripIds.join(',')}`),
     create: (booking) =>
       request('/bookings', {
         method: 'POST',

@@ -12,6 +12,8 @@ export interface TripData {
   departureDate?: Date | null;
   arrivalDate?: Date | null;
   arrivesNextDay?: boolean;
+  isPromoted?: number;
+  promoExpiry?: Date | null;
   active?: number;
 }
 
@@ -60,6 +62,13 @@ export class TripRepository {
   }
 
   public async findOne(item: { id: number }) {
+    return prisma.trip.findFirst({
+      where: { id: item.id, active: 1 },
+      include: TRIP_INCLUDE,
+    });
+  }
+
+  public async findOneIncludingInactive(item: { id: number }) {
     return prisma.trip.findUnique({
       where: { id: item.id },
       include: TRIP_INCLUDE,
@@ -100,6 +109,8 @@ export class TripRepository {
         departureDate: item.departureDate ?? null,
         arrivalDate: item.arrivalDate ?? null,
         arrivesNextDay: item.arrivesNextDay ?? false,
+        isPromoted: item.isPromoted ?? 0,
+        promoExpiry: item.promoExpiry ?? null,
         active: 1,
       },
       include: TRIP_INCLUDE,
@@ -121,6 +132,8 @@ export class TripRepository {
     if (item.departureDate !== undefined) data.departureDate = item.departureDate;
     if (item.arrivalDate !== undefined) data.arrivalDate = item.arrivalDate;
     if (item.arrivesNextDay !== undefined) data.arrivesNextDay = item.arrivesNextDay;
+    if (item.isPromoted !== undefined) data.isPromoted = item.isPromoted;
+    if (item.promoExpiry !== undefined) data.promoExpiry = item.promoExpiry;
 
     if (Object.keys(data).length === 0) {
       return prisma.trip.findUnique({
@@ -148,5 +161,36 @@ export class TripRepository {
       where: { id: item.id },
       data: { active: 1 },
     });
+  }
+
+  public async findPromoted() {
+    return prisma.trip.findMany({
+      where: {
+        active: 1,
+        isPromoted: 1,
+        OR: [
+          { promoExpiry: null },
+          { promoExpiry: { gt: new Date() } },
+        ],
+      },
+      include: TRIP_INCLUDE,
+      orderBy: [{ departureTime: 'asc' }],
+    });
+  }
+
+  public async paginated(page: number, limit: number, clientId?: number) {
+    const skip = (page - 1) * limit;
+    const where = clientId !== undefined ? { clientId } : {};
+    const [data, total] = await Promise.all([
+      prisma.trip.findMany({
+        where: { active: 1, ...where },
+        include: TRIP_INCLUDE,
+        orderBy: [{ dayOfWeek: 'asc' }, { departureTime: 'asc' }],
+        skip,
+        take: limit,
+      }),
+      prisma.trip.count({ where: { active: 1, ...where } }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 }

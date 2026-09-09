@@ -3,10 +3,12 @@ import {
   findAll,
   findAllInactive,
   findOne,
+  findPromoted,
   update,
   add,
   remove,
   reactivate,
+  search,
 } from './trip.controller.js';
 import { sanitizeTripInput } from './trip.validation.js';
 
@@ -14,6 +16,8 @@ export const router = Router();
 
 // Inactive trips (must come before /:id to avoid route collision).
 router.get('/inactive', findAllInactive);
+router.get('/promoted', findPromoted);
+router.get('/search', search);
 
 router.get('/', findAll);
 router.get('/:id', findOne);

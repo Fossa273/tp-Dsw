@@ -1,8 +1,5 @@
 import { prisma } from '../shared/db/connection.js';
-
-// The administrator is not a regular client and must not appear in the
-// clients listing. Identified by a fixed, reserved email.
-const ADMIN_EMAIL = 'admin@rutabus.com';
+import { ADMIN_EMAIL } from '../shared/constants.js';
 
 const PUBLIC_SELECT = {
   id: true,

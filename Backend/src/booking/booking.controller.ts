@@ -12,6 +12,10 @@ const FUEL_PRICE_PER_KM = Number(process.env.FUEL_PRICE_PER_KM ?? 100);
 const OPERATING_COST_MULTIPLIER = 1.4;
 const MAX_BOOKING_ADVANCE_MONTHS = 1;
 
+function roundToNext100(value: number): number {
+  return Math.ceil(value / 100) * 100;
+}
+
 async function calculatePrice(tripId: number, seats: number) {
   const trip = await tripRepository.findOne({ id: tripId });
   if (!trip || !trip.vehicle?.categoryRelation) return null;
@@ -22,7 +26,7 @@ async function calculatePrice(tripId: number, seats: number) {
   const fuelCostPerSeat = (fuelCost * OPERATING_COST_MULTIPLIER) / capacity;
   const pricePerSeat =
     fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase;
-  return Number((pricePerSeat * seats).toFixed(2));
+  return roundToNext100(pricePerSeat * seats);
 }
 
 function normalizeNumSeats(value: unknown): number | null {
@@ -36,20 +40,30 @@ function normalizeNumSeats(value: unknown): number | null {
 function nextWeeklyDeparture(dayOfWeek: number, departureTime: string) {
   const now = new Date();
   const [hours, minutes] = departureTime.split(':').map(Number);
-  const departure = new Date(now);
-  departure.setHours(hours, minutes, 0, 0);
+  const departure = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    hours,
+    minutes,
+    0,
+    0
+  );
   const daysUntilDeparture = (dayOfWeek - now.getDay() + 7) % 7;
-  departure.setDate(now.getDate() + daysUntilDeparture);
+  departure.setDate(departure.getDate() + daysUntilDeparture);
   if (departure <= now) {
     departure.setDate(departure.getDate() + 7);
   }
   return departure;
 }
 
-async function validateBookingWindow(tripId: number) {
-  const trip = await tripRepository.findOne({ id: tripId });
+async function validateBookingWindow(tripId: number, existingTrip?: any) {
+  const trip = existingTrip ?? await tripRepository.findOne({ id: tripId });
   if (!trip) {
     return 'El viaje seleccionado no existe';
+  }
+  if (trip.active === 0) {
+    return 'El viaje seleccionado esta desactivado';
   }
 
   const departure =
@@ -70,8 +84,8 @@ async function validateBookingWindow(tripId: number) {
   return null;
 }
 
-async function validateCancellationWindow(tripId: number) {
-  const trip = await tripRepository.findOne({ id: tripId });
+async function validateCancellationWindow(tripId: number, existingTrip?: any) {
+  const trip = existingTrip ?? await tripRepository.findOne({ id: tripId });
   if (!trip) return 'El viaje seleccionado no existe';
 
   const departure =
@@ -91,11 +105,15 @@ async function validateCancellationWindow(tripId: number) {
 async function validateCapacity(
   tripId: number,
   numSeats: number,
-  excludeBookingId?: number
+  excludeBookingId?: number,
+  existingTrip?: any
 ) {
-  const trip = await tripRepository.findOne({ id: tripId });
+  const trip = existingTrip ?? await tripRepository.findOne({ id: tripId });
   if (!trip) {
     return 'El viaje seleccionado no existe';
+  }
+  if (trip.active === 0) {
+    return 'El viaje seleccionado esta desactivado';
   }
   const capacity = trip.vehicle?.maxCapacity ?? 0;
   try {
@@ -155,30 +173,46 @@ async function add(req: Request, res: Response) {
     return;
   }
 
-  const client = await clientRepository.findOne({ id: Number(clientId) });
+  const [client, trip] = await Promise.all([
+    clientRepository.findOne({ id: Number(clientId) }),
+    tripRepository.findOne({ id: Number(tripId) }),
+  ]);
+
   if (!client) {
     res.status(400).json({ error: 'El cliente seleccionado no existe' });
     return;
   }
 
-  const bookingWindowError = await validateBookingWindow(Number(tripId));
+  const bookingWindowError = await validateBookingWindow(Number(tripId), trip);
   if (bookingWindowError) {
     res.status(400).json({ error: bookingWindowError });
     return;
   }
 
-  const capacityError = await validateCapacity(Number(tripId), seats);
+  const capacityError = await validateCapacity(Number(tripId), seats, undefined, trip);
   if (capacityError) {
     res.status(400).json({ error: capacityError });
     return;
   }
-  const price = await calculatePrice(Number(tripId), seats);
-  if (price === null) {
+
+  if (!trip || !trip.vehicle?.categoryRelation) {
     res.status(400).json({
       error: 'El vehiculo no tiene una categoria con precio base asignado',
     });
     return;
   }
+  const capacity = trip.vehicle.maxCapacity;
+  if (!Number.isFinite(capacity) || capacity <= 0) {
+    res.status(400).json({
+      error: 'El vehiculo no tiene una capacidad valida',
+    });
+    return;
+  }
+  const fuelCost = trip.journey.distanceKm * FUEL_PRICE_PER_KM;
+  const fuelCostPerSeat = (fuelCost * OPERATING_COST_MULTIPLIER) / capacity;
+  const pricePerSeat =
+    fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase;
+  const price = roundToNext100(pricePerSeat * seats);
 
   const newBooking = await repository.add({
     clientId: Number(clientId),
@@ -326,4 +360,15 @@ async function cancel(req: Request, res: Response) {
   res.json(updatedBooking);
 }
 
-export { findAll, findOne, add, update, remove, cancel };
+async function seatsByTrips(req: Request, res: Response) {
+  const idsParam = req.query.tripIds;
+  if (!idsParam || !String(idsParam).trim()) {
+    res.status(400).json({ error: 'tripIds es obligatorio' });
+    return;
+  }
+  const tripIds = String(idsParam).split(',').map(Number).filter(Number.isInteger);
+  const seats = await repository.seatsByTripIds(tripIds);
+  res.json({ data: seats });
+}
+
+export { findAll, findOne, add, update, remove, cancel, seatsByTrips };

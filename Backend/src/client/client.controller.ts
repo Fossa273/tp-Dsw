@@ -1,12 +1,9 @@
 import { Request, Response } from 'express';
 import { createHash } from 'node:crypto';
 import { ClientRepository } from './client.repository.js';
+import { ADMIN_EMAIL } from '../shared/constants.js';
 
 const repository = new ClientRepository();
-
-// The administrator account uses a fixed, reserved email. It cannot be
-// registered by other clients nor changed.
-const ADMIN_EMAIL = 'admin@rutabus.com';
 
 function isAdminEmail(value: unknown): boolean {
   return (

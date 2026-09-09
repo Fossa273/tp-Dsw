@@ -119,6 +119,8 @@ model Trip {
   departureDate DateTime?
   arrivalDate   DateTime?
   arrivesNextDay Boolean @default(false)
+  isPromoted    Int     @default(0)
+  promoExpiry   DateTime?
   active        Int     @default(1)
 
   journey        Journey        @relation(fields: [journeyId], references: [id])

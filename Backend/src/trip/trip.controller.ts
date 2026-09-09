@@ -15,21 +15,16 @@ async function validateDependencies(
   driverId: number,
   vehicleId: number
 ) {
-  const journey = await journeyRepository.findOne({ id: journeyId });
-  if (!journey) {
-    return { error: 'El trayecto seleccionado no existe' };
-  }
-  const driver = await driverRepository.findOne({ id: driverId });
-  if (!driver) {
-    return { error: 'El conductor seleccionado no existe' };
-  }
-  const vehicle = await vehicleRepository.findOne({ id: vehicleId });
-  if (!vehicle) {
-    return { error: 'El vehiculo seleccionado no existe' };
-  }
-  if (vehicle.maintenance) {
-    return { error: 'El vehiculo seleccionado esta en mantenimiento' };
-  }
+  const [journey, driver, vehicle] = await Promise.all([
+    journeyRepository.findOne({ id: journeyId }),
+    driverRepository.findOne({ id: driverId }),
+    vehicleRepository.findOne({ id: vehicleId }),
+  ]);
+
+  if (!journey) return { error: 'El trayecto seleccionado no existe' };
+  if (!driver) return { error: 'El conductor seleccionado no existe' };
+  if (!vehicle) return { error: 'El vehiculo seleccionado no existe' };
+  if (vehicle.maintenance) return { error: 'El vehiculo seleccionado esta en mantenimiento' };
   return { journey, driver, vehicle };
 }
 
@@ -162,7 +157,14 @@ async function validateResourceAvailability(
 }
 
 async function findAll(req: Request, res: Response) {
-  res.json({ data: await repository.findAll() });
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 50;
+  if (req.query.page || req.query.limit) {
+    const result = await repository.paginated(page, limit);
+    res.json(result);
+  } else {
+    res.json({ data: await repository.findAll() });
+  }
 }
 
 async function findAllInactive(req: Request, res: Response) {
@@ -179,8 +181,31 @@ async function findOne(req: Request, res: Response) {
   }
 }
 
+async function findPromoted(_req: Request, res: Response) {
+  res.json({ data: await repository.findPromoted() });
+}
+
+async function search(req: Request, res: Response) {
+  const { originId, destinationId, date } = req.query;
+  const trips = await repository.findAll();
+  const filtered = trips.filter((trip) => {
+    if (originId && String(trip.journey?.originId) !== String(originId)) return false;
+    if (destinationId && String(trip.journey?.destinationId) !== String(destinationId)) return false;
+    if (date) {
+      const selectedDate = new Date(`${date}T12:00:00`);
+      if (trip.scheduleType === 'specific' && trip.departureDate) {
+        if (new Date(trip.departureDate).toISOString().slice(0, 10) !== String(date)) return false;
+      } else {
+        if (Number(trip.dayOfWeek) !== selectedDate.getDay()) return false;
+      }
+    }
+    return true;
+  });
+  res.json({ data: filtered });
+}
+
 async function add(req: Request, res: Response) {
-  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate } =
+  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate, isPromoted, promoExpiry } =
     req.body.sanitizeInput;
 
   if (
@@ -268,13 +293,15 @@ async function add(req: Request, res: Response) {
     departureDate: parsedDepartureDate,
     arrivalDate: finalArrivalDate,
     arrivesNextDay: autoArrival.arrivesNextDay,
+    isPromoted: isPromoted ? 1 : 0,
+    promoExpiry: promoExpiry ? new Date(promoExpiry) : null,
   });
   res.status(201).json(newTrip);
 }
 
 async function update(req: Request, res: Response) {
   const id = Number(req.params.id);
-  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate } =
+  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate, isPromoted, promoExpiry } =
     req.body.sanitizeInput;
 
   const current = await repository.findOne({ id });
@@ -370,6 +397,8 @@ async function update(req: Request, res: Response) {
     ? new Date(parsedDepartureDate!.getTime() + journey!.durationMinutes * 60_000)
     : null;
   if (finalArrivesNextDay !== undefined) data.arrivesNextDay = finalArrivesNextDay;
+  if (isPromoted !== undefined) data.isPromoted = isPromoted ? 1 : 0;
+  if (promoExpiry !== undefined) data.promoExpiry = promoExpiry ? new Date(promoExpiry) : null;
 
   const availabilityError = await validateResourceAvailability(
     finalDriverId,
@@ -398,7 +427,7 @@ async function update(req: Request, res: Response) {
 
 async function remove(req: Request, res: Response) {
   const id = Number(req.params.id);
-  const trip = await repository.findOne({ id });
+  const trip = await repository.findOneIncludingInactive({ id });
   if (!trip) {
     res.status(404).json({ error: 'Viaje no encontrado' });
     return;
@@ -409,7 +438,7 @@ async function remove(req: Request, res: Response) {
 
 async function reactivate(req: Request, res: Response) {
   const id = Number(req.params.id);
-  const trip = await repository.findOne({ id });
+  const trip = await repository.findOneIncludingInactive({ id });
   if (!trip) {
     res.status(404).json({ error: 'Viaje no encontrado' });
     return;
@@ -422,6 +451,8 @@ export {
   findAll,
   findAllInactive,
   findOne,
+  findPromoted,
+  search,
   add,
   update,
   remove,

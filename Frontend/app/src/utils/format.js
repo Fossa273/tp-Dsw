@@ -18,3 +18,16 @@ export function localityLabel(locality) {
   const abbr = locality.province?.abbreviation;
   return abbr ? `${name} (${abbr})` : name;
 }
+
+export function formatDate(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}

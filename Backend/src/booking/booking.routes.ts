@@ -6,11 +6,13 @@ import {
   add,
   remove,
   cancel,
+  seatsByTrips,
 } from './booking.controller.js';
 import { sanitizeBookingInput } from './booking.validation.js';
 
 export const router = Router();
 
+router.get('/seats', seatsByTrips);
 router.get('/', findAll);
 router.get('/:id', findOne);
 router.post('/', sanitizeBookingInput, add);

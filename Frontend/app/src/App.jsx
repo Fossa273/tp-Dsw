@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -7,21 +8,23 @@ import {
 } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import HomePage from './pages/HomePage';
-import ClientsPage from './pages/ClientsPage';
-import LocalitiesPage from './pages/LocalitiesPage';
-import ProvincesPage from './pages/ProvincesPage';
-import VehiclesPage from './pages/VehiclesPage';
-import VehicleCategoriesPage from './pages/VehicleCategoriesPage';
-import DriversPage from './pages/DriversPage';
-import JourneysPage from './pages/JourneysPage';
-import TripsPage from './pages/TripsPage';
-import BookingsPage from './pages/BookingsPage';
-import LoginPage from './pages/LoginPage';
-import ProfilePage from './pages/ProfilePage';
-import AdminDashboard from './pages/AdminDashboard';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './context/AuthContext';
 import './index.scss';
+
+const HomePage = lazy(() => import('./pages/HomePage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const ClientsPage = lazy(() => import('./pages/ClientsPage'));
+const LocalitiesPage = lazy(() => import('./pages/LocalitiesPage'));
+const ProvincesPage = lazy(() => import('./pages/ProvincesPage'));
+const VehiclesPage = lazy(() => import('./pages/VehiclesPage'));
+const VehicleCategoriesPage = lazy(() => import('./pages/VehicleCategoriesPage'));
+const DriversPage = lazy(() => import('./pages/DriversPage'));
+const JourneysPage = lazy(() => import('./pages/JourneysPage'));
+const TripsPage = lazy(() => import('./pages/TripsPage'));
+const BookingsPage = lazy(() => import('./pages/BookingsPage'));
 
 // Requires an active session
 const RequireAuth = ({ children }) => {
@@ -64,7 +67,9 @@ const AppContent = () => {
     <div className="app">
       <Header currentPage={getCurrentPage()} onNavigate={handleNavigate} />
       <main className="main-content">
-        <Routes>
+        <ErrorBoundary>
+          <Suspense fallback={<div className="loading">Cargando...</div>}>
+            <Routes>
           <Route path="/" element={<HomePage onNavigate={handleNavigate} />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
@@ -156,6 +161,8 @@ const AppContent = () => {
             }
           />
         </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </main>
       <Footer />
     </div>

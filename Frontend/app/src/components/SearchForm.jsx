@@ -1,18 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
-
-const formatDate = (iso) => {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+import { formatDate } from '../utils/format';
 
 const SearchForm = () => {
   const [localities, setLocalities] = useState([]);
@@ -25,10 +13,12 @@ const SearchForm = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     api.localities
       .getAll()
       .then((res) => setLocalities(res.data || []))
       .catch(() => {});
+    return () => controller.abort();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -67,6 +57,9 @@ const SearchForm = () => {
         const matchDate = specificDate
           ? specificDate.toISOString().slice(0, 10) === date
           : Number(trip.dayOfWeek) === selectedDate.getDay();
+
+        if (specificDate && specificDate < new Date()) return false;
+
         const matchPassengers = remainingSeats(trip) >= Number(passengers);
         return matchOrigin && matchDest && matchDate && matchPassengers;
       });
@@ -129,6 +122,7 @@ const SearchForm = () => {
           <input
             type="date"
             id="fecha"
+            min={new Date().toISOString().slice(0, 10)}
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />

@@ -4,20 +4,8 @@ import { useClients } from '../hooks/useClients';
 import { useTrips } from '../hooks/useTrips';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-
-const PlusIcon = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-);
+import { PlusIcon } from '../components/icons';
+import { formatDate } from '../utils/format';
 
 const STATE_OPTIONS = [
   { value: 'pending', label: 'Pendiente' },
@@ -29,19 +17,6 @@ const STATE_LABEL = {
   pending: 'Pendiente',
   confirmed: 'Confirmada',
   cancelled: 'Cancelada',
-};
-
-const formatDate = (iso) => {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 const tripDepartureDate = (trip) => {
@@ -223,6 +198,7 @@ const BookingsPage = () => {
     setPendingCancel(null);
     try {
       await api.bookings.cancel(id, user.id);
+      await refetch();
       showMessage('Reserva cancelada correctamente');
     } catch (err) {
       showMessage(err.message, 'error');

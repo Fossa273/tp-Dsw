@@ -3,21 +3,8 @@ import { useTrips } from '../hooks/useTrips';
 import { useJourneys } from '../hooks/useJourneys';
 import { useDrivers } from '../hooks/useDrivers';
 import { useVehicles } from '../hooks/useVehicles';
-
-const PlusIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-);
-
-const formatDate = (iso) => {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '-';
-  const opts = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' };
-  return d.toLocaleString('es-AR', opts);
-};
+import { PlusIcon } from '../components/icons';
+import { formatDate } from '../utils/format';
 
 const DAYS = [
   { id: 0, name: 'Domingo' }, { id: 1, name: 'Lunes' },
@@ -41,6 +28,8 @@ const TripsPage = () => {
     dayOfWeek: '',
     departureTime: '',
     departureDate: '',
+    isPromoted: false,
+    promoExpiry: '',
   });
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -89,6 +78,10 @@ const TripsPage = () => {
       departureDate: form.scheduleType === 'specific'
         ? new Date(form.departureDate).toISOString()
         : undefined,
+      isPromoted: form.isPromoted,
+      promoExpiry: form.isPromoted && form.promoExpiry
+        ? new Date(form.promoExpiry).toISOString()
+        : null,
     };
 
     try { setSubmitting(true);
@@ -100,7 +93,7 @@ const TripsPage = () => {
         await create(payload);
         showMessage('Viaje creado correctamente');
       }
-      setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '' });
+      setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '' });
     } catch (err) {
       showMessage(err.message, 'error');
     } finally {
@@ -118,7 +111,9 @@ const TripsPage = () => {
       scheduleType: trip.scheduleType || 'weekly',
       dayOfWeek: String(trip.dayOfWeek ?? ''),
       departureTime: trip.departureTime || '',
-      departureDate: trip.departureDate ? new Date(trip.departureDate).toLocaleString('sv-SE').replace('T', ' ').slice(0, 16) : '',
+      departureDate: trip.departureDate ? new Date(trip.departureDate).toISOString().slice(0, 16) : '',
+      isPromoted: !!trip.isPromoted,
+      promoExpiry: trip.promoExpiry ? new Date(trip.promoExpiry).toISOString().slice(0, 10) : '',
     });
   };
 
@@ -132,7 +127,7 @@ const TripsPage = () => {
       await remove(id);
       if (String(editingId) === String(id)) {
         setEditingId(null);
-        setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '' });
+        setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '' });
       }
       showMessage('Viaje eliminado correctamente');
     } catch (err) {
@@ -142,7 +137,7 @@ const TripsPage = () => {
 
   const handleCancel = () => {
     setEditingId(null);
-    setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '' });
+    setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '' });
   };
 
   const filtered = useMemo(() => {
@@ -290,6 +285,29 @@ const TripsPage = () => {
         <p className="profile-section-desc">
           La fecha y hora de llegada se calculan automaticamente sumando la duracion del trayecto.
         </p>
+        <div className="form-row form-row-inline">
+          <label className="form-label toggle-label">
+            <input
+              type="checkbox"
+              checked={form.isPromoted}
+              onChange={(e) => setForm({ ...form, isPromoted: e.target.checked, promoExpiry: e.target.checked ? form.promoExpiry : '' })}
+            />
+            <span className="toggle-switch" />
+            Promocionar viaje
+          </label>
+        </div>
+        {form.isPromoted && (
+          <div className="form-row">
+            <label htmlFor="viaje-promo-expiry" className="form-label">Vencimiento de la promocion</label>
+            <input
+              id="viaje-promo-expiry"
+              name="promoExpiry"
+              type="date"
+              value={form.promoExpiry}
+              onChange={handleChange}
+            />
+          </div>
+        )}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
             <PlusIcon />

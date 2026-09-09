@@ -1,6 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express';
 import 'dotenv/config';
 import cors from 'cors';
+import helmet from 'helmet';
 import { Prisma } from '@prisma/client';
 import { router as clientRoutes } from './client/client.routes.js';
 import { router as localityRoutes } from './locality/locality.routes.js';
@@ -11,11 +12,22 @@ import { router as driverRoutes } from './driver/driver.routes.js';
 import { router as journeyRoutes } from './journey/journey.routes.js';
 import { router as tripRoutes } from './trip/trip.routes.js';
 import { router as bookingRoutes } from './booking/booking.routes.js';
+import { prisma } from './shared/db/connection.js';
+import { PORT } from './shared/constants.js';
 
 const app = express();
-const PORT = 3000;
-app.use(cors());
-app.use(express.json());
+
+app.use(helmet());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  credentials: true,
+}));
+app.use(express.json({ limit: '100kb' }));
+
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 app.use('/api/clients', clientRoutes);
 app.use('/api/drivers', driverRoutes);
@@ -75,6 +87,18 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-app.listen(PORT, () => {
-  console.log(`http://localhost:3000/`);
+const server = app.listen(PORT, () => {
+  console.log(`http://localhost:${PORT}/`);
 });
+
+const shutdown = async () => {
+  console.log('\nShutting down gracefully...');
+  server.close(async () => {
+    await prisma.$disconnect();
+    console.log('Server stopped.');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

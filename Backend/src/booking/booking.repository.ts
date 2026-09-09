@@ -99,4 +99,20 @@ export class BookingRepository {
   public async delete(item: { id: number }) {
     return prisma.booking.delete({ where: { id: item.id } });
   }
+
+  public async seatsByTripIds(tripIds: number[]) {
+    const rows = await prisma.booking.groupBy({
+      by: ['tripId'],
+      where: {
+        tripId: { in: tripIds },
+        state: { not: 'cancelled' },
+      },
+      _sum: { numSeats: true },
+    });
+    const map: Record<number, number> = {};
+    for (const row of rows) {
+      map[row.tripId] = row._sum.numSeats ?? 0;
+    }
+    return map;
+  }
 }

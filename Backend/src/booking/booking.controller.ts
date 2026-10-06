@@ -159,6 +159,7 @@ async function add(req: Request, res: Response) {
     passengerDni,
     passengerPhone,
     passengerEmail,
+    passengers,
   } = req.body.sanitizeInput;
 
   if (tripId === undefined || tripId === null) {
@@ -174,6 +175,38 @@ async function add(req: Request, res: Response) {
   }
 
   const isGuest = clientId === undefined || clientId === null;
+  const passengerList = Array.isArray(passengers) ? passengers : null;
+  if (passengerList && passengerList.length !== seats) {
+    res.status(400).json({
+      error: 'Debe completar los datos de un pasajero por cada asiento reservado',
+    });
+    return;
+  }
+  if (isGuest && (!passengerList || passengerList.length !== seats)) {
+    res.status(400).json({
+      error: 'Debe completar los datos de todos los pasajeros invitados',
+    });
+    return;
+  }
+  if (passengerList) {
+    for (const passenger of passengerList) {
+      const values = [
+        passenger?.firstName,
+        passenger?.lastName,
+        passenger?.dni,
+        passenger?.phone,
+        passenger?.email,
+      ];
+      if (values.some((value) => !String(value ?? '').trim())) {
+        res.status(400).json({ error: 'Todos los datos de los pasajeros son obligatorios' });
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(passenger.email).trim())) {
+        res.status(400).json({ error: 'El email de cada pasajero no es valido' });
+        return;
+      }
+    }
+  }
   const passengerFields = [
     passengerFirstName,
     passengerLastName,
@@ -181,7 +214,11 @@ async function add(req: Request, res: Response) {
     passengerPhone,
     passengerEmail,
   ];
-  if (isGuest && passengerFields.some((value) => !String(value ?? '').trim())) {
+  if (
+    isGuest &&
+    !passengerList &&
+    passengerFields.some((value) => !String(value ?? '').trim())
+  ) {
     res.status(400).json({
       error: 'Para reservar como invitado debe completar todos los datos del pasajero',
     });
@@ -189,6 +226,7 @@ async function add(req: Request, res: Response) {
   }
   if (
     isGuest &&
+    !passengerList &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(passengerEmail).trim())
   ) {
     res.status(400).json({ error: 'El email del pasajero no es valido' });
@@ -237,17 +275,19 @@ async function add(req: Request, res: Response) {
   const price = roundToNext100(pricePerSeat * seats);
 
   try {
+    const firstPassenger = passengerList?.[0];
     const newBooking = await repository.addWithCapacity({
     clientId: isGuest ? null : Number(clientId),
     tripId: Number(tripId),
     numSeats: seats,
     state: state ? state.toLowerCase() : 'pending',
     price,
-    passengerFirstName: isGuest ? String(passengerFirstName).trim() : undefined,
-    passengerLastName: isGuest ? String(passengerLastName).trim() : undefined,
-    passengerDni: isGuest ? String(passengerDni).trim() : undefined,
-    passengerPhone: isGuest ? String(passengerPhone).trim() : undefined,
-    passengerEmail: isGuest ? String(passengerEmail).trim() : undefined,
+    passengerFirstName: String(firstPassenger?.firstName ?? passengerFirstName ?? '').trim() || undefined,
+    passengerLastName: String(firstPassenger?.lastName ?? passengerLastName ?? '').trim() || undefined,
+    passengerDni: String(firstPassenger?.dni ?? passengerDni ?? '').trim() || undefined,
+    passengerPhone: String(firstPassenger?.phone ?? passengerPhone ?? '').trim() || undefined,
+    passengerEmail: String(firstPassenger?.email ?? passengerEmail ?? '').trim() || undefined,
+    passengers: passengerList ?? undefined,
     }, capacity);
     res.status(201).json(newBooking);
   } catch (error: any) {

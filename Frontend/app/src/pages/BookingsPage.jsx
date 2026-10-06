@@ -54,6 +54,7 @@ const BookingsPage = () => {
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
 
   const [search, setSearch] = useState('');
   const msgTimer = useRef(null);
@@ -74,25 +75,21 @@ const BookingsPage = () => {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    setFormErrors((current) => ({ ...current, [e.target.name]: '' }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
-    if (!form.clientId) {
-      showMessage('Debe seleccionar un cliente', 'error');
-      return;
-    }
-    if (!form.tripId) {
-      showMessage('Debe seleccionar un viaje', 'error');
-      return;
-    }
+    const errors = {};
+    if (!form.clientId) errors.clientId = 'Selecciona un cliente.';
+    if (!form.tripId) errors.tripId = 'Selecciona un viaje.';
     const seats = Number(form.numSeats);
     if (!form.numSeats || !Number.isInteger(seats) || seats < 1) {
-      showMessage(
-        'La cantidad de asientos debe ser un entero mayor a 0',
-        'error',
-      );
+      errors.numSeats = 'Ingresa una cantidad entera mayor a 0.';
+    }
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
       return;
     }
 
@@ -237,6 +234,12 @@ const BookingsPage = () => {
       : `${booking.passengerFirstName || ''} ${booking.passengerLastName || ''}`.trim() ||
         booking.passengerEmail ||
         '-';
+  const passengerNames = (booking) =>
+    booking.passengers?.length
+      ? booking.passengers
+          .map((passenger) => `${passenger.firstName} ${passenger.lastName}`.trim())
+          .join(', ')
+      : bookingPassengerName(booking);
   const viajeLabel = (v) =>
     v
       ? (v.journey?.origin?.name || '-') +
@@ -262,7 +265,7 @@ const BookingsPage = () => {
       )}
 
       {isAdmin && (
-        <form className="crud-form" onSubmit={handleSubmit}>
+        <form className="crud-form" onSubmit={handleSubmit} noValidate>
           <h2>Nueva Reserva</h2>
           <div className="form-row">
             <label htmlFor="reserva-cliente" className="form-label">
@@ -274,7 +277,7 @@ const BookingsPage = () => {
               value={form.clientId}
               onChange={handleChange}
               disabled={loadingClients}
-              required
+              aria-invalid={Boolean(formErrors.clientId)}
             >
               <option value="">-- Seleccionar cliente --</option>
               {clients.map((c) => (
@@ -283,6 +286,7 @@ const BookingsPage = () => {
                 </option>
               ))}
             </select>
+            {formErrors.clientId && <span className="field-error">{formErrors.clientId}</span>}
           </div>
           <div className="form-row">
             <label htmlFor="reserva-viaje" className="form-label">
@@ -294,7 +298,7 @@ const BookingsPage = () => {
               value={form.tripId}
               onChange={handleChange}
               disabled={loadingTrips}
-              required
+              aria-invalid={Boolean(formErrors.tripId)}
             >
               <option value="">-- Seleccionar viaje --</option>
               {trips.map((v) => (
@@ -303,6 +307,7 @@ const BookingsPage = () => {
                 </option>
               ))}
             </select>
+            {formErrors.tripId && <span className="field-error">{formErrors.tripId}</span>}
           </div>
           <div className="form-row">
             <label htmlFor="reserva-asientos" className="form-label">
@@ -316,8 +321,9 @@ const BookingsPage = () => {
               placeholder="Ej: 2"
               value={form.numSeats}
               onChange={handleChange}
-              required
+              aria-invalid={Boolean(formErrors.numSeats)}
             />
+            {formErrors.numSeats && <span className="field-error">{formErrors.numSeats}</span>}
           </div>
           <div className="form-row">
             <label htmlFor="reserva-estado" className="form-label">
@@ -382,6 +388,7 @@ const BookingsPage = () => {
               <th>Reservada el</th>
               <th>Fecha del viaje</th>
               {isAdmin && <th>Cliente</th>}
+              {isAdmin && <th>Pasajeros</th>}
               <th>Viaje</th>
               <th>Asientos</th>
               <th>Precio total</th>
@@ -413,6 +420,7 @@ const BookingsPage = () => {
                         </select>
                       </td>
                     )}
+                    {isAdmin && <td className="passenger-list">Ver detalle al guardar</td>}
                     <td>
                       <select
                         className="inline-input"
@@ -445,6 +453,7 @@ const BookingsPage = () => {
                     {isAdmin && (
                       <td>{bookingPassengerName(r)}</td>
                     )}
+                    {isAdmin && <td className="passenger-list">{passengerNames(r)}</td>}
                     <td>{viajeLabel(r.trip)}</td>
                     <td>{r.numSeats}</td>
                   </>

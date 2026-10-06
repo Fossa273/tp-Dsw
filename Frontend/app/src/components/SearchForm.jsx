@@ -14,13 +14,8 @@ const SearchForm = () => {
   const [loadingResults, setLoadingResults] = useState(false);
   const [error, setError] = useState(null);
   const [bookingTrip, setBookingTrip] = useState(null);
-  const [bookingForm, setBookingForm] = useState({
-    firstName: '',
-    lastName: '',
-    dni: '',
-    phone: '',
-    email: '',
-  });
+  const [passengerForms, setPassengerForms] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(null);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -91,26 +86,56 @@ const SearchForm = () => {
     setBookingTrip(trip);
     setBookingError(null);
     setBookingSuccess(null);
-    if (user) {
-      setBookingForm({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        dni: user.dni || '',
-        phone: user.phone || '',
-        email: user.email || '',
-      });
-    } else {
-      setBookingForm({ firstName: '', lastName: '', dni: '', phone: '', email: '' });
-    }
+    setFieldErrors({});
+    setPassengerForms(
+      Array.from({ length: Number(passengers) }, (_, index) =>
+        index === 0 && user
+          ? {
+              firstName: user.firstName || '',
+              lastName: user.lastName || '',
+              dni: user.dni || '',
+              phone: user.phone || '',
+              email: user.email || '',
+            }
+          : { firstName: '', lastName: '', dni: '', phone: '', email: '' },
+      ),
+    );
   };
 
-  const handleBookingChange = (e) => {
-    setBookingForm({ ...bookingForm, [e.target.name]: e.target.value });
+  const handleBookingChange = (index, e) => {
+    setPassengerForms((current) =>
+      current.map((passenger, passengerIndex) =>
+        passengerIndex === index
+          ? { ...passenger, [e.target.name]: e.target.value }
+          : passenger,
+      ),
+    );
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next[`${index}.${e.target.name}`];
+      return next;
+    });
   };
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
     if (!bookingTrip || bookingLoading) return;
+    const errors = {};
+    passengerForms.forEach((passenger, index) => {
+      ['firstName', 'lastName', 'dni', 'phone', 'email'].forEach((field) => {
+        if (!String(passenger[field] || '').trim()) {
+          errors[`${index}.${field}`] = 'Este campo es obligatorio.';
+        }
+      });
+      if (
+        passenger.email &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(passenger.email.trim())
+      ) {
+        errors[`${index}.email`] = 'Ingresa un email valido.';
+      }
+    });
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setBookingLoading(true);
     setBookingError(null);
     try {
@@ -118,13 +143,7 @@ const SearchForm = () => {
         clientId: user?.id,
         tripId: bookingTrip.id,
         numSeats: Number(passengers),
-        ...(!user && {
-          passengerFirstName: bookingForm.firstName,
-          passengerLastName: bookingForm.lastName,
-          passengerDni: bookingForm.dni,
-          passengerPhone: bookingForm.phone,
-          passengerEmail: bookingForm.email,
-        }),
+        passengers: passengerForms,
       };
       const response = await api.bookings.create(payload);
       setBookingSuccess(response.id ? `Reserva #${response.id} creada correctamente.` : 'Reserva creada correctamente.');
@@ -271,7 +290,7 @@ const SearchForm = () => {
           )}
           {bookingSuccess && <p className="booking-feedback booking-success">{bookingSuccess}</p>}
           {bookingTrip && (
-            <form className="booking-confirmation" onSubmit={handleBookingSubmit}>
+            <form className="booking-confirmation" onSubmit={handleBookingSubmit} noValidate>
               <div className="booking-confirmation-header">
                 <div>
                   <h3>Confirmar reserva</h3>
@@ -280,33 +299,60 @@ const SearchForm = () => {
                     {' | '}{passengers} {Number(passengers) === 1 ? 'asiento' : 'asientos'}
                   </p>
                 </div>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setBookingTrip(null)}>
-                  Cerrar
+                <button
+                  type="button"
+                  className="booking-close"
+                  onClick={() => setBookingTrip(null)}
+                  aria-label="Cerrar confirmacion de reserva"
+                  title="Cerrar"
+                >
+                  <span aria-hidden="true">&times;</span>
                 </button>
               </div>
               {user ? (
-                <p className="booking-verification">
-                  Vas a reservar como <strong>{user.firstName} {user.lastName}</strong> ({user.email}). Verifica los datos antes de confirmar.
+                <p className="booking-verification" role="status">
+                  Revisa los datos de cada pasajero antes de confirmar la reserva.
+                  La reserva quedara asociada a <strong>{user.email}</strong>.
                 </p>
               ) : (
-                <>
-                  <p className="booking-verification">Completa tus datos para asociarlos a la reserva.</p>
-                  <div className="booking-fields">
-                    {[
-                      ['firstName', 'Nombre', 'text'],
-                      ['lastName', 'Apellido', 'text'],
-                      ['dni', 'DNI', 'text'],
-                      ['phone', 'Telefono', 'tel'],
-                      ['email', 'Email', 'email'],
-                    ].map(([name, label, type]) => (
-                      <div className="form-group" key={name}>
-                        <label htmlFor={`booking-${name}`}>{label}</label>
-                        <input id={`booking-${name}`} name={name} type={type} value={bookingForm[name]} onChange={handleBookingChange} required />
-                      </div>
-                    ))}
-                  </div>
-                </>
+                <p className="booking-verification booking-verification-guest" role="status">
+                  Estas reservando como invitado. Verifica los datos de cada pasajero antes de confirmar la reserva.
+                </p>
               )}
+              <div className="booking-passengers">
+                {passengerForms.map((passenger, index) => (
+                  <fieldset className="booking-passenger" key={index}>
+                    <legend>Pasajero {index + 1}</legend>
+                    <div className="booking-fields">
+                      {[
+                        ['firstName', 'Nombre', 'text'],
+                        ['lastName', 'Apellido', 'text'],
+                        ['dni', 'DNI', 'text'],
+                        ['phone', 'Telefono', 'tel'],
+                        ['email', 'Email', 'email'],
+                      ].map(([name, label, type]) => {
+                        const errorKey = `${index}.${name}`;
+                        return (
+                          <div className="form-group" key={name}>
+                            <label htmlFor={`booking-${index}-${name}`}>{label}</label>
+                            <input
+                              id={`booking-${index}-${name}`}
+                              name={name}
+                              type={type}
+                              value={passenger[name]}
+                              onChange={(event) => handleBookingChange(index, event)}
+                              aria-invalid={Boolean(fieldErrors[errorKey])}
+                            />
+                            {fieldErrors[errorKey] && (
+                              <span className="field-error">{fieldErrors[errorKey]}</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                ))}
+              </div>
               {bookingError && <p className="booking-feedback booking-error">{bookingError}</p>}
               <button type="submit" className="btn btn-primary" disabled={bookingLoading}>
                 {bookingLoading ? 'Confirmando...' : 'Confirmar reserva'}

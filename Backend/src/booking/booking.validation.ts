@@ -16,6 +16,7 @@ function sanitizeBookingInput(
     passengerDni: req.body.passengerDni,
     passengerPhone: req.body.passengerPhone,
     passengerEmail: req.body.passengerEmail,
+    passengers: req.body.passengers,
   };
   Object.keys(req.body.sanitizeInput).forEach((key) => {
     if (req.body.sanitizeInput[key] === undefined) {

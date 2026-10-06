@@ -12,6 +12,13 @@ export interface BookingData {
   passengerDni?: string;
   passengerPhone?: string;
   passengerEmail?: string;
+  passengers?: Array<{
+    firstName: string;
+    lastName: string;
+    dni: string;
+    phone: string;
+    email: string;
+  }>;
 }
 
 const BOOKING_INCLUDE = {
@@ -32,7 +39,22 @@ const BOOKING_INCLUDE = {
       driver: { select: { id: true, firstName: true, lastName: true } },
     },
   },
+  passengers: { orderBy: { id: 'asc' as const } },
 } as const;
+
+function passengerCreateData(passengers: BookingData['passengers']) {
+  return passengers?.length
+    ? {
+        create: passengers.map((passenger) => ({
+          firstName: passenger.firstName,
+          lastName: passenger.lastName,
+          dni: passenger.dni,
+          phone: passenger.phone,
+          email: passenger.email,
+        })),
+      }
+    : undefined;
+}
 
 export class BookingRepository {
   public async findAll(clientId?: number) {
@@ -77,6 +99,7 @@ export class BookingRepository {
         passengerDni: item.passengerDni,
         passengerPhone: item.passengerPhone,
         passengerEmail: item.passengerEmail,
+        passengers: passengerCreateData(item.passengers),
       },
       include: BOOKING_INCLUDE,
     });
@@ -111,6 +134,7 @@ export class BookingRepository {
           passengerDni: item.passengerDni,
           passengerPhone: item.passengerPhone,
           passengerEmail: item.passengerEmail,
+          passengers: passengerCreateData(item.passengers),
         },
         include: BOOKING_INCLUDE,
       });

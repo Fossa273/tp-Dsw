@@ -149,12 +149,18 @@ async function findOne(req: Request, res: Response) {
 }
 
 async function add(req: Request, res: Response) {
-  const { clientId, tripId, numSeats, state } = req.body.sanitizeInput;
+  const {
+    clientId,
+    tripId,
+    numSeats,
+    state,
+    passengerFirstName,
+    passengerLastName,
+    passengerDni,
+    passengerPhone,
+    passengerEmail,
+  } = req.body.sanitizeInput;
 
-  if (clientId === undefined || clientId === null) {
-    res.status(400).json({ error: 'El cliente es obligatorio' });
-    return;
-  }
   if (tripId === undefined || tripId === null) {
     res.status(400).json({ error: 'El viaje es obligatorio' });
     return;
@@ -166,6 +172,28 @@ async function add(req: Request, res: Response) {
       .json({ error: 'La cantidad de asientos debe ser un entero mayor a 0' });
     return;
   }
+
+  const isGuest = clientId === undefined || clientId === null;
+  const passengerFields = [
+    passengerFirstName,
+    passengerLastName,
+    passengerDni,
+    passengerPhone,
+    passengerEmail,
+  ];
+  if (isGuest && passengerFields.some((value) => !String(value ?? '').trim())) {
+    res.status(400).json({
+      error: 'Para reservar como invitado debe completar todos los datos del pasajero',
+    });
+    return;
+  }
+  if (
+    isGuest &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(passengerEmail).trim())
+  ) {
+    res.status(400).json({ error: 'El email del pasajero no es valido' });
+    return;
+  }
   if (state !== undefined && !VALID_STATES.includes(state.toLowerCase())) {
     res
       .status(400)
@@ -174,11 +202,11 @@ async function add(req: Request, res: Response) {
   }
 
   const [client, trip] = await Promise.all([
-    clientRepository.findOne({ id: Number(clientId) }),
+    isGuest ? null : clientRepository.findOne({ id: Number(clientId) }),
     tripRepository.findOne({ id: Number(tripId) }),
   ]);
 
-  if (!client) {
+  if (!isGuest && !client) {
     res.status(400).json({ error: 'El cliente seleccionado no existe' });
     return;
   }
@@ -186,12 +214,6 @@ async function add(req: Request, res: Response) {
   const bookingWindowError = await validateBookingWindow(Number(tripId), trip);
   if (bookingWindowError) {
     res.status(400).json({ error: bookingWindowError });
-    return;
-  }
-
-  const capacityError = await validateCapacity(Number(tripId), seats, undefined, trip);
-  if (capacityError) {
-    res.status(400).json({ error: capacityError });
     return;
   }
 
@@ -214,14 +236,33 @@ async function add(req: Request, res: Response) {
     fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase;
   const price = roundToNext100(pricePerSeat * seats);
 
-  const newBooking = await repository.add({
-    clientId: Number(clientId),
+  try {
+    const newBooking = await repository.addWithCapacity({
+    clientId: isGuest ? null : Number(clientId),
     tripId: Number(tripId),
     numSeats: seats,
     state: state ? state.toLowerCase() : 'pending',
     price,
-  });
-  res.status(201).json(newBooking);
+    passengerFirstName: isGuest ? String(passengerFirstName).trim() : undefined,
+    passengerLastName: isGuest ? String(passengerLastName).trim() : undefined,
+    passengerDni: isGuest ? String(passengerDni).trim() : undefined,
+    passengerPhone: isGuest ? String(passengerPhone).trim() : undefined,
+    passengerEmail: isGuest ? String(passengerEmail).trim() : undefined,
+    }, capacity);
+    res.status(201).json(newBooking);
+  } catch (error: any) {
+    if (error instanceof Error && error.message.includes('asientos disponibles')) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    if (error?.code === 'P2034') {
+      res.status(409).json({
+        error: 'La disponibilidad cambio mientras se procesaba la reserva. Intente nuevamente',
+      });
+      return;
+    }
+    throw error;
+  }
 }
 
 async function update(req: Request, res: Response) {
@@ -297,7 +338,12 @@ async function update(req: Request, res: Response) {
 
   const updatedBooking = await repository.update({
     id,
-    clientId: clientId !== undefined ? Number(clientId) : undefined,
+    clientId:
+      clientId === null
+        ? null
+        : clientId !== undefined
+          ? Number(clientId)
+          : undefined,
     tripId: tripId !== undefined ? Number(tripId) : undefined,
     numSeats:
       numSeats === undefined

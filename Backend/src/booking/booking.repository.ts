@@ -2,11 +2,16 @@ import { prisma } from '../shared/db/connection.js';
 
 export interface BookingData {
   id?: number;
-  clientId?: number;
+  clientId?: number | null;
   tripId?: number;
   numSeats?: number;
   state?: string;
   price?: number;
+  passengerFirstName?: string;
+  passengerLastName?: string;
+  passengerDni?: string;
+  passengerPhone?: string;
+  passengerEmail?: string;
 }
 
 const BOOKING_INCLUDE = {
@@ -62,14 +67,54 @@ export class BookingRepository {
   public async add(item: BookingData) {
     return prisma.booking.create({
       data: {
-        clientId: item.clientId!,
+        clientId: item.clientId ?? null,
         tripId: item.tripId!,
         numSeats: item.numSeats ?? 1,
         state: item.state ?? 'pending',
         price: item.price ?? 0,
+        passengerFirstName: item.passengerFirstName,
+        passengerLastName: item.passengerLastName,
+        passengerDni: item.passengerDni,
+        passengerPhone: item.passengerPhone,
+        passengerEmail: item.passengerEmail,
       },
       include: BOOKING_INCLUDE,
     });
+  }
+
+  public async addWithCapacity(item: BookingData, capacity: number) {
+    return prisma.$transaction(async (transaction) => {
+      const rows = await transaction.booking.aggregate({
+        where: {
+          tripId: item.tripId!,
+          state: { not: 'cancelled' },
+        },
+        _sum: { numSeats: true },
+      });
+      const usedSeats = rows._sum.numSeats ?? 0;
+      const requestedSeats = item.numSeats ?? 1;
+      if (usedSeats + requestedSeats > capacity) {
+        throw new Error(
+          `El viaje no tiene suficientes asientos disponibles (capacidad ${capacity}, asientos ya reservados ${usedSeats})`
+        );
+      }
+
+      return transaction.booking.create({
+        data: {
+          clientId: item.clientId ?? null,
+          tripId: item.tripId!,
+          numSeats: requestedSeats,
+          state: item.state ?? 'pending',
+          price: item.price ?? 0,
+          passengerFirstName: item.passengerFirstName,
+          passengerLastName: item.passengerLastName,
+          passengerDni: item.passengerDni,
+          passengerPhone: item.passengerPhone,
+          passengerEmail: item.passengerEmail,
+        },
+        include: BOOKING_INCLUDE,
+      });
+    }, { isolationLevel: 'Serializable' });
   }
 
   public async update(item: BookingData) {
@@ -82,6 +127,11 @@ export class BookingRepository {
     if (item.numSeats !== undefined) data.numSeats = item.numSeats;
     if (item.state !== undefined) data.state = item.state;
     if (item.price !== undefined) data.price = item.price;
+    if (item.passengerFirstName !== undefined) data.passengerFirstName = item.passengerFirstName;
+    if (item.passengerLastName !== undefined) data.passengerLastName = item.passengerLastName;
+    if (item.passengerDni !== undefined) data.passengerDni = item.passengerDni;
+    if (item.passengerPhone !== undefined) data.passengerPhone = item.passengerPhone;
+    if (item.passengerEmail !== undefined) data.passengerEmail = item.passengerEmail;
 
     if (Object.keys(data).length === 0) {
       return prisma.booking.findUnique({

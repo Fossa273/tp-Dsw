@@ -147,12 +147,7 @@ const BookingsPage = () => {
     const draft = inlineDrafts[booking.id];
     if (!draft) return;
     const seats = Number(draft.numSeats);
-    if (
-      !draft.clientId ||
-      !draft.tripId ||
-      !Number.isInteger(seats) ||
-      seats < 1
-    ) {
+    if (!draft.tripId || !Number.isInteger(seats) || seats < 1) {
       showMessage(
         'Complete cliente, viaje y una cantidad valida de asientos',
         'error',
@@ -162,7 +157,7 @@ const BookingsPage = () => {
     try {
       setSubmitting(true);
       await update(booking.id, {
-        clientId: Number(draft.clientId),
+        clientId: draft.clientId ? Number(draft.clientId) : null,
         tripId: Number(draft.tripId),
         numSeats: seats,
         state: draft.state,
@@ -236,6 +231,12 @@ const BookingsPage = () => {
 
   const clientName = (c) =>
     `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.email || '-';
+  const bookingPassengerName = (booking) =>
+    booking.client
+      ? clientName(booking.client)
+      : `${booking.passengerFirstName || ''} ${booking.passengerLastName || ''}`.trim() ||
+        booking.passengerEmail ||
+        '-';
   const viajeLabel = (v) =>
     v
       ? (v.journey?.origin?.name || '-') +
@@ -442,7 +443,7 @@ const BookingsPage = () => {
                 ) : (
                   <>
                     {isAdmin && (
-                      <td>{r.client ? clientName(r.client) : '-'}</td>
+                      <td>{bookingPassengerName(r)}</td>
                     )}
                     <td>{viajeLabel(r.trip)}</td>
                     <td>{r.numSeats}</td>

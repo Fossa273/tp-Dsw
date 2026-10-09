@@ -2,24 +2,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useLocalities() {
+export function useLocalities(page, limit = 50) {
   const [localities, setLocalities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState(null);
 
   // Refetch keeps the page mounted (loading is only toggled on the
   // initial load) so CRUD operations do not produce a screen flash.
   const fetchAll = useCallback(async () => {
     try {
-      const res = await api.localities.getAll();
+      const res = await api.localities.getAll(page ? { page, limit } : {});
       setLocalities(res.data || []);
+      setPagination(res.totalPages ? res : null);
       setError(null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, limit]);
 
   useEffect(() => {
     fetchAll();
@@ -44,6 +46,7 @@ export function useLocalities() {
 
   return {
     localities,
+    pagination,
     loading,
     error,
     create,

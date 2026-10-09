@@ -9,6 +9,31 @@ const repository = new TripRepository();
 const journeyRepository = new JourneyRepository();
 const driverRepository = new DriverRepository();
 const vehicleRepository = new VehicleRepository();
+const FUEL_PRICE_PER_KM = Number(process.env.FUEL_PRICE_PER_KM ?? 100);
+const OPERATING_COST_MULTIPLIER = 1.4;
+
+function roundToNext100(value: number): number {
+  return Math.ceil(value / 100) * 100;
+}
+
+function calculatePricePerPerson(trip: any) {
+  if (!trip?.vehicle?.categoryRelation) return null;
+  const capacity = Number(trip.vehicle.maxCapacity);
+  if (!Number.isFinite(capacity) || capacity <= 0) return null;
+  const promotionIsActive =
+    trip.isPromoted === 1 &&
+    trip.promoPrice !== null &&
+    Number.isFinite(Number(trip.promoPrice)) &&
+    (!trip.promoExpiry || trip.promoExpiry > new Date());
+  if (promotionIsActive) return Number(trip.promoPrice);
+  const fuelCost = trip.journey.distanceKm * FUEL_PRICE_PER_KM;
+  const fuelCostPerSeat = (fuelCost * OPERATING_COST_MULTIPLIER) / capacity;
+  return roundToNext100(fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase);
+}
+
+function withPricePerPerson<T extends object>(trip: T) {
+  return { ...trip, pricePerPerson: calculatePricePerPerson(trip) };
+}
 
 async function validateDependencies(
   journeyId: number,
@@ -161,28 +186,28 @@ async function findAll(req: Request, res: Response) {
   const limit = Number(req.query.limit) || 50;
   if (req.query.page || req.query.limit) {
     const result = await repository.paginated(page, limit);
-    res.json(result);
+    res.json({ ...result, data: result.data.map(withPricePerPerson) });
   } else {
-    res.json({ data: await repository.findAll() });
+    res.json({ data: (await repository.findAll()).map(withPricePerPerson) });
   }
 }
 
 async function findAllInactive(req: Request, res: Response) {
-  res.json({ data: await repository.findAllInactive() });
+  res.json({ data: (await repository.findAllInactive()).map(withPricePerPerson) });
 }
 
 async function findOne(req: Request, res: Response) {
   const id = Number(req.params.id);
   const trip = await repository.findOne({ id });
   if (trip) {
-    res.json(trip);
+    res.json(withPricePerPerson(trip));
   } else {
     res.status(404).json({ error: 'Viaje no encontrado' });
   }
 }
 
 async function findPromoted(_req: Request, res: Response) {
-  res.json({ data: await repository.findPromoted() });
+  res.json({ data: (await repository.findPromoted()).map(withPricePerPerson) });
 }
 
 async function search(req: Request, res: Response) {
@@ -201,11 +226,16 @@ async function search(req: Request, res: Response) {
     }
     return true;
   });
-  res.json({ data: filtered });
+  res.json({
+    data: filtered.map((trip) => ({
+      ...trip,
+      pricePerPerson: calculatePricePerPerson(trip),
+    })),
+  });
 }
 
 async function add(req: Request, res: Response) {
-  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate, isPromoted, promoExpiry } =
+  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate, isPromoted, promoExpiry, promoPrice } =
     req.body.sanitizeInput;
 
   if (
@@ -219,6 +249,13 @@ async function add(req: Request, res: Response) {
     res.status(400).json({
       error: 'Debe indicar trayecto, conductor y vehiculo',
     });
+    return;
+  }
+  if (
+    isPromoted &&
+    (!Number.isFinite(Number(promoPrice)) || Number(promoPrice) <= 0)
+  ) {
+    res.status(400).json({ error: 'Debe indicar un precio promocional valido' });
     return;
   }
 
@@ -295,18 +332,29 @@ async function add(req: Request, res: Response) {
     arrivesNextDay: autoArrival.arrivesNextDay,
     isPromoted: isPromoted ? 1 : 0,
     promoExpiry: promoExpiry ? new Date(promoExpiry) : null,
+    promoPrice: isPromoted ? Number(promoPrice) : null,
   });
   res.status(201).json(newTrip);
 }
 
 async function update(req: Request, res: Response) {
   const id = Number(req.params.id);
-  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate, isPromoted, promoExpiry } =
+  const { journeyId, driverId, vehicleId, scheduleType, dayOfWeek, departureTime, departureDate, isPromoted, promoExpiry, promoPrice } =
     req.body.sanitizeInput;
 
   const current = await repository.findOne({ id });
   if (!current) {
     res.status(404).json({ error: 'Viaje no encontrado' });
+    return;
+  }
+  const effectivePromoPrice = promoPrice ?? current.promoPrice;
+  const promotionEnabled =
+    isPromoted === undefined ? current.isPromoted === 1 : Boolean(isPromoted);
+  if (
+    promotionEnabled &&
+    (!Number.isFinite(Number(effectivePromoPrice)) || Number(effectivePromoPrice) <= 0)
+  ) {
+    res.status(400).json({ error: 'Debe indicar un precio promocional valido' });
     return;
   }
 
@@ -399,6 +447,9 @@ async function update(req: Request, res: Response) {
   if (finalArrivesNextDay !== undefined) data.arrivesNextDay = finalArrivesNextDay;
   if (isPromoted !== undefined) data.isPromoted = isPromoted ? 1 : 0;
   if (promoExpiry !== undefined) data.promoExpiry = promoExpiry ? new Date(promoExpiry) : null;
+  if (promoPrice !== undefined || isPromoted !== undefined) {
+    data.promoPrice = promotionEnabled ? Number(effectivePromoPrice) : null;
+  }
 
   const availabilityError = await validateResourceAvailability(
     finalDriverId,

@@ -121,6 +121,7 @@ model Trip {
   arrivesNextDay Boolean @default(false)
   isPromoted    Int     @default(0)
   promoExpiry   DateTime?
+  promoPrice    Float?
   active        Int     @default(1)
 
   journey        Journey        @relation(fields: [journeyId], references: [id])
@@ -164,4 +165,27 @@ model BookingPassenger {
 
   @@index([bookingId])
   @@map("booking_passengers")
+}
+
+model BookingEmailTemplate {
+  id          Int                     @id @default(1)
+  subject     String
+  body        String                  @db.Text
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+  attachments BookingEmailAttachment[]
+
+  @@map("booking_email_templates")
+}
+
+model BookingEmailAttachment {
+  id         Int                  @id @default(autoincrement())
+  templateId Int                  @map("template_id")
+  filename   String
+  storagePath String              @map("storage_path")
+  mimeType   String               @map("mime_type")
+  size       Int
+  template   BookingEmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("booking_email_attachments")
 }

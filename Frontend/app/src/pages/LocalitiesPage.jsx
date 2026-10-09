@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalities } from '../hooks/useLocalities';
 import { useProvinces } from '../hooks/useProvinces';
 import { api } from '../services/api';
-
+import Pagination from '../components/Pagination';
 const PlusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="12" y1="5" x2="12" y2="19" />
@@ -16,10 +16,12 @@ const SORT_OPTIONS = [
 ];
 
 const LocalitiesPage = () => {
-  const { localities, loading, error, refetch } = useLocalities();
+  const [page, setPage] = useState(1);
+  const { localities, pagination, loading, error, refetch } = useLocalities(page, 50);
   const { provinces, loading: loadingProvinces } = useProvinces();
 
   const [editingId, setEditingId] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState({ name: '', provinceId: '' });
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -114,6 +116,7 @@ const LocalitiesPage = () => {
       .trim();
 
   const handleEdit = (locality) => {
+    setShowCreateForm(true);
     setEditingId(locality.id);
     setPendingDelete(null);
     setForm({ name: locality.name || '', provinceId: locality.province?.id ? String(locality.province.id) : '' });
@@ -177,7 +180,14 @@ const LocalitiesPage = () => {
 
   return (
     <div className="crud-page">
-      <h1>Gestion de Localidades</h1>
+      <div className="crud-heading">
+        <h1>Gestion de Localidades</h1>
+        <button type="button" className="btn btn-primary btn-icon-only" aria-label={showCreateForm ? 'Cerrar formulario' : 'Crear localidad'} onClick={() => setShowCreateForm((current) => !current)}>
+          <PlusIcon />
+        </button>
+      </div>
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="localidades" />
 
       {msg && (
         <div
@@ -226,7 +236,7 @@ const LocalitiesPage = () => {
         </div>
       )}
 
-      <form className="crud-form" onSubmit={handleSubmit}>
+      {showCreateForm && <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Localidad' : 'Nueva Localidad'}</h2>
         <div className="form-row">
           <input
@@ -271,7 +281,7 @@ const LocalitiesPage = () => {
             </button>
           )}
         </div>
-      </form>
+      </form>}
 
       <div className="crud-toolbar">
         <div className="crud-search">

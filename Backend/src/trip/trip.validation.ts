@@ -17,6 +17,7 @@ function sanitizeTripInput(
     departureDate: req.body.departureDate,
     isPromoted: req.body.isPromoted,
     promoExpiry: req.body.promoExpiry,
+    promoPrice: req.body.promoPrice,
   };
   Object.keys(req.body.sanitizeInput).forEach((key) => {
     if (req.body.sanitizeInput[key] === undefined) {

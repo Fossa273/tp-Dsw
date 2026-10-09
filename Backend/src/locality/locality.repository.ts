@@ -21,6 +21,14 @@ export class LocalityRepository {
     });
   }
 
+  public async paginated(page: number, limit: number) {
+    const [data, total] = await Promise.all([
+      prisma.locality.findMany({ select: LOCATION_SELECT, orderBy: { id: 'asc' }, skip: (page - 1) * limit, take: limit }),
+      prisma.locality.count(),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
   public async findOne(item: { id: number }) {
     return prisma.locality.findUnique({
       where: { id: item.id },

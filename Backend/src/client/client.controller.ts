@@ -17,7 +17,11 @@ function hashPassword(password: string): string {
 }
 
 async function findAll(req: Request, res: Response) {
-  res.json({ data: await repository.findAll() });
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  res.json(req.query.page || req.query.limit
+    ? await repository.paginated(page, limit)
+    : { data: await repository.findAll() });
 }
 
 // Inactive clients listing (admin only)

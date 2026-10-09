@@ -1,14 +1,69 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { formatDate } from '../utils/format';
+import { formatDate, formatDateOnly } from '../utils/format';
 
-const SearchForm = () => {
+function nextDateForDay(dayOfWeek) {
+  const date = new Date();
+  const daysUntil = (Number(dayOfWeek) - date.getDay() + 7) % 7;
+  date.setDate(date.getDate() + daysUntil);
+  if (daysUntil === 0) date.setDate(date.getDate() + 7);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function isoToDisplayDate(value) {
+  if (!value) return '';
+  const [year, month, day] = value.slice(0, 10).split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function displayToIsoDate(value) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
+  if (!match) return '';
+  const [, day, month, year] = match;
+  const date = new Date(`${year}-${month}-${day}T12:00:00`);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() + 1 !== Number(month) ||
+    date.getDate() !== Number(day)
+  ) {
+    return '';
+  }
+  return `${year}-${month}-${day}`;
+}
+
+const SearchForm = ({ selectedPromotion }) => {
   const { user } = useAuth();
   const [localities, setLocalities] = useState([]);
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [date, setDate] = useState('');
+  const [origin, setOrigin] = useState(() =>
+    String(selectedPromotion?.journey?.origin?.id || ''),
+  );
+  const [destination, setDestination] = useState(() =>
+    String(selectedPromotion?.journey?.destination?.id || ''),
+  );
+  const [date, setDate] = useState(() => {
+    if (
+      selectedPromotion?.scheduleType === 'specific' &&
+      selectedPromotion.departureDate
+    ) {
+      return new Date(selectedPromotion.departureDate).toISOString().slice(0, 10);
+    }
+    return selectedPromotion ? nextDateForDay(selectedPromotion.dayOfWeek) : '';
+  });
+  const [dateInput, setDateInput] = useState(() => {
+    if (
+      selectedPromotion?.scheduleType === 'specific' &&
+      selectedPromotion.departureDate
+    ) {
+      return isoToDisplayDate(
+        new Date(selectedPromotion.departureDate).toISOString().slice(0, 10),
+      );
+    }
+    return selectedPromotion
+      ? isoToDisplayDate(nextDateForDay(selectedPromotion.dayOfWeek))
+      : '';
+  });
   const [passengers, setPassengers] = useState(1);
   const [results, setResults] = useState(null);
   const [loadingResults, setLoadingResults] = useState(false);
@@ -19,6 +74,15 @@ const SearchForm = () => {
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const searchFormRef = useRef(null);
+  const datePickerRef = useRef(null);
+
+  useEffect(() => {
+    if (!selectedPromotion) return;
+    document.getElementById('trip-search')?.scrollIntoView({ behavior: 'smooth' });
+    const timer = setTimeout(() => searchFormRef.current?.requestSubmit(), 0);
+    return () => clearTimeout(timer);
+  }, [selectedPromotion]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -55,6 +119,7 @@ const SearchForm = () => {
         );
       };
       const filtered = trips.filter((trip) => {
+        if (selectedPromotion && trip.id !== selectedPromotion.id) return false;
         const specificDate =
           trip.scheduleType === 'specific' && trip.departureDate
             ? new Date(trip.departureDate)
@@ -162,7 +227,13 @@ const SearchForm = () => {
   return (
     <section className="busqueda" id="trip-search">
       <h2>Busca tu viaje</h2>
-      <form className="busqueda-form" onSubmit={handleSubmit}>
+      {selectedPromotion && (
+        <p className="booking-verification" role="status">
+          Promocion seleccionada: {selectedPromotion.journey?.origin?.name} &rarr;{' '}
+          {selectedPromotion.journey?.destination?.name}. Revisa la fecha y presiona Buscar para reservarla.
+        </p>
+      )}
+      <form ref={searchFormRef} className="busqueda-form" onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="origen">Origen</label>
           <select
@@ -197,13 +268,63 @@ const SearchForm = () => {
 
         <div className="form-group">
           <label htmlFor="fecha">Fecha</label>
-          <input
-            type="date"
-            id="fecha"
-            min={new Date().toISOString().slice(0, 10)}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <div className="date-picker-field">
+            <input
+              type="text"
+              id="fecha"
+              placeholder="DD/MM/YYYY"
+              inputMode="numeric"
+              value={dateInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                setDateInput(value);
+                setDate(displayToIsoDate(value));
+              }}
+              required
+            />
+            <button
+              type="button"
+              className="date-picker-button"
+              aria-label="Abrir calendario"
+              onClick={() => {
+                if (typeof datePickerRef.current?.showPicker === 'function') {
+                  datePickerRef.current.showPicker();
+                } else {
+                  datePickerRef.current?.click();
+                }
+              }}
+            >
+              <svg
+                aria-hidden="true"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="4" width="18" height="17" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </button>
+            <input
+              ref={datePickerRef}
+              className="date-picker-native"
+              type="date"
+              min={new Date().toISOString().slice(0, 10)}
+              value={date}
+              tabIndex="-1"
+              aria-hidden="true"
+              onChange={(e) => {
+                setDate(e.target.value);
+                setDateInput(isoToDisplayDate(e.target.value));
+              }}
+            />
+          </div>
         </div>
 
         <div className="form-group">
@@ -257,21 +378,31 @@ const SearchForm = () => {
           {results.length > 0 && (
             <div className="destinos-grid">
               {results.map((trip) => (
-                <div key={trip.id} className="destino-card">
+                <div key={trip.id} className="destino-card search-result-card">
                   <div className="destino-info">
-                    <h4 style={{ margin: '0 0 0.25rem' }}>
+                    <h4 className="search-result-route">
                       {trip.journey?.origin?.name || '?'} &rarr;{' '}
                       {trip.journey?.destination?.name || '?'}
                     </h4>
-                    <p className="destino-provincia">
-                      Salida:{' '}
+                    <div className="search-result-details">
+                      <p>
+                        <span>Salida</span>
                       {trip.scheduleType === 'specific'
                         ? formatDate(trip.departureDate)
-                        : `${trip.searchDate} ${trip.departureTime || ''}`}
-                      {trip.arrivalDate &&
-                        ` | Llegada: ${formatDate(trip.arrivalDate)}`}
-                    </p>
-                    <div className="destino-footer">
+                        : `${formatDateOnly(trip.searchDate)} ${trip.departureTime || ''}`}
+                      </p>
+                      {trip.arrivalDate && (
+                        <p>
+                          <span>Llegada</span>
+                          {formatDate(trip.arrivalDate)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="search-result-price">
+                      <span>Precio por persona</span>
+                      <strong>${Number(trip.pricePerPerson || 0).toLocaleString('es-AR')}</strong>
+                    </div>
+                    <div className="destino-footer search-result-actions">
                       <span className="destino-label">
                         {trip.availableSeats} asientos disponibles
                       </span>

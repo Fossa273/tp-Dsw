@@ -22,6 +22,15 @@ export class JourneyRepository {
     });
   }
 
+  public async paginated(page: number, limit: number) {
+    const where = { active: 1 };
+    const [data, total] = await Promise.all([
+      prisma.journey.findMany({ where, include: this.journeyInclude, orderBy: { id: 'asc' }, skip: (page - 1) * limit, take: limit }),
+      prisma.journey.count({ where }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
   public async findAllInactive() {
     return prisma.journey.findMany({
       where: { active: 0 },

@@ -5,6 +5,7 @@ import { useDrivers } from '../hooks/useDrivers';
 import { useVehicles } from '../hooks/useVehicles';
 import { PlusIcon } from '../components/icons';
 import { formatDate } from '../utils/format';
+import Pagination from '../components/Pagination';
 
 const DAYS = [
   { id: 0, name: 'Domingo' }, { id: 1, name: 'Lunes' },
@@ -14,12 +15,14 @@ const DAYS = [
 ];
 
 const TripsPage = () => {
-  const { trips, loading, error, create, update, remove, refetch } = useTrips();
+  const [page, setPage] = useState(1);
+  const { trips, pagination, loading, error, create, update, remove, refetch } = useTrips(page, 50);
   const { journeys, loading: loadingJourneys } = useJourneys();
   const { drivers, loading: loadingDrivers } = useDrivers();
   const { vehicles, loading: loadingVehicles } = useVehicles();
 
   const [editingId, setEditingId] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState({
     journeyId: '',
     driverId: '',
@@ -30,6 +33,7 @@ const TripsPage = () => {
     departureDate: '',
     isPromoted: false,
     promoExpiry: '',
+    promoPrice: '',
   });
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -67,6 +71,10 @@ const TripsPage = () => {
       showMessage('La fecha y hora de salida son obligatorias', 'error');
       return;
     }
+    if (form.isPromoted && (!form.promoPrice || Number(form.promoPrice) <= 0)) {
+      showMessage('Debe indicar un precio promocional valido', 'error');
+      return;
+    }
 
     const payload = {
       journeyId: Number(form.journeyId),
@@ -82,6 +90,7 @@ const TripsPage = () => {
       promoExpiry: form.isPromoted && form.promoExpiry
         ? new Date(form.promoExpiry).toISOString()
         : null,
+      promoPrice: form.isPromoted ? Number(form.promoPrice) : null,
     };
 
     try { setSubmitting(true);
@@ -93,7 +102,7 @@ const TripsPage = () => {
         await create(payload);
         showMessage('Viaje creado correctamente');
       }
-      setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '' });
+      setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '', promoPrice: '' });
     } catch (err) {
       showMessage(err.message, 'error');
     } finally {
@@ -102,6 +111,7 @@ const TripsPage = () => {
   };
 
   const handleEdit = (trip) => {
+    setShowCreateForm(true);
     setEditingId(trip.id);
     setPendingDelete(null);
     setForm({
@@ -114,6 +124,7 @@ const TripsPage = () => {
       departureDate: trip.departureDate ? new Date(trip.departureDate).toISOString().slice(0, 16) : '',
       isPromoted: !!trip.isPromoted,
       promoExpiry: trip.promoExpiry ? new Date(trip.promoExpiry).toISOString().slice(0, 10) : '',
+      promoPrice: trip.promoPrice ?? '',
     });
   };
 
@@ -127,7 +138,7 @@ const TripsPage = () => {
       await remove(id);
       if (String(editingId) === String(id)) {
         setEditingId(null);
-        setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '' });
+        setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '', promoPrice: '' });
       }
       showMessage('Viaje eliminado correctamente');
     } catch (err) {
@@ -137,7 +148,7 @@ const TripsPage = () => {
 
   const handleCancel = () => {
     setEditingId(null);
-    setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '' });
+    setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '', promoPrice: '' });
   };
 
   const filtered = useMemo(() => {
@@ -173,7 +184,14 @@ const TripsPage = () => {
 
   return (
     <div className="crud-page">
-      <h1>Gestion de Viajes</h1>
+      <div className="crud-heading">
+        <h1>Gestion de Viajes</h1>
+        <button type="button" className="btn btn-primary btn-icon-only" aria-label={showCreateForm ? 'Cerrar formulario' : 'Crear viaje'} onClick={() => setShowCreateForm((current) => !current)}>
+          <PlusIcon />
+        </button>
+      </div>
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="viajes" />
 
       {msg && (
         <div
@@ -185,7 +203,7 @@ const TripsPage = () => {
         </div>
       )}
 
-      <form className="crud-form" onSubmit={handleSubmit}>
+      {showCreateForm && <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Viaje' : 'Nuevo Viaje'}</h2>
         <div className="form-row">
           <label htmlFor="viaje-ruta" className="form-label">
@@ -290,23 +308,38 @@ const TripsPage = () => {
             <input
               type="checkbox"
               checked={form.isPromoted}
-              onChange={(e) => setForm({ ...form, isPromoted: e.target.checked, promoExpiry: e.target.checked ? form.promoExpiry : '' })}
+              onChange={(e) => setForm({ ...form, isPromoted: e.target.checked, promoExpiry: e.target.checked ? form.promoExpiry : '', promoPrice: e.target.checked ? form.promoPrice : '' })}
             />
             <span className="toggle-switch" />
             Promocionar viaje
           </label>
         </div>
         {form.isPromoted && (
-          <div className="form-row">
-            <label htmlFor="viaje-promo-expiry" className="form-label">Vencimiento de la promocion</label>
-            <input
-              id="viaje-promo-expiry"
-              name="promoExpiry"
-              type="date"
-              value={form.promoExpiry}
-              onChange={handleChange}
-            />
-          </div>
+          <>
+            <div className="form-row">
+              <label htmlFor="viaje-promo-price" className="form-label">Precio promocional por persona</label>
+              <input
+                id="viaje-promo-price"
+                name="promoPrice"
+                type="number"
+                min="1"
+                step="0.01"
+                value={form.promoPrice}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="form-row">
+              <label htmlFor="viaje-promo-expiry" className="form-label">Vencimiento de la promocion</label>
+              <input
+                id="viaje-promo-expiry"
+                name="promoExpiry"
+                type="date"
+                value={form.promoExpiry}
+                onChange={handleChange}
+              />
+            </div>
+          </>
         )}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-icon" disabled={submitting}>
@@ -323,7 +356,7 @@ const TripsPage = () => {
             </button>
           )}
         </div>
-      </form>
+      </form>}
 
       <div className="crud-toolbar">
         <div className="crud-search">
@@ -347,6 +380,7 @@ const TripsPage = () => {
               <th>Recorrido</th>
               <th>Conductor</th>
               <th>Vehiculo</th>
+              <th>Precio unitario</th>
               <th>Salida</th>
               <th>Llegada</th>
               <th>Acciones</th>
@@ -361,6 +395,11 @@ const TripsPage = () => {
                 <td>{v.driver ? driverName(v.driver) : '-'}</td>
                 <td>
                   Unidad #{v.vehicle?.id ?? v.vehicleId} ({v.vehicle?.maxCapacity ?? '-'} asientos)
+                </td>
+                <td>
+                  {v.pricePerPerson == null
+                    ? '-'
+                    : `$${Number(v.pricePerPerson).toLocaleString('es-AR')}`}
                 </td>
                 <td>{v.departureDate ? formatDate(v.departureDate) : `${DAYS[v.dayOfWeek]?.name || '-'} ${v.departureTime || '-'}`}</td>
                 <td>{v.arrivalDate ? formatDate(v.arrivalDate) : v.arrivalTime || '-'}</td>

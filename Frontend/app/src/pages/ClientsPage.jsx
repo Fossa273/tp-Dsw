@@ -4,6 +4,7 @@ import { useClients } from '../hooks/useClients';
 import { api } from '../services/api';
 import { ADMIN_EMAIL } from '../context/AuthContext';
 import { PlusIcon, EyeIcon, EyeOffIcon, PencilIcon, CheckIcon } from '../components/icons';
+import Pagination from '../components/Pagination';
 
 const SORT_OPTIONS = [
   { value: 'dni-asc', label: 'DNI (menor a mayor)' },
@@ -59,8 +60,9 @@ const validateClient = (data, { requirePassword = false } = {}) => {
 };
 
 const ClientsPage = () => {
-  const { clients, loading, error, create, update, remove, refetch } =
-    useClients();
+  const [page, setPage] = useState(1);
+  const { clients, pagination, loading, error, create, update, remove, refetch } =
+    useClients(page, 50);
 
   const [inactive, setInactive] = useState([]);
   const [showInactive, setShowInactive] = useState(true);
@@ -107,6 +109,7 @@ const ClientsPage = () => {
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('dni-asc');
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const msgTimer = useRef(null);
 
   // Inline edit of the list
@@ -321,7 +324,12 @@ const ClientsPage = () => {
 
   return (
     <div className="crud-page">
-      <h1>Gestion de Clientes</h1>
+      <div className="crud-heading">
+        <h1>Gestion de Clientes</h1>
+        <button type="button" className="btn btn-primary btn-icon-only" aria-label={showCreateForm ? 'Cerrar formulario' : 'Crear cliente'} onClick={() => setShowCreateForm((current) => !current)}>
+          <PlusIcon />
+        </button>
+      </div>
 
       {msg && (
         <div
@@ -334,7 +342,7 @@ const ClientsPage = () => {
       )}
 
       {/* SECTION 1: REGISTRATION */}
-      <section className="profile-section">
+      {showCreateForm && <section className="profile-section">
         <div className="profile-section-header">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
@@ -432,7 +440,7 @@ const ClientsPage = () => {
             </button>
           </div>
         </form>
-      </section>
+      </section>}
 
       {/* SECTION 2: GENERAL LISTING */}
       <section className="profile-section">
@@ -671,6 +679,8 @@ const ClientsPage = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} label="clientes" />
 
         {allClients.length === 0 && (
           <p className="empty-msg">No hay clientes registrados.</p>

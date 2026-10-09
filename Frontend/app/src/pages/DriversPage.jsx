@@ -161,6 +161,7 @@ const DriversPage = () => {
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('dni-asc');
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const msgTimer = useRef(null);
 
   // Inline edit of the list
@@ -337,7 +338,12 @@ const DriversPage = () => {
 
   return (
     <div className="crud-page">
-      <h1>Gestion de Conductores</h1>
+      <div className="crud-heading">
+        <h1>Gestion de Conductores</h1>
+        <button type="button" className="btn btn-primary btn-icon-only" aria-label={showCreateForm ? 'Cerrar formulario' : 'Crear conductor'} onClick={() => setShowCreateForm((current) => !current)}>
+          <PlusIcon />
+        </button>
+      </div>
 
       {msg && (
         <div
@@ -350,7 +356,7 @@ const DriversPage = () => {
       )}
 
       {/* SECTION 1: REGISTRATION */}
-      <section className="profile-section">
+      {showCreateForm && <section className="profile-section">
         <div className="profile-section-header">
           <svg
             width="22"
@@ -432,7 +438,7 @@ const DriversPage = () => {
             </button>
           </div>
         </form>
-      </section>
+      </section>}
 
       {/* SECTION 2: GENERAL LISTING */}
       <section className="profile-section">

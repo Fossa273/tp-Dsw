@@ -13,6 +13,7 @@ const VehiclesPage = () => {
   const { vehicles, loading, error, create, update, remove, refetch } = useVehicles();
 
   const [editingId, setEditingId] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({ maxCapacity: '', categoryId: '1', hasBathroom: false });
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -79,6 +80,7 @@ const VehiclesPage = () => {
   };
 
   const handleEdit = (vehicle) => {
+    setShowCreateForm(true);
     setEditingId(vehicle.id);
     setPendingDelete(null);
     setForm({ maxCapacity: vehicle.maxCapacity || '', categoryId: String(vehicle.categoryId || vehicle.categoryRelation?.idCategoria || 1), hasBathroom: Boolean(vehicle.hasBathroom) });
@@ -124,7 +126,12 @@ const VehiclesPage = () => {
 
   return (
     <div className="crud-page">
-      <h1>Gestion de Vehiculos</h1>
+      <div className="crud-heading">
+        <h1>Gestion de Vehiculos</h1>
+        <button type="button" className="btn btn-primary btn-icon-only" aria-label={showCreateForm ? 'Cerrar formulario' : 'Crear vehiculo'} onClick={() => setShowCreateForm((current) => !current)}>
+          <PlusIcon />
+        </button>
+      </div>
 
       {msg && (
         <div
@@ -136,7 +143,7 @@ const VehiclesPage = () => {
         </div>
       )}
 
-      <form className="crud-form" onSubmit={handleSubmit}>
+      {showCreateForm && <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Vehiculo' : 'Nuevo Vehiculo'}</h2>
         <div className="form-row">
           <input
@@ -177,7 +184,7 @@ const VehiclesPage = () => {
             </button>
           )}
         </div>
-      </form>
+      </form>}
 
       <div className="crud-toolbar">
         <div className="crud-sort">

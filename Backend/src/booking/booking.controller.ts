@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { BookingRepository } from './booking.repository.js';
 import { ClientRepository } from '../client/client.repository.js';
 import { TripRepository } from '../trip/trip.repository.js';
+import { sendBookingConfirmationEmail } from './booking-email.service.js';
 
 const repository = new BookingRepository();
 const clientRepository = new ClientRepository();
@@ -131,11 +132,16 @@ async function validateCapacity(
 async function findAll(req: Request, res: Response) {
   const clientId =
     req.query.clientId === undefined ? undefined : Number(req.query.clientId);
-  res.json({
-    data: await repository.findAll(
-      Number.isInteger(clientId) ? clientId : undefined
-    ),
-  });
+  const requestedPage = Number(req.query.page);
+  const requestedLimit = Number(req.query.limit);
+  const page = Number.isInteger(requestedPage) && requestedPage > 0
+    ? requestedPage
+    : 1;
+  const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+    ? Math.min(requestedLimit, 100)
+    : 50;
+  const normalizedClientId = Number.isInteger(clientId) ? clientId : undefined;
+  res.json(await repository.paginated(page, limit, normalizedClientId));
 }
 
 async function findOne(req: Request, res: Response) {
@@ -272,7 +278,14 @@ async function add(req: Request, res: Response) {
   const fuelCostPerSeat = (fuelCost * OPERATING_COST_MULTIPLIER) / capacity;
   const pricePerSeat =
     fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase;
-  const price = roundToNext100(pricePerSeat * seats);
+  const promotionIsActive =
+    trip.isPromoted === 1 &&
+    trip.promoPrice !== null &&
+    Number.isFinite(Number(trip.promoPrice)) &&
+    (!trip.promoExpiry || trip.promoExpiry > new Date());
+  const price = promotionIsActive
+    ? Number(trip.promoPrice) * seats
+    : roundToNext100(pricePerSeat * seats);
 
   try {
     const firstPassenger = passengerList?.[0];
@@ -308,12 +321,17 @@ async function add(req: Request, res: Response) {
 async function update(req: Request, res: Response) {
   const id = Number(req.params.id);
   const { clientId, tripId, numSeats, state } = req.body.sanitizeInput;
+  const currentBooking = await repository.findOne({ id });
+  if (!currentBooking) {
+    res.status(404).json({ error: 'Reserva no encontrada' });
+    return;
+  }
+  const shouldSendConfirmation =
+    currentBooking.state !== 'confirmed' && state?.toLowerCase() === 'confirmed';
   const changesTripOrSeats =
     (tripId !== undefined && tripId !== null) ||
     (numSeats !== undefined && numSeats !== null);
-  const existingBooking = changesTripOrSeats
-    ? await repository.findOne({ id })
-    : null;
+  const existingBooking = changesTripOrSeats ? currentBooking : null;
 
   if (changesTripOrSeats && !existingBooking) {
     res.status(404).json({ error: 'Reserva no encontrada' });
@@ -392,6 +410,43 @@ async function update(req: Request, res: Response) {
     state: state === undefined ? undefined : String(state).toLowerCase(),
   });
   if (updatedBooking) {
+    if (shouldSendConfirmation) {
+      const recipients = [
+        updatedBooking.client?.email,
+        ...(updatedBooking.passengers ?? []).map((passenger) => passenger.email),
+        updatedBooking.passengerEmail,
+      ]
+        .map((email) => String(email ?? '').trim())
+        .filter((email, index, emails) =>
+          email &&
+          emails.findIndex((candidate) => candidate.toLowerCase() === email.toLowerCase()) === index
+        );
+      if (recipients.length === 0) {
+        res.status(200).json({
+          ...updatedBooking,
+          warning: 'La reserva fue confirmada, pero no tiene un email de destino',
+        });
+        return;
+      }
+      try {
+        await sendBookingConfirmationEmail(updatedBooking, recipients);
+      } catch (error) {
+        console.error('[EMAIL] No se pudo enviar la confirmacion:', error);
+        const responseCode =
+          typeof error === 'object' && error !== null && 'responseCode' in error
+            ? Number(error.responseCode)
+            : null;
+        const warning =
+          responseCode === 535
+            ? 'La reserva fue confirmada, pero Gmail rechazo las credenciales SMTP. Configure una contrasena de aplicacion.'
+            : 'La reserva fue confirmada, pero no se pudo enviar el email';
+        res.status(200).json({
+          ...updatedBooking,
+          warning,
+        });
+        return;
+      }
+    }
     res.status(200).json(updatedBooking);
   } else {
     res.status(404).json({ error: 'Reserva no encontrada' });

@@ -32,6 +32,15 @@ export class ClientRepository {
     });
   }
 
+  public async paginated(page: number, limit: number) {
+    const where = { active: 1, email: { not: ADMIN_EMAIL } };
+    const [data, total] = await Promise.all([
+      prisma.client.findMany({ where, select: PUBLIC_SELECT, orderBy: { id: 'desc' }, skip: (page - 1) * limit, take: limit }),
+      prisma.client.count({ where }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
   // Clients with logical deletion (for the admin-only listing)
   public async findAllInactive() {
     return prisma.client.findMany({

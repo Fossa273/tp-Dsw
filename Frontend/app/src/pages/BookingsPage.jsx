@@ -4,7 +4,7 @@ import { useClients } from '../hooks/useClients';
 import { useTrips } from '../hooks/useTrips';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { PlusIcon } from '../components/icons';
+import { CloseIcon, MailIcon, PencilIcon, PlusIcon } from '../components/icons';
 import { formatDate } from '../utils/format';
 
 const STATE_OPTIONS = [
@@ -37,12 +37,12 @@ const tripDepartureDate = (trip) => {
 
 const BookingsPage = () => {
   const { user, isAdmin } = useAuth();
-  const { bookings, loading, error, create, update, remove, refetch } =
-    useBookings(isAdmin ? undefined : user?.id);
+  const [page, setPage] = useState(1);
+  const { bookings, pagination, loading, error, create, update, remove, refetch } =
+    useBookings(isAdmin ? undefined : user?.id, page, 50);
   const { clients, loading: loadingClients } = useClients();
   const { trips, loading: loadingTrips } = useTrips();
 
-  const [inlineDrafts, setInlineDrafts] = useState({});
   const [form, setForm] = useState({
     clientId: '',
     tripId: '',
@@ -50,13 +50,25 @@ const BookingsPage = () => {
     state: 'pending',
   });
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [editingState, setEditingState] = useState(null);
   const [pendingCancel, setPendingCancel] = useState(null);
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEmailTemplate, setShowEmailTemplate] = useState(false);
+  const [emailTemplate, setEmailTemplate] = useState(null);
+  const [templateForm, setTemplateForm] = useState({ subject: '', body: '' });
+  const [templateFiles, setTemplateFiles] = useState([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const [search, setSearch] = useState('');
+  const [visibleStates, setVisibleStates] = useState({
+    pending: true,
+    confirmed: true,
+    cancelled: true,
+  });
   const msgTimer = useRef(null);
 
   const showMessage = (text, type = 'success') => {
@@ -72,6 +84,48 @@ const BookingsPage = () => {
     },
     [],
   );
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    api.bookings.getEmailTemplate()
+      .then((template) => {
+        setEmailTemplate(template);
+        setTemplateForm({ subject: template.subject, body: template.body });
+      })
+      .catch((err) => showMessage(err.message, 'error'));
+  }, [isAdmin]);
+
+  const saveEmailTemplate = async (event) => {
+    event.preventDefault();
+    try {
+      setSavingTemplate(true);
+      const saved = await api.bookings.updateEmailTemplate({
+        ...templateForm,
+        attachments: templateFiles,
+      });
+      setEmailTemplate(saved);
+      setTemplateFiles([]);
+      event.target.reset();
+      showMessage('Mensaje de confirmacion actualizado correctamente');
+    } catch (err) {
+      showMessage(err.message, 'error');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const deleteEmailAttachment = async (id) => {
+    try {
+      const saved = await api.bookings.deleteEmailAttachment(id);
+      if (saved) {
+        const template = await api.bookings.getEmailTemplate();
+        setEmailTemplate(template);
+      }
+      showMessage('Adjunto eliminado correctamente');
+    } catch (err) {
+      showMessage(err.message, 'error');
+    }
+  };
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -112,62 +166,6 @@ const BookingsPage = () => {
     }
   };
 
-  const startInlineEdit = (booking) => {
-    setPendingDelete(null);
-    setInlineDrafts((current) => ({
-      ...current,
-      [booking.id]: {
-        clientId: String(booking.clientId ?? ''),
-        tripId: String(booking.tripId ?? ''),
-        numSeats: String(booking.numSeats ?? ''),
-        state: booking.state || 'pending',
-      },
-    }));
-  };
-
-  const updateInlineDraft = (id, field, value) => {
-    setInlineDrafts((current) => ({
-      ...current,
-      [id]: { ...current[id], [field]: value },
-    }));
-  };
-
-  const cancelInlineEdit = (id) => {
-    setInlineDrafts((current) => {
-      const next = { ...current };
-      delete next[id];
-      return next;
-    });
-  };
-
-  const saveInlineEdit = async (booking) => {
-    const draft = inlineDrafts[booking.id];
-    if (!draft) return;
-    const seats = Number(draft.numSeats);
-    if (!draft.tripId || !Number.isInteger(seats) || seats < 1) {
-      showMessage(
-        'Complete cliente, viaje y una cantidad valida de asientos',
-        'error',
-      );
-      return;
-    }
-    try {
-      setSubmitting(true);
-      await update(booking.id, {
-        clientId: draft.clientId ? Number(draft.clientId) : null,
-        tripId: Number(draft.tripId),
-        numSeats: seats,
-        state: draft.state,
-      });
-      cancelInlineEdit(booking.id);
-      showMessage('Reserva actualizada correctamente');
-    } catch (err) {
-      showMessage(err.message, 'error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleDelete = async (id) => {
     if (pendingDelete !== id) {
       setPendingDelete(id);
@@ -197,10 +195,42 @@ const BookingsPage = () => {
     }
   };
 
+  const handleStateChange = async (booking, state) => {
+    if (state === booking.state || submitting) return;
+    try {
+      setSubmitting(true);
+      const result = await update(booking.id, { state });
+      showMessage(
+        result?.warning || 'Estado de la reserva actualizado correctamente',
+        result?.warning ? 'error' : 'success',
+      );
+    } catch (err) {
+      showMessage(err.message, 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const startStateEdit = (booking) => {
+    setPendingDelete(null);
+    setEditingState({ id: booking.id, state: booking.state || 'pending' });
+  };
+
+  const cancelStateEdit = () => {
+    setEditingState(null);
+  };
+
+  const saveStateEdit = async (booking) => {
+    if (!editingState) return;
+    await handleStateChange(booking, editingState.state);
+    setEditingState(null);
+  };
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return bookings;
     return bookings.filter((r) => {
+      if (!visibleStates[r.state || 'pending']) return false;
+      if (!term) return true;
       const client =
         (r.client?.firstName || '') + ' ' + (r.client?.lastName || '');
       const journey =
@@ -213,18 +243,19 @@ const BookingsPage = () => {
         String(r.tripId).includes(term)
       );
     });
-  }, [bookings, search]);
+  }, [bookings, search, visibleStates]);
 
-  if (loading) return <div className="loading">Cargando reservas...</div>;
-  if (error)
-    return (
-      <div className="error">
-        <p>Error: {error}</p>
-        <button className="btn btn-primary" onClick={refetch}>
-          Reintentar
-        </button>
-      </div>
-    );
+  const goToPage = (nextPage) => {
+    if (nextPage < 1 || nextPage > pagination.totalPages) return;
+    setPage(nextPage);
+    setPendingDelete(null);
+    setPendingCancel(null);
+    setEditingState(null);
+  };
+
+  if (loading && bookings.length === 0) {
+    return <div className="loading">Cargando reservas...</div>;
+  }
 
   const clientName = (c) =>
     `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.email || '-';
@@ -251,8 +282,32 @@ const BookingsPage = () => {
       : '-';
 
   return (
-    <div className="crud-page">
-      <h1>Gestion de Reservas</h1>
+    <div className="crud-page bookings-page">
+      <div className="crud-heading">
+        <h1>Gestion de Reservas</h1>
+        {isAdmin && (
+          <div className="crud-heading-actions">
+            <button
+              type="button"
+              className="btn btn-primary btn-icon-only"
+              aria-label={showCreateForm ? 'Cerrar formulario de reserva' : 'Crear nueva reserva'}
+              title={showCreateForm ? 'Cerrar formulario' : 'Crear nueva reserva'}
+              onClick={() => setShowCreateForm((current) => !current)}
+            >
+              <PlusIcon />
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-icon-only"
+              aria-label={showEmailTemplate ? 'Cerrar mensaje de confirmacion' : 'Editar mensaje de confirmacion'}
+              title={showEmailTemplate ? 'Cerrar mensaje' : 'Editar mensaje de confirmacion'}
+              onClick={() => setShowEmailTemplate((current) => !current)}
+            >
+              <MailIcon />
+            </button>
+          </div>
+        )}
+      </div>
 
       {msg && (
         <div
@@ -264,7 +319,76 @@ const BookingsPage = () => {
         </div>
       )}
 
-      {isAdmin && (
+      {isAdmin && emailTemplate && showEmailTemplate && (
+        <form className="crud-form booking-email-template" onSubmit={saveEmailTemplate}>
+          <h2>Mensaje de confirmacion por email</h2>
+          <p className="profile-section-desc">
+            Se enviara unicamente cuando una reserva pase al estado Confirmada.
+            Variables disponibles: {'{{clientName}}'}, {'{{bookingId}}'}, {'{{origin}}'},
+            {'{{destination}}'}, {'{{departure}}'}, {'{{seats}}'} y {'{{price}}'}.
+          </p>
+          <div className="form-row">
+            <label className="form-label" htmlFor="booking-email-subject">Asunto</label>
+            <input
+              id="booking-email-subject"
+              value={templateForm.subject}
+              onChange={(event) => setTemplateForm({ ...templateForm, subject: event.target.value })}
+              required
+            />
+          </div>
+          <div className="form-row">
+            <label className="form-label" htmlFor="booking-email-body">Mensaje</label>
+            <textarea
+              id="booking-email-body"
+              rows="9"
+              value={templateForm.body}
+              onChange={(event) => setTemplateForm({ ...templateForm, body: event.target.value })}
+              required
+            />
+          </div>
+          <div className="form-row">
+            <label className="form-label" htmlFor="booking-email-files">Adjuntos</label>
+            <input
+              id="booking-email-files"
+              type="file"
+              multiple
+              onChange={(event) => setTemplateFiles(Array.from(event.target.files || []))}
+            />
+          </div>
+          {emailTemplate.attachments?.length > 0 && (
+            <ul className="booking-email-attachments">
+              {emailTemplate.attachments.map((attachment) => (
+                <li key={attachment.id}>
+                  <span>{attachment.filename}</span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-delete"
+                    onClick={() => deleteEmailAttachment(attachment.id)}
+                  >
+                    Quitar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary" disabled={savingTemplate}>
+              {savingTemplate ? 'Guardando...' : 'Guardar mensaje'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {error && (
+        <div className="crud-message msg-error booking-connection-message" role="alert">
+          <span>No se pudo actualizar la lista de reservas: {error}</span>
+          <button type="button" className="btn btn-sm btn-secondary" onClick={refetch}>
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {isAdmin && showCreateForm && (
         <form className="crud-form" onSubmit={handleSubmit} noValidate>
           <h2>Nueva Reserva</h2>
           <div className="form-row">
@@ -379,10 +503,28 @@ const BookingsPage = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <div className="booking-filters" aria-label="Filtrar reservas por estado">
+          <span className="booking-filters-label">Mostrar:</span>
+          {STATE_OPTIONS.map((option) => (
+            <label className="booking-filter" key={option.value}>
+              <input
+                type="checkbox"
+                checked={visibleStates[option.value]}
+                onChange={() =>
+                  setVisibleStates((current) => ({
+                    ...current,
+                    [option.value]: !current[option.value],
+                  }))
+                }
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
       </div>
 
       <div className="crud-table-wrapper">
-        <table className="crud-table">
+        <table className="crud-table bookings-table">
           <thead>
             <tr>
               <th>Reservada el</th>
@@ -401,72 +543,24 @@ const BookingsPage = () => {
               <tr key={r.id}>
                 <td>{formatDate(r.createdAt)}</td>
                 <td>{formatDate(tripDepartureDate(r.trip))}</td>
-                {inlineDrafts[r.id] ? (
-                  <>
-                    {isAdmin && (
-                      <td>
-                        <select
-                          className="inline-input"
-                          value={inlineDrafts[r.id].clientId}
-                          onChange={(e) =>
-                            updateInlineDraft(r.id, 'clientId', e.target.value)
-                          }
-                        >
-                          {clients.map((client) => (
-                            <option key={client.id} value={client.id}>
-                              {clientName(client)}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    )}
-                    {isAdmin && <td className="passenger-list">Ver detalle al guardar</td>}
-                    <td>
-                      <select
-                        className="inline-input"
-                        value={inlineDrafts[r.id].tripId}
-                        onChange={(e) =>
-                          updateInlineDraft(r.id, 'tripId', e.target.value)
-                        }
-                      >
-                        {trips.map((trip) => (
-                          <option key={trip.id} value={trip.id}>
-                            {viajeLabel(trip)}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        className="inline-input inline-number"
-                        type="number"
-                        min="1"
-                        value={inlineDrafts[r.id].numSeats}
-                        onChange={(e) =>
-                          updateInlineDraft(r.id, 'numSeats', e.target.value)
-                        }
-                      />
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    {isAdmin && (
-                      <td>{bookingPassengerName(r)}</td>
-                    )}
-                    {isAdmin && <td className="passenger-list">{passengerNames(r)}</td>}
-                    <td>{viajeLabel(r.trip)}</td>
-                    <td>{r.numSeats}</td>
-                  </>
-                )}
+                {isAdmin && <td>{bookingPassengerName(r)}</td>}
+                {isAdmin && <td className="passenger-list">{passengerNames(r)}</td>}
+                <td>{viajeLabel(r.trip)}</td>
+                <td>{r.numSeats}</td>
                 <td>${Number(r.price || 0).toLocaleString('es-AR')}</td>
                 <td>
-                  {inlineDrafts[r.id] ? (
+                  {isAdmin && editingState?.id === r.id ? (
                     <select
-                      className="inline-input"
-                      value={inlineDrafts[r.id].state}
-                      onChange={(e) =>
-                        updateInlineDraft(r.id, 'state', e.target.value)
+                      className="inline-input booking-state-select"
+                      value={editingState.state}
+                      onChange={(event) =>
+                        setEditingState((current) => ({
+                          ...current,
+                          state: event.target.value,
+                        }))
                       }
+                      disabled={submitting}
+                      aria-label={`Estado de la reserva ${r.id}`}
                     >
                       {STATE_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -475,9 +569,7 @@ const BookingsPage = () => {
                       ))}
                     </select>
                   ) : (
-                    <span
-                      className={`status-badge status-${r.state || 'pending'}`}
-                    >
+                    <span className={`status-badge status-${r.state || 'pending'}`}>
                       {STATE_LABEL[r.state] || r.state}
                     </span>
                   )}
@@ -532,36 +624,40 @@ const BookingsPage = () => {
                     </>
                   ) : (
                     <>
-                      {inlineDrafts[r.id] ? (
+                      {editingState?.id === r.id ? (
                         <>
                           <button
                             className="btn btn-sm btn-primary"
                             disabled={submitting}
-                            onClick={() => saveInlineEdit(r)}
+                            onClick={() => saveStateEdit(r)}
                           >
                             Guardar
                           </button>
                           <button
                             className="btn btn-sm btn-secondary"
                             disabled={submitting}
-                            onClick={() => cancelInlineEdit(r.id)}
+                            onClick={cancelStateEdit}
                           >
                             Cancelar
                           </button>
                         </>
                       ) : (
                         <button
-                          className="btn btn-sm btn-edit"
-                          onClick={() => startInlineEdit(r)}
+                          className="btn btn-sm btn-edit btn-icon-only"
+                          aria-label="Editar estado de reserva"
+                          title="Editar estado de reserva"
+                          onClick={() => startStateEdit(r)}
                         >
-                          Editar
+                          <PencilIcon />
                         </button>
                       )}
                       <button
-                        className="btn btn-sm btn-delete"
+                        className="btn btn-sm btn-delete btn-icon-only"
+                        aria-label="Eliminar reserva"
+                        title="Eliminar reserva"
                         onClick={() => handleDelete(r.id)}
                       >
-                        Eliminar
+                        <CloseIcon />
                       </button>
                     </>
                   )}
@@ -571,6 +667,31 @@ const BookingsPage = () => {
           </tbody>
         </table>
       </div>
+
+      {pagination.totalPages > 1 && (
+        <nav className="pagination" aria-label="Paginacion de reservas">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={page === 1}
+            onClick={() => goToPage(page - 1)}
+          >
+            Anterior
+          </button>
+          <span>
+            Pagina {pagination.page} de {pagination.totalPages}
+            <small> ({pagination.total} reservas)</small>
+          </span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={page === pagination.totalPages}
+            onClick={() => goToPage(page + 1)}
+          >
+            Siguiente
+          </button>
+        </nav>
+      )}
 
       {filtered.length === 0 && (
         <p className="empty-msg">

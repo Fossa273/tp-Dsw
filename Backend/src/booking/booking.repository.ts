@@ -65,6 +65,22 @@ export class BookingRepository {
     });
   }
 
+  public async paginated(page: number, limit: number, clientId?: number) {
+    const skip = (page - 1) * limit;
+    const where = clientId === undefined ? undefined : { clientId };
+    const [data, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        include: BOOKING_INCLUDE,
+        orderBy: { id: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.booking.count({ where }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
   public async findOne(item: { id: number }) {
     return prisma.booking.findUnique({
       where: { id: item.id },

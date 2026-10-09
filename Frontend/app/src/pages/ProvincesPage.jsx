@@ -17,6 +17,7 @@ const ProvincesPage = () => {
   const { provinces, loading, error, create, update, remove, refetch } = useProvinces();
 
   const [editingId, setEditingId] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState({ name: '' });
   const [pendingDelete, setPendingDelete] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -72,6 +73,7 @@ const ProvincesPage = () => {
   };
 
   const handleEdit = (province) => {
+    setShowCreateForm(true);
     setEditingId(province.id);
     setPendingDelete(null);
     setForm({ name: province.name || '' });
@@ -130,7 +132,12 @@ const ProvincesPage = () => {
 
   return (
     <div className="crud-page">
-      <h1>Gestion de Provincias</h1>
+      <div className="crud-heading">
+        <h1>Gestion de Provincias</h1>
+        <button type="button" className="btn btn-primary btn-icon-only" aria-label={showCreateForm ? 'Cerrar formulario' : 'Crear provincia'} onClick={() => setShowCreateForm((current) => !current)}>
+          <PlusIcon />
+        </button>
+      </div>
 
       {msg && (
         <div
@@ -142,7 +149,7 @@ const ProvincesPage = () => {
         </div>
       )}
 
-      <form className="crud-form" onSubmit={handleSubmit}>
+      {showCreateForm && <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Provincia' : 'Nueva Provincia'}</h2>
         <div className="form-row">
           <input
@@ -168,7 +175,7 @@ const ProvincesPage = () => {
             </button>
           )}
         </div>
-      </form>
+      </form>}
 
       <div className="crud-toolbar">
         <div className="crud-search">

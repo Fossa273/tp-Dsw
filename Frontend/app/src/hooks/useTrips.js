@@ -2,22 +2,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useTrips() {
+export function useTrips(page, limit = 50) {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState(null);
 
   const fetchAll = useCallback(async () => {
     try {
-      const res = await api.trips.getAll();
+      const res = await api.trips.getAll(page ? { page, limit } : {});
       setTrips(res.data || []);
+      setPagination(res.totalPages ? res : null);
       setError(null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, limit]);
 
   useEffect(() => {
     fetchAll();
@@ -42,6 +44,7 @@ export function useTrips() {
 
   return {
     trips,
+    pagination,
     loading,
     error,
     create,

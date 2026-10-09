@@ -2,18 +2,30 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   const config = {
     headers: { 'Content-Type': 'application/json' },
     ...options,
+    signal: options.signal || controller.signal,
   };
 
   let response;
   try {
     response = await fetch(url, config);
-  } catch {
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(
+        'La solicitud tardo demasiado. Verifique la conexion e intente nuevamente.',
+        { cause: error },
+      );
+    }
     throw new Error(
       'No se pudo conectar con el servidor. Verifique que el backend este corriendo en el puerto 3000.',
+      { cause: error },
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   // If the server answers with something that is not JSON (for example an
@@ -43,7 +55,12 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   clients: {
-    getAll: () => request('/clients'),
+    getAll: ({ page, limit } = {}) => {
+      const qs = new URLSearchParams();
+      if (page) qs.set('page', page);
+      if (limit) qs.set('limit', limit);
+      return request(qs.toString() ? `/clients?${qs}` : '/clients');
+    },
     getInactive: () => request('/clients/inactive'),
     getOne: (id) => request(`/clients/${id}`),
     create: (client) =>
@@ -77,7 +94,12 @@ export const api = {
   },
 
   localities: {
-    getAll: () => request('/localities'),
+    getAll: ({ page, limit } = {}) => {
+      const qs = new URLSearchParams();
+      if (page) qs.set('page', page);
+      if (limit) qs.set('limit', limit);
+      return request(qs.toString() ? `/localities?${qs}` : '/localities');
+    },
     getOne: (id) => request(`/localities/${id}`),
     create: (locality) =>
       request('/localities', {
@@ -152,7 +174,12 @@ export const api = {
   },
 
   journeys: {
-    getAll: () => request('/journeys'),
+    getAll: ({ page, limit } = {}) => {
+      const qs = new URLSearchParams();
+      if (page) qs.set('page', page);
+      if (limit) qs.set('limit', limit);
+      return request(qs.toString() ? `/journeys?${qs}` : '/journeys');
+    },
     getInactive: () => request('/journeys/inactive'),
     getOne: (id) => request(`/journeys/${id}`),
     create: (journey) =>
@@ -171,7 +198,12 @@ export const api = {
   },
 
   trips: {
-    getAll: () => request('/trips'),
+    getAll: ({ page, limit } = {}) => {
+      const qs = new URLSearchParams();
+      if (page) qs.set('page', page);
+      if (limit) qs.set('limit', limit);
+      return request(qs.toString() ? `/trips?${qs}` : '/trips');
+    },
     getInactive: () => request('/trips/inactive'),
     getPromoted: () => request('/trips/promoted'),
     getOne: (id) => request(`/trips/${id}`),
@@ -197,8 +229,14 @@ export const api = {
   },
 
   bookings: {
-    getAll: (clientId) =>
-      request(clientId ? `/bookings?clientId=${clientId}` : '/bookings'),
+    getAll: (clientId, { page, limit } = {}) => {
+      const qs = new URLSearchParams();
+      if (clientId) qs.set('clientId', clientId);
+      if (page) qs.set('page', page);
+      if (limit) qs.set('limit', limit);
+      const query = qs.toString();
+      return request(query ? `/bookings?${query}` : '/bookings');
+    },
     getOne: (id) => request(`/bookings/${id}`),
     seatsByTrips: (tripIds) =>
       request(`/bookings/seats?tripIds=${tripIds.join(',')}`),
@@ -218,5 +256,19 @@ export const api = {
         body: JSON.stringify({ clientId }),
       }),
     delete: (id) => request(`/bookings/${id}`, { method: 'DELETE' }),
+    getEmailTemplate: () => request('/bookings/email-template'),
+    updateEmailTemplate: ({ subject, body, attachments }) => {
+      const formData = new FormData();
+      formData.append('subject', subject);
+      formData.append('body', body);
+      attachments.forEach((file) => formData.append('attachments', file));
+      return request('/bookings/email-template', {
+        method: 'PUT',
+        headers: {},
+        body: formData,
+      });
+    },
+    deleteEmailAttachment: (id) =>
+      request(`/bookings/email-template/attachments/${id}`, { method: 'DELETE' }),
   },
 };

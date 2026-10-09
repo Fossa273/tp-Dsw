@@ -3,6 +3,7 @@ import { useJourneys } from '../hooks/useJourneys';
 import { useLocalities } from '../hooks/useLocalities';
 import { localityLabel } from '../utils/format';
 import { PlusIcon } from '../components/icons';
+import Pagination from '../components/Pagination';
 
 const SORT_OPTIONS = [
   { value: 'distance-asc', label: 'Distancia (menor a mayor)' },
@@ -20,8 +21,10 @@ const formatDuration = (minutes) => {
 };
 
 const JourneysPage = () => {
+  const [page, setPage] = useState(1);
   const {
     journeys,
+    pagination,
     inactive,
     loading,
     error,
@@ -30,10 +33,11 @@ const JourneysPage = () => {
     remove,
     reactivate,
     refetch,
-  } = useJourneys();
+  } = useJourneys(page, 50);
   const { localities, loading: loadingLocalities } = useLocalities();
 
   const [editingId, setEditingId] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState({
     originId: '',
     destinationId: '',
@@ -100,6 +104,7 @@ const JourneysPage = () => {
   };
 
   const handleEdit = (journey) => {
+    setShowCreateForm(true);
     setEditingId(journey.id);
     setPendingDelete(null);
     setForm({
@@ -191,7 +196,14 @@ const JourneysPage = () => {
 
   return (
     <div className="crud-page">
-      <h1>Gestion de Trayectos</h1>
+      <div className="crud-heading">
+        <h1>Gestion de Trayectos</h1>
+        <button type="button" className="btn btn-primary btn-icon-only" aria-label={showCreateForm ? 'Cerrar formulario' : 'Crear trayecto'} onClick={() => setShowCreateForm((current) => !current)}>
+          <PlusIcon />
+        </button>
+      </div>
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="trayectos" />
 
       {msg && (
         <div
@@ -203,7 +215,7 @@ const JourneysPage = () => {
         </div>
       )}
 
-      <form className="crud-form" onSubmit={handleSubmit}>
+      {showCreateForm && <form className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Trayecto' : 'Nuevo Trayecto'}</h2>
         <p className="profile-section-desc">
           La distancia se calcula automaticamente con OpenStreetMap y una
@@ -264,7 +276,7 @@ const JourneysPage = () => {
             </button>
           )}
         </div>
-      </form>
+      </form>}
 
       <div className="crud-toolbar">
         <div className="crud-search">

@@ -14,6 +14,7 @@ export interface TripData {
   arrivesNextDay?: boolean;
   isPromoted?: number;
   promoExpiry?: Date | null;
+  promoPrice?: number | null;
   active?: number;
 }
 
@@ -111,6 +112,7 @@ export class TripRepository {
         arrivesNextDay: item.arrivesNextDay ?? false,
         isPromoted: item.isPromoted ?? 0,
         promoExpiry: item.promoExpiry ?? null,
+        promoPrice: item.promoPrice ?? null,
         active: 1,
       },
       include: TRIP_INCLUDE,
@@ -134,6 +136,7 @@ export class TripRepository {
     if (item.arrivesNextDay !== undefined) data.arrivesNextDay = item.arrivesNextDay;
     if (item.isPromoted !== undefined) data.isPromoted = item.isPromoted;
     if (item.promoExpiry !== undefined) data.promoExpiry = item.promoExpiry;
+    if (item.promoPrice !== undefined) data.promoPrice = item.promoPrice;
 
     if (Object.keys(data).length === 0) {
       return prisma.trip.findUnique({

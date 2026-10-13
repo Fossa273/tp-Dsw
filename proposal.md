@@ -13,12 +13,14 @@
 
 - Aplicacion web que permite al usuario y al administrador gestionar reservas de viaje eficientemente, brindando la posibilidad de agendar, postergar o cancelar una reserva. La aplicacion permitira al usuario registrarse/loguearse en el sistema para gestionar sus viajes ya agendados, o realizar nuevas reservas indicando datos de origen, destino y fecha del viaje.
 
-## Modelo de Dominio
+## Modelo Entidad Relacion
 
 <p align="center">
-  <a href="https://drive.google.com/file/d/1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK/view" target="_blank">
-    <img src="https://drive.google.com/thumbnail?id=1pX9k6-8A__whxANlIGZZBkMNBzl3rkeK&sz=w1200" 
-         alt="Modelo de Dominio" 
+  <a href="https://drive.google.com/file/d/1mF49plfXAaBxcKvQNc1CdInoegtf9vak/view?usp=sharing" target="_blank">
+    <img src="https://drive.google.com/file/d/1mF49plfXAaBxcKvQNc1CdInoegtf9vak/preview" 
+         width="640" 
+         height="480" 
+         alt="Modelo entidad relacion" 
          style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);" />
   </a>
 </p>

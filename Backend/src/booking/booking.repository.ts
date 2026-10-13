@@ -23,7 +23,14 @@ export interface BookingData {
 
 const BOOKING_INCLUDE = {
   client: {
-    select: { id: true, firstName: true, lastName: true, email: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      dni: true,
+      email: true,
+      phone: true,
+    },
   },
   trip: {
     include: {

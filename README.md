@@ -6,13 +6,16 @@ Status: draft
 
 ## 1. Objetivo
 
+> Para instalar y ejecutar el proyecto, consultar las
+> [instrucciones de instalación](docs/README.md).
+
 Desarrollar en grupo una aplicación web full stack en base a un alcance propuesto por los integrantes.
 
 Durante dicho desarrollo se deberá aplicar todo lo aprendido en la materia Desarrollo de Software.
 
 ## 2. Tema y Alcance
 
-El grupo debe deberá proponer a los docentes un tema para el trabajo práctico de su preferencia utilizando la [plantilla de propuesta](proposal.md)
+El grupo debe deberá proponer a los docentes un tema para el trabajo práctico de su preferencia utilizando la [plantilla de propuesta](docs/proposal/proposal.md)
 
 ## 3. Requisitos
 

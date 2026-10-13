@@ -1,6 +1,8 @@
 # Credenciales de prueba (seed)
 
-Estas cuentas se crean automaticamente al ejecutar `Backend/seed.sql`.
+Estas cuentas se crean automáticamente al ejecutar `pnpm run db:seed` desde la
+carpeta `Backend`. La seed utilizada por Prisma se encuentra en
+`Backend/prisma/seed.ts`.
 
 ## Usuario administrador
 | Campo | Valor |

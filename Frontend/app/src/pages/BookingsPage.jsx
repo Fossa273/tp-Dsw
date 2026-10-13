@@ -64,6 +64,9 @@ const BookingsPage = () => {
   const [savingTemplate, setSavingTemplate] = useState(false);
 
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const [visibleStates, setVisibleStates] = useState({
     pending: true,
     confirmed: true,
@@ -228,8 +231,14 @@ const BookingsPage = () => {
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
+    const from = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+    const to = dateTo ? new Date(`${dateTo}T23:59:59.999`) : null;
     return bookings.filter((r) => {
       if (!visibleStates[r.state || 'pending']) return false;
+      const departure = tripDepartureDate(r.trip);
+      const departureDate = departure ? new Date(departure) : null;
+      if (from && (!departureDate || departureDate < from)) return false;
+      if (to && (!departureDate || departureDate > to)) return false;
       if (!term) return true;
       const client =
         (r.client?.firstName || '') + ' ' + (r.client?.lastName || '');
@@ -243,7 +252,7 @@ const BookingsPage = () => {
         String(r.tripId).includes(term)
       );
     });
-  }, [bookings, search, visibleStates]);
+  }, [bookings, search, visibleStates, dateFrom, dateTo]);
 
   const goToPage = (nextPage) => {
     if (nextPage < 1 || nextPage > pagination.totalPages) return;
@@ -271,6 +280,7 @@ const BookingsPage = () => {
           .map((passenger) => `${passenger.firstName} ${passenger.lastName}`.trim())
           .join(', ')
       : bookingPassengerName(booking);
+  const detailValue = (value) => value || '-';
   const viajeLabel = (v) =>
     v
       ? (v.journey?.origin?.name || '-') +
@@ -521,6 +531,39 @@ const BookingsPage = () => {
             </label>
           ))}
         </div>
+        <div className="booking-date-filters" aria-label="Filtrar reservas por fecha de viaje">
+          <label>
+            Desde
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(event) => setDateFrom(event.target.value)}
+              aria-label="Fecha de viaje desde"
+            />
+          </label>
+          <label>
+            Hasta
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(event) => setDateTo(event.target.value)}
+              aria-label="Fecha de viaje hasta"
+            />
+          </label>
+          {(dateFrom || dateTo) && (
+            <button
+              type="button"
+              className="btn btn-sm btn-secondary"
+              onClick={() => {
+                setDateFrom('');
+                setDateTo('');
+              }}
+            >
+              Limpiar fechas
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="crud-table-wrapper">
@@ -529,7 +572,7 @@ const BookingsPage = () => {
             <tr>
               <th>Reservada el</th>
               <th>Fecha del viaje</th>
-              {isAdmin && <th>Cliente</th>}
+              <th>Cliente</th>
               {isAdmin && <th>Pasajeros</th>}
               <th>Viaje</th>
               <th>Asientos</th>
@@ -543,7 +586,7 @@ const BookingsPage = () => {
               <tr key={r.id}>
                 <td>{formatDate(r.createdAt)}</td>
                 <td>{formatDate(tripDepartureDate(r.trip))}</td>
-                {isAdmin && <td>{bookingPassengerName(r)}</td>}
+                <td>{bookingPassengerName(r)}</td>
                 {isAdmin && <td className="passenger-list">{passengerNames(r)}</td>}
                 <td>{viajeLabel(r.trip)}</td>
                 <td>{r.numSeats}</td>
@@ -575,6 +618,13 @@ const BookingsPage = () => {
                   )}
                 </td>
                 <td className="actions">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => setSelectedBooking(r)}
+                  >
+                    Ver detalle
+                  </button>
                   {!isAdmin ? (
                     r.state === 'cancelled' ? (
                       <span className="status-badge badge-inactive">
@@ -699,6 +749,67 @@ const BookingsPage = () => {
             ? 'No hay reservas registradas.'
             : 'No se encontraron reservas con la busqueda actual.'}
         </p>
+      )}
+
+      {selectedBooking && (
+        <div className="booking-detail-backdrop" role="presentation" onClick={() => setSelectedBooking(null)}>
+          <section
+            className="booking-detail"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="booking-detail-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="booking-detail-heading">
+              <h2 id="booking-detail-title">Detalle de reserva #{selectedBooking.id}</h2>
+              <button
+                type="button"
+                className="btn btn-sm btn-secondary"
+                onClick={() => setSelectedBooking(null)}
+                aria-label="Cerrar detalle de reserva"
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="booking-detail-grid">
+              <div>
+                <h3>Reserva</h3>
+                <p><strong>Estado:</strong> {STATE_LABEL[selectedBooking.state] || detailValue(selectedBooking.state)}</p>
+                <p><strong>Fecha de reserva:</strong> {formatDate(selectedBooking.createdAt)}</p>
+                <p><strong>Fecha de viaje:</strong> {formatDate(tripDepartureDate(selectedBooking.trip))}</p>
+                <p><strong>Asientos:</strong> {detailValue(selectedBooking.numSeats)}</p>
+                <p><strong>Precio total:</strong> ${Number(selectedBooking.price || 0).toLocaleString('es-AR')}</p>
+              </div>
+              <div>
+                <h3>Trayecto</h3>
+                <p><strong>Origen:</strong> {detailValue(selectedBooking.trip?.journey?.origin?.name)}</p>
+                <p><strong>Destino:</strong> {detailValue(selectedBooking.trip?.journey?.destination?.name)}</p>
+                <p><strong>Salida:</strong> {detailValue(selectedBooking.trip?.departureTime)}</p>
+                <p><strong>Llegada:</strong> {detailValue(selectedBooking.trip?.arrivalTime)}</p>
+                <p><strong>Duración:</strong> {selectedBooking.trip?.journey?.durationMinutes ?? '-'} minutos</p>
+              </div>
+              <div>
+                <h3>Cliente</h3>
+                <p><strong>Nombre:</strong> {bookingPassengerName(selectedBooking)}</p>
+                <p><strong>DNI:</strong> {detailValue(selectedBooking.client?.dni || selectedBooking.passengerDni)}</p>
+                <p><strong>Teléfono:</strong> {detailValue(selectedBooking.client?.phone || selectedBooking.passengerPhone)}</p>
+                <p><strong>Email:</strong> {detailValue(selectedBooking.client?.email || selectedBooking.passengerEmail)}</p>
+              </div>
+            </div>
+            {selectedBooking.passengers?.length > 0 && (
+              <div>
+                <h3>Pasajeros</h3>
+                <ul className="booking-detail-passengers">
+                  {selectedBooking.passengers.map((passenger) => (
+                    <li key={passenger.id}>
+                      {passenger.firstName} {passenger.lastName} - DNI {passenger.dni} - {passenger.phone} - {passenger.email}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        </div>
       )}
     </div>
   );

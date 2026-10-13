@@ -136,6 +136,18 @@ async function main() {
     skipDuplicates: true,
   });
 
+  await prisma.locality.createMany({
+    data: Array.from({ length: 60 }, (_, index) => {
+      const id = index + 7;
+      return {
+        id,
+        name: `Localidad Demo ${id}`,
+        provinceId: (index % 23) + 1,
+      };
+    }),
+    skipDuplicates: true,
+  });
+
   const seedJourneys = await calculateSeedJourneys();
   await prisma.$transaction(
     seedJourneys.map((journey) =>
@@ -151,6 +163,18 @@ async function main() {
       })
     )
   );
+
+  await prisma.journey.createMany({
+    data: Array.from({ length: 60 }, (_, index) => ({
+      id: index + 6,
+      originId: 1,
+      destinationId: index + 7,
+      distanceKm: 100 + index * 10,
+      durationMinutes: 90 + index * 6,
+      active: 1,
+    })),
+    skipDuplicates: true,
+  });
 
   await prisma.vehicleCategory.createMany({
     data: [
@@ -321,6 +345,26 @@ async function main() {
     skipDuplicates: true,
   });
 
+  // Additional clients make the paginated client and booking screens useful
+  // during development and provide enough distinct customers for the demo
+  // reservations below.
+  await prisma.client.createMany({
+    data: Array.from({ length: 75 }, (_, index) => {
+      const id = index + 6;
+      return {
+        id,
+        firstName: `Cliente${id}`,
+        lastName: `Demo${id}`,
+        dni: String(30600000 + id),
+        email: `cliente${id}@example.com`,
+        phone: `115000${String(id).padStart(4, '0')}`,
+        active: 1,
+        logged: 0,
+      };
+    }),
+    skipDuplicates: true,
+  });
+
   // Ensure the demo user has the known password
   await prisma.client.updateMany({
     where: {
@@ -395,6 +439,55 @@ async function main() {
     skipDuplicates: true,
   });
 
+  // Use specific departures so the reservation date range can be tested
+  // deterministically. The generated trips cover the period from October to
+  // December 2026 and reuse the seeded resources.
+  const seededDepartureDates = [
+    new Date('2026-10-20T16:10:00'),
+    new Date('2026-10-27T10:00:00'),
+    new Date('2026-11-03T18:00:00'),
+    new Date('2026-11-10T07:30:00'),
+    new Date('2026-11-17T20:00:00'),
+  ];
+  await prisma.$transaction(
+    seededDepartureDates.map((departureDate, index) =>
+      prisma.trip.update({
+        where: { id: index + 1 },
+        data: {
+          scheduleType: 'specific',
+          departureDate,
+          dayOfWeek: departureDate.getDay(),
+        },
+      })
+    )
+  );
+
+  const generatedTrips = Array.from({ length: 60 }, (_, index) => {
+    const id = index + 6;
+    const departureDate = new Date('2026-10-20T08:00:00');
+    departureDate.setDate(departureDate.getDate() + index * 2);
+    const departureHour = 7 + (index % 5) * 2;
+    departureDate.setHours(departureHour, index % 2 === 0 ? 0 : 30, 0, 0);
+    return {
+      id,
+      journeyId: (index % 65) + 1,
+      driverId: (index % 5) + 1,
+      vehicleId: (index % 5) + 1,
+      scheduleType: 'specific',
+      dayOfWeek: departureDate.getDay(),
+      departureTime: `${String(departureDate.getHours()).padStart(2, '0')}:${String(departureDate.getMinutes()).padStart(2, '0')}`,
+      arrivalTime: `${String((departureDate.getHours() + 3) % 24).padStart(2, '0')}:${String(departureDate.getMinutes()).padStart(2, '0')}`,
+      departureDate,
+      arrivalDate: null,
+      arrivesNextDay: false,
+      active: 1,
+    };
+  });
+  await prisma.trip.createMany({
+    data: generatedTrips,
+    skipDuplicates: true,
+  });
+
   // ------------------------------------------------------------
   // Bookings (reservas): client + trip + seats + state
   // ------------------------------------------------------------
@@ -405,6 +498,16 @@ async function main() {
     { id: 4, clientId: 4, tripId: 3, numSeats: 2, state: 'cancelled' },
     { id: 5, clientId: 5, tripId: 5, numSeats: 1, state: 'pending' },
   ];
+
+  seedBookings.push(
+    ...Array.from({ length: 150 }, (_, index) => ({
+      id: index + 6,
+      clientId: (index % 80) + 1,
+      tripId: (index % 65) + 1,
+      numSeats: 1,
+      state: ['pending', 'confirmed', 'cancelled'][index % 3],
+    }))
+  );
 
   await prisma.$transaction(
     (

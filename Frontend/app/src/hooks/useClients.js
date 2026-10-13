@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useClients(page, limit = 50) {
+export function useClients(page, limit = 50, filters = {}) {
+  const { search = '', sort = '', order = '' } = filters;
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,7 +13,7 @@ export function useClients(page, limit = 50) {
   // initial load) so CRUD operations do not produce a screen flash.
   const fetchAll = useCallback(async () => {
     try {
-      const res = await api.clients.getAll(page ? { page, limit } : {});
+      const res = await api.clients.getAll({ page, limit, search, sort, order });
       setClients(res.data || []);
       setPagination(res.totalPages ? res : null);
       setError(null);
@@ -21,7 +22,7 @@ export function useClients(page, limit = 50) {
     } finally {
       setLoading(false);
     }
-  }, [page, limit]);
+  }, [page, limit, search, sort, order]);
 
   useEffect(() => {
     fetchAll();

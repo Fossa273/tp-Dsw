@@ -19,8 +19,11 @@ function hashPassword(password: string): string {
 async function findAll(req: Request, res: Response) {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
-  res.json(req.query.page || req.query.limit
-    ? await repository.paginated(page, limit)
+  const search = typeof req.query.search === 'string' ? req.query.search : '';
+  const sort = ['dni', 'name', 'id'].includes(String(req.query.sort)) ? String(req.query.sort) : 'dni';
+  const order = req.query.order === 'desc' ? 'desc' : 'asc';
+  res.json(req.query.page || req.query.limit || search
+    ? await repository.paginated(page, limit, search, sort, order)
     : { data: await repository.findAll() });
 }
 

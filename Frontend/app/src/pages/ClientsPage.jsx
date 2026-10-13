@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useClients } from '../hooks/useClients';
 import { api } from '../services/api';
 import { ADMIN_EMAIL } from '../context/AuthContext';
@@ -61,8 +61,10 @@ const validateClient = (data, { requirePassword = false } = {}) => {
 
 const ClientsPage = () => {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('dni-asc');
   const { clients, pagination, loading, error, create, update, remove, refetch } =
-    useClients(page, 50);
+    useClients(page, 50, { search, sort: sort.startsWith('name') ? 'name' : 'dni', order: sort.endsWith('desc') ? 'desc' : 'asc' });
 
   const [inactive, setInactive] = useState([]);
   const [showInactive, setShowInactive] = useState(true);
@@ -107,8 +109,6 @@ const ClientsPage = () => {
   const [msgType, setMsgType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
 
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('dni-asc');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const msgTimer = useRef(null);
 
@@ -251,62 +251,9 @@ const ClientsPage = () => {
     }
   };
 
-  const allClients = useMemo(() => {
-    const list = [...clients];
-    if (showInactive) {
-      for (const c of inactive) {
-        if (!list.some((x) => String(x.id) === String(c.id))) {
-          list.push(c);
-        }
-      }
-    }
-    const term = search.trim().toLowerCase();
-    let result = list;
-    if (term) {
-      result = result.filter((c) => {
-        const haystack = [
-          c.firstName,
-          c.lastName,
-          c.dni,
-          c.email,
-          c.phone,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        return haystack.includes(term);
-      });
-    }
-    const sorted = [...result];
-    switch (sort) {
-      case 'dni-asc':
-        sorted.sort((a, b) =>
-          String(a.dni ?? '').localeCompare(String(b.dni ?? ''), 'es', {
-            numeric: true,
-          })
-        );
-        break;
-      case 'name-asc':
-        sorted.sort((a, b) =>
-          `${a.firstName} ${a.lastName}`.localeCompare(
-            `${b.firstName} ${b.lastName}`,
-            'es'
-          )
-        );
-        break;
-      case 'name-desc':
-        sorted.sort((a, b) =>
-          `${b.firstName} ${b.lastName}`.localeCompare(
-            `${a.firstName} ${a.lastName}`,
-            'es'
-          )
-        );
-        break;
-      default:
-        break;
-    }
-    return sorted;
-  }, [clients, inactive, showInactive, search, sort]);
+  const allClients = showInactive
+    ? [...clients, ...inactive.filter((c) => !clients.some((x) => x.id === c.id))]
+    : clients;
 
   const isInactive = (id) => !clients.some((c) => String(c.id) === String(id));
 

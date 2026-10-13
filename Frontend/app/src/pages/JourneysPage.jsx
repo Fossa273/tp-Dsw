@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useJourneys } from '../hooks/useJourneys';
 import { useLocalities } from '../hooks/useLocalities';
 import { localityLabel } from '../utils/format';
@@ -22,6 +22,8 @@ const formatDuration = (minutes) => {
 
 const JourneysPage = () => {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('distance-asc');
   const {
     journeys,
     pagination,
@@ -33,7 +35,11 @@ const JourneysPage = () => {
     remove,
     reactivate,
     refetch,
-  } = useJourneys(page, 50);
+  } = useJourneys(page, 50, {
+    search,
+    sort: sort.startsWith('distance') ? 'distanceKm' : 'durationMinutes',
+    order: sort.endsWith('desc') ? 'desc' : 'asc',
+  });
   const { localities, loading: loadingLocalities } = useLocalities();
 
   const [editingId, setEditingId] = useState(null);
@@ -47,8 +53,6 @@ const JourneysPage = () => {
   const [msgType, setMsgType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
 
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('distance-asc');
   const [showInactive, setShowInactive] = useState(true);
   const [loadingInactive, setLoadingInactive] = useState(false);
   const msgTimer = useRef(null);
@@ -148,39 +152,9 @@ const JourneysPage = () => {
     }
   };
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    let result = showInactive ? [...journeys, ...inactive] : journeys;
-    if (term) {
-      result = result.filter(
-        (t) =>
-          (t.origin?.name || '').toLowerCase().includes(term) ||
-          (t.destination?.name || '').toLowerCase().includes(term)
-      );
-    }
-    const sorted = [...result];
-    switch (sort) {
-      case 'distance-asc':
-        sorted.sort((a, b) => Number(a.distanceKm) - Number(b.distanceKm));
-        break;
-      case 'distance-desc':
-        sorted.sort((a, b) => Number(b.distanceKm) - Number(a.distanceKm));
-        break;
-      case 'duration-asc':
-        sorted.sort(
-          (a, b) => Number(a.durationMinutes) - Number(b.durationMinutes)
-        );
-        break;
-      case 'duration-desc':
-        sorted.sort(
-          (a, b) => Number(b.durationMinutes) - Number(a.durationMinutes)
-        );
-        break;
-      default:
-        break;
-    }
-    return sorted;
-  }, [journeys, inactive, showInactive, search, sort]);
+  const filtered = showInactive
+    ? [...journeys, ...inactive.filter((item) => !journeys.some((journey) => journey.id === item.id))]
+    : journeys;
 
   if (loading) return <div className="loading">Cargando trayectos...</div>;
   if (error) return (
@@ -202,8 +176,6 @@ const JourneysPage = () => {
           <PlusIcon />
         </button>
       </div>
-
-      <Pagination pagination={pagination} onPageChange={setPage} label="trayectos" />
 
       {msg && (
         <div
@@ -382,6 +354,8 @@ const JourneysPage = () => {
           </tbody>
         </table>
       </div>
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="trayectos" />
 
       {filtered.length === 0 && (
         <p className="empty-msg">

@@ -141,7 +141,22 @@ async function findAll(req: Request, res: Response) {
     ? Math.min(requestedLimit, 100)
     : 50;
   const normalizedClientId = Number.isInteger(clientId) ? clientId : undefined;
-  res.json(await repository.paginated(page, limit, normalizedClientId));
+  const states = typeof req.query.states === 'string'
+    ? req.query.states.split(',').filter((state) => VALID_STATES.includes(state))
+    : [];
+  const dateFrom = typeof req.query.dateFrom === 'string'
+    ? new Date(`${req.query.dateFrom}T00:00:00.000`)
+    : undefined;
+  const dateTo = typeof req.query.dateTo === 'string'
+    ? new Date(`${req.query.dateTo}T23:59:59.999`)
+    : undefined;
+  const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+  res.json(await repository.paginated(page, limit, normalizedClientId, {
+    search,
+    states,
+    dateFrom: dateFrom && !Number.isNaN(dateFrom.getTime()) ? dateFrom : undefined,
+    dateTo: dateTo && !Number.isNaN(dateTo.getTime()) ? dateTo : undefined,
+  }));
 }
 
 async function findOne(req: Request, res: Response) {

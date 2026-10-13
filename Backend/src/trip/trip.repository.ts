@@ -181,18 +181,33 @@ export class TripRepository {
     });
   }
 
-  public async paginated(page: number, limit: number, clientId?: number) {
+  public async paginated(page: number, limit: number, clientId?: number, search = '', sort = 'schedule', order: 'asc' | 'desc' = 'asc') {
     const skip = (page - 1) * limit;
-    const where = clientId !== undefined ? { clientId } : {};
+    const term = search.trim();
+    const where = {
+      active: 1,
+      ...(clientId !== undefined ? { clientId } : {}),
+      ...(term ? { OR: [
+        { journey: { origin: { name: { contains: term } } } },
+        { journey: { destination: { name: { contains: term } } } },
+        { driver: { firstName: { contains: term } } },
+        { driver: { lastName: { contains: term } } },
+      ] } : {}),
+    };
+    const orderBy = sort === 'dayOfWeek'
+      ? [{ dayOfWeek: order }, { departureTime: order }, { id: 'asc' as const }]
+      : sort === 'departureTime'
+        ? [{ departureTime: order }, { dayOfWeek: order }, { id: 'asc' as const }]
+        : [{ dayOfWeek: order }, { departureTime: order }, { id: 'asc' as const }];
     const [data, total] = await Promise.all([
       prisma.trip.findMany({
-        where: { active: 1, ...where },
+        where,
         include: TRIP_INCLUDE,
-        orderBy: [{ dayOfWeek: 'asc' }, { departureTime: 'asc' }],
+        orderBy,
         skip,
         take: limit,
       }),
-      prisma.trip.count({ where: { active: 1, ...where } }),
+      prisma.trip.count({ where }),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }

@@ -2,7 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useBookings(clientId, page = 1, limit = 50) {
+export function useBookings(clientId, page = 1, limit = 50, filters = {}) {
+  const { search = '', states, dateFrom = '', dateTo = '' } = filters;
+  const statesKey = Array.isArray(states) ? states.join(',') : '';
+  const statesProvided = Array.isArray(states);
   const [bookings, setBookings] = useState([]);
   const [pagination, setPagination] = useState({
     page,
@@ -16,7 +19,16 @@ export function useBookings(clientId, page = 1, limit = 50) {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.bookings.getAll(clientId, { page, limit });
+      const res = await api.bookings.getAll(clientId, {
+        page,
+        limit,
+        search,
+        states: statesProvided
+          ? (statesKey ? statesKey.split(',') : [])
+          : undefined,
+        dateFrom,
+        dateTo,
+      });
       setBookings(res.data || []);
       setPagination({
         page: res.page || page,
@@ -30,7 +42,7 @@ export function useBookings(clientId, page = 1, limit = 50) {
     } finally {
       setLoading(false);
     }
-  }, [clientId, page, limit]);
+  }, [clientId, page, limit, search, statesKey, statesProvided, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchAll();

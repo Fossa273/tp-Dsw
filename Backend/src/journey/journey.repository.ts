@@ -22,10 +22,20 @@ export class JourneyRepository {
     });
   }
 
-  public async paginated(page: number, limit: number) {
-    const where = { active: 1 };
+  public async paginated(page: number, limit: number, search = '', sort = 'id', order: 'asc' | 'desc' = 'asc') {
+    const term = search.trim();
+    const where = {
+      active: 1,
+      ...(term ? { OR: [
+        { origin: { name: { contains: term } } },
+        { destination: { name: { contains: term } } },
+      ] } : {}),
+    };
+    const orderBy = sort === 'distanceKm' || sort === 'durationMinutes'
+      ? { [sort]: order }
+      : { id: order };
     const [data, total] = await Promise.all([
-      prisma.journey.findMany({ where, include: this.journeyInclude, orderBy: { id: 'asc' }, skip: (page - 1) * limit, take: limit }),
+      prisma.journey.findMany({ where, include: this.journeyInclude, orderBy, skip: (page - 1) * limit, take: limit }),
       prisma.journey.count({ where }),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };

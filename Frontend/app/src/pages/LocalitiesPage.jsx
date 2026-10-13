@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocalities } from '../hooks/useLocalities';
 import { useProvinces } from '../hooks/useProvinces';
 import { api } from '../services/api';
@@ -17,7 +17,11 @@ const SORT_OPTIONS = [
 
 const LocalitiesPage = () => {
   const [page, setPage] = useState(1);
-  const { localities, pagination, loading, error, refetch } = useLocalities(page, 50);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('name-asc');
+  const { localities, pagination, loading, error, refetch } = useLocalities(
+    page, 50, { search, sort: 'name', order: sort.endsWith('desc') ? 'desc' : 'asc' },
+  );
   const { provinces, loading: loadingProvinces } = useProvinces();
 
   const [editingId, setEditingId] = useState(null);
@@ -32,8 +36,6 @@ const LocalitiesPage = () => {
   const [pendingName, setPendingName] = useState('');
   const [pendingEditId, setPendingEditId] = useState(null);
 
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('name-asc');
 
   const msgTimer = useRef(null);
 
@@ -146,25 +148,7 @@ const LocalitiesPage = () => {
     setForm({ name: '', provinceId: '' });
   };
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    let result = localities;
-    if (term) {
-      result = result.filter((l) => l.name.toLowerCase().includes(term));
-    }
-    const sorted = [...result];
-    switch (sort) {
-      case 'name-asc':
-        sorted.sort((a, b) => a.name.localeCompare(b.name, 'es'));
-        break;
-      case 'name-desc':
-        sorted.sort((a, b) => b.name.localeCompare(a.name, 'es'));
-        break;
-      default:
-        break;
-    }
-    return sorted;
-  }, [localities, search, sort]);
+  const filtered = localities;
 
   if (loading) return <div className="loading">Cargando localidades...</div>;
   if (error) return (
@@ -186,8 +170,6 @@ const LocalitiesPage = () => {
           <PlusIcon />
         </button>
       </div>
-
-      <Pagination pagination={pagination} onPageChange={setPage} label="localidades" />
 
       {msg && (
         <div
@@ -361,6 +343,8 @@ const LocalitiesPage = () => {
           </tbody>
         </table>
       </div>
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="localidades" />
 
       {filtered.length === 0 && (
         <p className="empty-msg">

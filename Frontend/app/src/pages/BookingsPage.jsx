@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBookings } from '../hooks/useBookings';
 import { useClients } from '../hooks/useClients';
 import { useTrips } from '../hooks/useTrips';
@@ -38,8 +38,28 @@ const tripDepartureDate = (trip) => {
 const BookingsPage = () => {
   const { user, isAdmin } = useAuth();
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [visibleStates, setVisibleStates] = useState({
+    pending: true,
+    confirmed: true,
+    cancelled: true,
+  });
   const { bookings, pagination, loading, error, create, update, remove, refetch } =
-    useBookings(isAdmin ? undefined : user?.id, page, 50);
+    useBookings(
+      isAdmin ? undefined : user?.id,
+      page,
+      50,
+      {
+        search: search.trim(),
+        states: Object.entries(visibleStates)
+          .filter(([, visible]) => visible)
+          .map(([state]) => state),
+        dateFrom,
+        dateTo,
+      },
+    );
   const { clients, loading: loadingClients } = useClients();
   const { trips, loading: loadingTrips } = useTrips();
 
@@ -63,15 +83,7 @@ const BookingsPage = () => {
   const [templateFiles, setTemplateFiles] = useState([]);
   const [savingTemplate, setSavingTemplate] = useState(false);
 
-  const [search, setSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [visibleStates, setVisibleStates] = useState({
-    pending: true,
-    confirmed: true,
-    cancelled: true,
-  });
   const msgTimer = useRef(null);
 
   const showMessage = (text, type = 'success') => {
@@ -229,30 +241,7 @@ const BookingsPage = () => {
     setEditingState(null);
   };
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const from = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
-    const to = dateTo ? new Date(`${dateTo}T23:59:59.999`) : null;
-    return bookings.filter((r) => {
-      if (!visibleStates[r.state || 'pending']) return false;
-      const departure = tripDepartureDate(r.trip);
-      const departureDate = departure ? new Date(departure) : null;
-      if (from && (!departureDate || departureDate < from)) return false;
-      if (to && (!departureDate || departureDate > to)) return false;
-      if (!term) return true;
-      const client =
-        (r.client?.firstName || '') + ' ' + (r.client?.lastName || '');
-      const journey =
-        (r.trip?.journey?.origin?.name || '') +
-        ' ' +
-        (r.trip?.journey?.destination?.name || '');
-      return (
-        client.toLowerCase().includes(term) ||
-        journey.toLowerCase().includes(term) ||
-        String(r.tripId).includes(term)
-      );
-    });
-  }, [bookings, search, visibleStates, dateFrom, dateTo]);
+  const filtered = bookings;
 
   const goToPage = (nextPage) => {
     if (nextPage < 1 || nextPage > pagination.totalPages) return;

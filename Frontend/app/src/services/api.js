@@ -55,10 +55,13 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   clients: {
-    getAll: ({ page, limit } = {}) => {
+    getAll: ({ page, limit, search, sort, order } = {}) => {
       const qs = new URLSearchParams();
       if (page) qs.set('page', page);
       if (limit) qs.set('limit', limit);
+      if (search) qs.set('search', search);
+      if (sort) qs.set('sort', sort);
+      if (order) qs.set('order', order);
       return request(qs.toString() ? `/clients?${qs}` : '/clients');
     },
     getInactive: () => request('/clients/inactive'),
@@ -94,10 +97,13 @@ export const api = {
   },
 
   localities: {
-    getAll: ({ page, limit } = {}) => {
+    getAll: ({ page, limit, search, sort, order } = {}) => {
       const qs = new URLSearchParams();
       if (page) qs.set('page', page);
       if (limit) qs.set('limit', limit);
+      if (search) qs.set('search', search);
+      if (sort) qs.set('sort', sort);
+      if (order) qs.set('order', order);
       return request(qs.toString() ? `/localities?${qs}` : '/localities');
     },
     getOne: (id) => request(`/localities/${id}`),
@@ -174,10 +180,13 @@ export const api = {
   },
 
   journeys: {
-    getAll: ({ page, limit } = {}) => {
+    getAll: ({ page, limit, search, sort, order } = {}) => {
       const qs = new URLSearchParams();
       if (page) qs.set('page', page);
       if (limit) qs.set('limit', limit);
+      if (search) qs.set('search', search);
+      if (sort) qs.set('sort', sort);
+      if (order) qs.set('order', order);
       return request(qs.toString() ? `/journeys?${qs}` : '/journeys');
     },
     getInactive: () => request('/journeys/inactive'),
@@ -198,10 +207,13 @@ export const api = {
   },
 
   trips: {
-    getAll: ({ page, limit } = {}) => {
+    getAll: ({ page, limit, search, sort, order } = {}) => {
       const qs = new URLSearchParams();
       if (page) qs.set('page', page);
       if (limit) qs.set('limit', limit);
+      if (search) qs.set('search', search);
+      if (sort) qs.set('sort', sort);
+      if (order) qs.set('order', order);
       return request(qs.toString() ? `/trips?${qs}` : '/trips');
     },
     getInactive: () => request('/trips/inactive'),
@@ -229,11 +241,15 @@ export const api = {
   },
 
   bookings: {
-    getAll: (clientId, { page, limit } = {}) => {
+    getAll: (clientId, { page, limit, search, states, dateFrom, dateTo } = {}) => {
       const qs = new URLSearchParams();
       if (clientId) qs.set('clientId', clientId);
       if (page) qs.set('page', page);
       if (limit) qs.set('limit', limit);
+      if (search) qs.set('search', search);
+      if (Array.isArray(states)) qs.set('states', states.join(','));
+      if (dateFrom) qs.set('dateFrom', dateFrom);
+      if (dateTo) qs.set('dateTo', dateTo);
       const query = qs.toString();
       return request(query ? `/bookings?${query}` : '/bookings');
     },

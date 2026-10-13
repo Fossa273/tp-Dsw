@@ -182,10 +182,15 @@ async function validateResourceAvailability(
 }
 
 async function findAll(req: Request, res: Response) {
-  const page = Number(req.query.page) || 1;
-  const limit = Number(req.query.limit) || 50;
-  if (req.query.page || req.query.limit) {
-    const result = await repository.paginated(page, limit);
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  const search = typeof req.query.search === 'string' ? req.query.search : '';
+  const sort = ['schedule', 'dayOfWeek', 'departureTime'].includes(String(req.query.sort))
+    ? String(req.query.sort)
+    : 'schedule';
+  const order = req.query.order === 'desc' ? 'desc' : 'asc';
+  if (req.query.page || req.query.limit || search) {
+    const result = await repository.paginated(page, limit, undefined, search, sort, order);
     res.json({ ...result, data: result.data.map(withPricePerPerson) });
   } else {
     res.json({ data: (await repository.findAll()).map(withPricePerPerson) });

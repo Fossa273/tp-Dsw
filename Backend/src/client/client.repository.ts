@@ -32,10 +32,26 @@ export class ClientRepository {
     });
   }
 
-  public async paginated(page: number, limit: number) {
-    const where = { active: 1, email: { not: ADMIN_EMAIL } };
+  public async paginated(page: number, limit: number, search = '', sort = 'dni', order: 'asc' | 'desc' = 'asc') {
+    const term = search.trim();
+    const where = {
+      active: 1,
+      email: { not: ADMIN_EMAIL },
+      ...(term ? {
+        OR: [
+          { firstName: { contains: term } },
+          { lastName: { contains: term } },
+          { dni: { contains: term } },
+          { email: { contains: term } },
+          { phone: { contains: term } },
+        ],
+      } : {}),
+    };
+    const orderBy = sort === 'name'
+      ? [{ firstName: order }, { lastName: order }, { id: 'asc' as const }]
+      : [{ [sort === 'id' ? 'id' : 'dni']: order }, { id: 'asc' as const }];
     const [data, total] = await Promise.all([
-      prisma.client.findMany({ where, select: PUBLIC_SELECT, orderBy: { id: 'desc' }, skip: (page - 1) * limit, take: limit }),
+      prisma.client.findMany({ where, select: PUBLIC_SELECT, orderBy, skip: (page - 1) * limit, take: limit }),
       prisma.client.count({ where }),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };

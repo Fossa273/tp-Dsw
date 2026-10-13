@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useJourneys(page, limit = 50) {
+export function useJourneys(page, limit = 50, filters = {}) {
+  const { search = '', sort = '', order = '' } = filters;
   const [journeys, setJourneys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,7 +12,7 @@ export function useJourneys(page, limit = 50) {
 
   const fetchAll = useCallback(async () => {
     try {
-      const res = await api.journeys.getAll(page ? { page, limit } : {});
+      const res = await api.journeys.getAll({ page, limit, search, sort, order });
       setJourneys(res.data || []);
       setPagination(res.totalPages ? res : null);
       setError(null);
@@ -20,7 +21,7 @@ export function useJourneys(page, limit = 50) {
     } finally {
       setLoading(false);
     }
-  }, [page, limit]);
+  }, [page, limit, search, sort, order]);
 
   const fetchInactive = useCallback(async () => {
     try {

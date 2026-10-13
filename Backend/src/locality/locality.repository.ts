@@ -21,10 +21,15 @@ export class LocalityRepository {
     });
   }
 
-  public async paginated(page: number, limit: number) {
+  public async paginated(page: number, limit: number, search = '', sort = 'name', order: 'asc' | 'desc' = 'asc', provinceId?: number) {
+    const term = search.trim();
+    const where = {
+      ...(term ? { name: { contains: term } } : {}),
+      ...(provinceId ? { provinceId } : {}),
+    };
     const [data, total] = await Promise.all([
-      prisma.locality.findMany({ select: LOCATION_SELECT, orderBy: { id: 'asc' }, skip: (page - 1) * limit, take: limit }),
-      prisma.locality.count(),
+      prisma.locality.findMany({ where, select: LOCATION_SELECT, orderBy: sort === 'id' ? { id: order } : { name: order }, skip: (page - 1) * limit, take: limit }),
+      prisma.locality.count({ where }),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }

@@ -13,6 +13,10 @@ const prisma = new PrismaClient({ adapter });
 const FUEL_PRICE_PER_KM = Number(process.env.FUEL_PRICE_PER_KM ?? 100);
 const OPERATING_COST_MULTIPLIER = 1.4;
 
+function roundToNext100(value: number) {
+  return Math.ceil(value / 100) * 100;
+}
+
 const ADMIN_PASSWORD_HASH =
   '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; // admin123
 const DEMO_PASSWORD_HASH =
@@ -88,7 +92,7 @@ async function calculateSeedBookingPrice(tripId: number, seats: number) {
     (fuelCost * OPERATING_COST_MULTIPLIER) / trip.vehicle.maxCapacity;
   const pricePerSeat =
     fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase;
-  return Number((pricePerSeat * seats).toFixed(2));
+  return roundToNext100(pricePerSeat * seats);
 }
 
 async function main() {
@@ -136,15 +140,29 @@ async function main() {
     skipDuplicates: true,
   });
 
+  const additionalLocalities: readonly [string, number][] = [
+    ['Bahía Blanca', 1], ['Tandil', 1], ['Olavarría', 1], ['San Nicolás de los Arroyos', 1],
+    ['Junín', 1], ['Pergamino', 1], ['Necochea', 1], ['Zárate', 1], ['Campana', 1],
+    ['Luján', 1], ['San Isidro', 1], ['Quilmes', 1], ['Avellaneda', 1], ['Morón', 1],
+    ['Córdoba', 2], ['Villa María', 2], ['Río Cuarto', 2], ['Alta Gracia', 2],
+    ['Santa Fe', 3], ['Rafaela', 3], ['Venado Tuerto', 3], ['Reconquista', 3],
+    ['Mendoza', 4], ['San Rafael', 4], ['Godoy Cruz', 4], ['Maipú', 4],
+    ['San Fernando del Valle de Catamarca', 7], ['Resistencia', 8], ['Presidencia Roque Sáenz Peña', 8],
+    ['Comodoro Rivadavia', 9], ['Trelew', 9], ['Esquel', 9], ['Corrientes', 10],
+    ['Gualeguaychú', 11], ['Paraná', 11], ['Formosa', 12], ['San Salvador de Jujuy', 13],
+    ['Santa Rosa', 14], ['La Rioja', 15], ['Posadas', 16], ['Neuquén', 17],
+    ['Salta', 18], ['San Juan', 19], ['Villa Mercedes', 20], ['Río Gallegos', 21],
+    ['Santiago del Estero', 22], ['Ushuaia', 23], ['Puerto Madryn', 9],
+    ['El Calafate', 21], ['Merlo', 20], ['Villa Carlos Paz', 2], ['La Falda', 2],
+    ['Tafí Viejo', 5], ['Yerba Buena', 5], ['Orán', 18], ['Cafayate', 18],
+    ['Chilecito', 15], ['San Luis', 20], ['Villa La Angostura', 17], ['San Martín de los Andes', 17],
+  ];
   await prisma.locality.createMany({
-    data: Array.from({ length: 60 }, (_, index) => {
-      const id = index + 7;
-      return {
-        id,
-        name: `Localidad Demo ${id}`,
-        provinceId: (index % 23) + 1,
-      };
-    }),
+    data: additionalLocalities.map(([name, provinceId], index) => ({
+      id: index + 7,
+      name,
+      provinceId,
+    })),
     skipDuplicates: true,
   });
 
@@ -348,13 +366,21 @@ async function main() {
   // Additional clients make the paginated client and booking screens useful
   // during development and provide enough distinct customers for the demo
   // reservations below.
+  const genericNames = [
+    ['Martín', 'Gómez'], ['Carolina', 'Fernández'], ['Santiago', 'Díaz'],
+    ['Valentina', 'Sosa'], ['Federico', 'Romero'], ['Camila', 'Torres'],
+    ['Nicolás', 'Álvarez'], ['Mariana', 'Ruiz'], ['Gabriel', 'Acosta'],
+    ['Florencia', 'Medina'], ['Lucas', 'Herrera'], ['Julieta', 'Castro'],
+    ['Matías', 'Ortiz'], ['Paula', 'Silva'], ['Andrés', 'Vega'],
+  ];
   await prisma.client.createMany({
     data: Array.from({ length: 75 }, (_, index) => {
       const id = index + 6;
+      const [firstName, lastName] = genericNames[index % genericNames.length];
       return {
         id,
-        firstName: `Cliente${id}`,
-        lastName: `Demo${id}`,
+        firstName,
+        lastName,
         dni: String(30600000 + id),
         email: `cliente${id}@example.com`,
         phone: `115000${String(id).padStart(4, '0')}`,

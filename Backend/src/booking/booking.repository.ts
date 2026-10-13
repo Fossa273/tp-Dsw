@@ -72,9 +72,45 @@ export class BookingRepository {
     });
   }
 
-  public async paginated(page: number, limit: number, clientId?: number) {
+  public async paginated(
+    page: number,
+    limit: number,
+    clientId?: number,
+    filters: {
+      search?: string;
+      states?: string[];
+      dateFrom?: Date;
+      dateTo?: Date;
+    } = {},
+  ) {
     const skip = (page - 1) * limit;
-    const where = clientId === undefined ? undefined : { clientId };
+    const search = filters.search?.trim();
+    const searchNumber = search && /^\d+$/.test(search) ? Number(search) : undefined;
+    const where = {
+      ...(clientId === undefined ? {} : { clientId }),
+      ...(filters.states ? { state: { in: filters.states } } : {}),
+      ...(filters.dateFrom || filters.dateTo
+        ? {
+            trip: {
+              departureDate: {
+                ...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
+                ...(filters.dateTo ? { lte: filters.dateTo } : {}),
+              },
+            },
+          }
+        : {}),
+      ...(search
+        ? {
+            OR: [
+              { client: { firstName: { contains: search } } },
+              { client: { lastName: { contains: search } } },
+              { trip: { journey: { origin: { name: { contains: search } } } } },
+              { trip: { journey: { destination: { name: { contains: search } } } } },
+              ...(searchNumber === undefined ? [] : [{ tripId: searchNumber }]),
+            ],
+          }
+        : {}),
+    };
     const [data, total] = await Promise.all([
       prisma.booking.findMany({
         where,

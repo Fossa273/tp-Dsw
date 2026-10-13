@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTrips } from '../hooks/useTrips';
 import { useJourneys } from '../hooks/useJourneys';
 import { useDrivers } from '../hooks/useDrivers';
@@ -16,7 +16,9 @@ const DAYS = [
 
 const TripsPage = () => {
   const [page, setPage] = useState(1);
-  const { trips, pagination, loading, error, create, update, remove, refetch } = useTrips(page, 50);
+  const [search, setSearch] = useState('');
+  const { trips, pagination, loading, error, create, update, remove, refetch } =
+    useTrips(page, 50, { search, sort: 'schedule', order: 'asc' });
   const { journeys, loading: loadingJourneys } = useJourneys();
   const { drivers, loading: loadingDrivers } = useDrivers();
   const { vehicles, loading: loadingVehicles } = useVehicles();
@@ -40,7 +42,6 @@ const TripsPage = () => {
   const [msgType, setMsgType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
 
-  const [search, setSearch] = useState('');
   const msgTimer = useRef(null);
 
   const showMessage = (text, type = 'success') => {
@@ -151,20 +152,7 @@ const TripsPage = () => {
     setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '', promoPrice: '' });
   };
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return trips;
-    return trips.filter((v) => {
-      const journey =
-        (v.journey?.origin?.name || '') + ' ' + (v.journey?.destination?.name || '');
-      const driver = (v.driver?.firstName || '') + ' ' + (v.driver?.lastName || '');
-      return (
-        journey.toLowerCase().includes(term) ||
-        driver.toLowerCase().includes(term) ||
-        String(v.vehicleId).includes(term)
-      );
-    });
-  }, [trips, search]);
+  const filtered = trips;
 
   if (loading) return <div className="loading">Cargando viajes...</div>;
   if (error) return (
@@ -190,8 +178,6 @@ const TripsPage = () => {
           <PlusIcon />
         </button>
       </div>
-
-      <Pagination pagination={pagination} onPageChange={setPage} label="viajes" />
 
       {msg && (
         <div
@@ -442,6 +428,8 @@ const TripsPage = () => {
           </tbody>
         </table>
       </div>
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="viajes" />
 
       {filtered.length === 0 && (
         <p className="empty-msg">

@@ -9,8 +9,12 @@ const provinceRepository = new ProvinceRepository();
 async function findAll(req: Request, res: Response) {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
-  res.json(req.query.page || req.query.limit
-    ? await repository.paginated(page, limit)
+  const search = typeof req.query.search === 'string' ? req.query.search : '';
+  const sort = req.query.sort === 'id' ? 'id' : 'name';
+  const order = req.query.order === 'desc' ? 'desc' : 'asc';
+  const provinceId = Number(req.query.provinceId);
+  res.json(req.query.page || req.query.limit || search || req.query.provinceId
+    ? await repository.paginated(page, limit, search, sort, order, Number.isInteger(provinceId) && provinceId > 0 ? provinceId : undefined)
     : { data: await repository.findAll() });
 }
 

@@ -17,7 +17,7 @@
 
 <p align="center">
   <a href="https://drive.google.com/file/d/1mF49plfXAaBxcKvQNc1CdInoegtf9vak/view?usp=sharing" target="_blank">
-    <img src="https://drive.google.com/file/d/1mF49plfXAaBxcKvQNc1CdInoegtf9vak/preview" 
+    <img src="https://lh3.googleusercontent.com/d/1c_MH7rigT_CMO51-EbVWMuxTvgb2urb-" 
          width="640" 
          height="480" 
          alt="Modelo entidad relacion" 

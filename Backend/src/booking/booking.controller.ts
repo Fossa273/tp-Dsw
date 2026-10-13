@@ -143,7 +143,7 @@ async function findAll(req: Request, res: Response) {
   const normalizedClientId = Number.isInteger(clientId) ? clientId : undefined;
   const states = typeof req.query.states === 'string'
     ? req.query.states.split(',').filter((state) => VALID_STATES.includes(state))
-    : [];
+    : undefined;
   const dateFrom = typeof req.query.dateFrom === 'string'
     ? new Date(`${req.query.dateFrom}T00:00:00.000`)
     : undefined;

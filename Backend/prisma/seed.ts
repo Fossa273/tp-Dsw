@@ -182,17 +182,50 @@ async function main() {
     )
   );
 
-  await prisma.journey.createMany({
-    data: Array.from({ length: 60 }, (_, index) => ({
-      id: index + 6,
-      originId: 1,
-      destinationId: index + 7,
-      distanceKm: 100 + index * 10,
-      durationMinutes: 90 + index * 6,
+  const additionalJourneyDefinitions: readonly [number, number, string, string][] = [
+    [7, 8, 'Bahía Blanca, Buenos Aires, Argentina', 'Tandil, Buenos Aires, Argentina'],
+    [9, 10, 'Olavarría, Buenos Aires, Argentina', 'San Nicolás de los Arroyos, Buenos Aires, Argentina'],
+    [11, 12, 'Junín, Buenos Aires, Argentina', 'Pergamino, Buenos Aires, Argentina'],
+    [13, 14, 'Necochea, Buenos Aires, Argentina', 'Zárate, Buenos Aires, Argentina'],
+    [15, 16, 'Luján, Buenos Aires, Argentina', 'San Isidro, Buenos Aires, Argentina'],
+    [17, 18, 'Quilmes, Buenos Aires, Argentina', 'Morón, Buenos Aires, Argentina'],
+    [19, 20, 'Córdoba, Córdoba, Argentina', 'Villa María, Córdoba, Argentina'],
+    [21, 22, 'Río Cuarto, Córdoba, Argentina', 'Santa Fe, Santa Fe, Argentina'],
+    [23, 24, 'Rafaela, Santa Fe, Argentina', 'Mendoza, Mendoza, Argentina'],
+    [25, 26, 'San Rafael, Mendoza, Argentina', 'San Juan, San Juan, Argentina'],
+    [27, 28, 'Resistencia, Chaco, Argentina', 'Corrientes, Corrientes, Argentina'],
+    [29, 30, 'Paraná, Entre Ríos, Argentina', 'Posadas, Misiones, Argentina'],
+    [31, 32, 'Neuquén, Neuquén, Argentina', 'Bariloche, Río Negro, Argentina'],
+    [33, 34, 'Salta, Salta, Argentina', 'San Salvador de Jujuy, Jujuy, Argentina'],
+    [35, 36, 'Ushuaia, Tierra del Fuego, Argentina', 'Río Gallegos, Santa Cruz, Argentina'],
+  ];
+  const additionalJourneys = [];
+  for (const [originId, destinationId, origin, destination] of additionalJourneyDefinitions) {
+    const distanceKm = await getDistanceKm(origin, destination);
+    additionalJourneys.push({
+      id: additionalJourneys.length + 6,
+      originId,
+      destinationId,
+      distanceKm,
+      durationMinutes: durationFromDistance(distanceKm),
       active: 1,
-    })),
-    skipDuplicates: true,
-  });
+    });
+  }
+  await prisma.$transaction(
+    additionalJourneys.map((journey) =>
+      prisma.journey.upsert({
+        where: { id: journey.id },
+        create: journey,
+        update: {
+          originId: journey.originId,
+          destinationId: journey.destinationId,
+          distanceKm: journey.distanceKm,
+          durationMinutes: journey.durationMinutes,
+          active: 1,
+        },
+      })
+    )
+  );
 
   await prisma.vehicleCategory.createMany({
     data: [
@@ -496,7 +529,7 @@ async function main() {
     departureDate.setHours(departureHour, index % 2 === 0 ? 0 : 30, 0, 0);
     return {
       id,
-      journeyId: (index % 65) + 1,
+      journeyId: (index % 20) + 1,
       driverId: (index % 5) + 1,
       vehicleId: (index % 5) + 1,
       scheduleType: 'specific',
@@ -509,10 +542,27 @@ async function main() {
       active: 1,
     };
   });
-  await prisma.trip.createMany({
-    data: generatedTrips,
-    skipDuplicates: true,
-  });
+  await prisma.$transaction(
+    generatedTrips.map((trip) =>
+      prisma.trip.upsert({
+        where: { id: trip.id },
+        create: trip,
+        update: {
+          journeyId: trip.journeyId,
+          driverId: trip.driverId,
+          vehicleId: trip.vehicleId,
+          scheduleType: trip.scheduleType,
+          dayOfWeek: trip.dayOfWeek,
+          departureTime: trip.departureTime,
+          arrivalTime: trip.arrivalTime,
+          departureDate: trip.departureDate,
+          arrivalDate: trip.arrivalDate,
+          arrivesNextDay: trip.arrivesNextDay,
+          active: trip.active,
+        },
+      })
+    )
+  );
 
   // ------------------------------------------------------------
   // Bookings (reservas): client + trip + seats + state

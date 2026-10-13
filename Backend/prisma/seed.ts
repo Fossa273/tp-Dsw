@@ -7,6 +7,7 @@ import {
   durationFromDistance,
   getDistanceKm,
 } from '../src/shared/maps.service.js';
+import { ADMIN_EMAIL } from '../src/shared/constants.js';
 
 const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
@@ -351,6 +352,7 @@ async function main() {
         active: 1,
         password: DEMO_PASSWORD_HASH,
         logged: 0,
+        role: 'client',
       },
       {
         id: 2,
@@ -431,6 +433,10 @@ async function main() {
       OR: [{ password: null }, { password: '' }],
     },
     data: { password: DEMO_PASSWORD_HASH },
+  });
+  await prisma.client.updateMany({
+    where: { email: ADMIN_EMAIL },
+    data: { role: 'admin' },
   });
 
   // ------------------------------------------------------------
@@ -625,8 +631,8 @@ async function main() {
       `SET SESSION sql_mode = CONCAT('NO_AUTO_VALUE_ON_ZERO,', @@SESSION.sql_mode)`
     );
     await prisma.$executeRawUnsafe(
-      `INSERT INTO clients (id, firstName, lastName, dni, email, phone, active, password, logged)
-       VALUES (0, 'Admin', 'RutaBus', NULL, 'admin@rutabus.com', '0000000000', 1, '${ADMIN_PASSWORD_HASH}', 0)
+      `INSERT INTO clients (id, firstName, lastName, dni, email, phone, active, password, logged, role)
+       VALUES (0, 'Admin', 'RutaBus', NULL, '${ADMIN_EMAIL}', '0000000000', 1, '${ADMIN_PASSWORD_HASH}', 0, 'admin')
        ON DUPLICATE KEY UPDATE id = id`
     );
   }

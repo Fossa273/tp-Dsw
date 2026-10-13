@@ -26,7 +26,7 @@ nuevos cambios o evidencias.
 | F-009 | Categorías e histórico de precios                 | Completado  | Media     | Equipo      | [VehicleCategoriesPage.jsx](../Frontend/app/src/pages/VehicleCategoriesPage.jsx)          |
 | F-010 | Login de cliente y administrador                  | En progreso | Alta      | Equipo      | [AuthContext.jsx](../Frontend/app/src/context/AuthContext.jsx)                            |
 | F-011 | Protección de rutas del frontend por rol          | Completado  | Alta      | Equipo      | [App.jsx](../Frontend/app/src/App.jsx)                                                    |
-| F-012 | Protección de rutas API por rol                   | Pendiente   | Alta      | Equipo      | Requiere middleware de autenticación/autorización en backend                              |
+| F-012 | Protección de rutas API por rol                   | Completado  | Alta      | Equipo      | JWT, middleware de autenticación y autorización por rol                                   |
 | F-013 | Listado de reservas con filtro por rango de fecha | Completado  | Alta      | Equipo      | [BookingsPage.jsx](../Frontend/app/src/pages/BookingsPage.jsx)                            |
 | F-014 | Detalle completo de reserva y cliente             | Completado  | Alta      | Equipo      | Modal de detalle en [BookingsPage.jsx](../Frontend/app/src/pages/BookingsPage.jsx)        |
 | F-015 | Búsqueda de viajes por trayecto y fecha           | Completado  | Alta      | Equipo      | `GET /api/trips/search` y [SearchForm.jsx](../Frontend/app/src/components/SearchForm.jsx) |
@@ -49,24 +49,23 @@ nuevos cambios o evidencias.
 
 ## Bugs conocidos
 
-| ID    | Bug o riesgo                                                                                       | Estado  | Prioridad | Impacto                                                                               |
-| ----- | -------------------------------------------------------------------------------------------------- | ------- | --------- | ------------------------------------------------------------------------------------- |
-| B-005 | La autorización se controla en el frontend, pero las rutas API no tienen autenticación persistente | Abierto | Crítica   | Un cliente podría intentar llamar directamente a endpoints administrativos            |
-| B-006 | No existen tests automatizados en el repositorio                                                   | Abierto | Alta      | No hay evidencia automatizada de regresión para backend, frontend ni flujos completos |
+| ID    | Bug o riesgo                                                                                       | Estado     | Prioridad | Impacto                                                                               |
+| ----- | -------------------------------------------------------------------------------------------------- | ---------- | --------- | ------------------------------------------------------------------------------------- |
+| B-005 | La autorización se controla en el frontend, pero las rutas API no tienen autenticación persistente | Completado | Crítica   | Se agregó JWT y autorización backend por rol y propietario de reserva                 |
+| B-006 | No existen tests automatizados en el repositorio                                                   | Abierto    | Alta      | No hay evidencia automatizada de regresión para backend, frontend ni flujos completos |
 
 ## Issues y tareas pendientes
 
-| ID    | Issue                                                                 | Estado    | Prioridad | Próximo paso                                                 |
-| ----- | --------------------------------------------------------------------- | --------- | --------- | ------------------------------------------------------------ |
-| I-001 | Agregar tests unitarios de backend para cumplir la aprobación directa | Pendiente | Alta      | Incorporar Jest y cubrir reglas de reservas/precios          |
-| I-002 | Agregar un test de integración de API                                 | Pendiente | Alta      | Incorporar Supertest y probar un flujo de reserva            |
-| I-003 | Agregar test unitario de componente React                             | Pendiente | Alta      | Incorporar Vitest y React Testing Library                    |
-| I-004 | Agregar test end-to-end                                               | Pendiente | Alta      | Incorporar Playwright y cubrir login + consulta/reserva      |
-| I-005 | Implementar autenticación y autorización en backend                   | Pendiente | Crítica   | Definir sesión o JWT y middleware por rol                    |
-| I-006 | Incorporar evidencia de ejecución de tests                            | Pendiente | Alta      | Guardar resultados y comandos en la documentación de entrega |
-| I-007 | Documentar PR/MR reales                                               | Pendiente | Media     | Agregar enlaces cuando estén creados en GitHub               |
-| I-008 | Completar evidencia visual responsive en SM, MD y LG                  | Pendiente | Media     | Capturar y documentar la ejecución en los tres breakpoints   |
-| I-009 | Evaluar implementación de reprogramación de reservas                  | Pendiente | Baja      | Definir reglas de negocio, endpoint y pantalla               |
+| ID    | Issue                                                                 | Estado     | Prioridad | Próximo paso                                                        |
+| ----- | --------------------------------------------------------------------- | ---------- | --------- | ------------------------------------------------------------------- |
+| I-001 | Agregar tests unitarios de backend para cumplir la aprobación directa | Pendiente  | Alta      | Incorporar Jest y cubrir reglas de reservas/precios                 |
+| I-002 | Agregar un test de integración de API                                 | Pendiente  | Alta      | Incorporar Supertest y probar un flujo de reserva                   |
+| I-003 | Agregar test unitario de componente React                             | Pendiente  | Alta      | Incorporar Vitest y React Testing Library                           |
+| I-004 | Agregar test end-to-end                                               | Pendiente  | Alta      | Incorporar Playwright y cubrir login + consulta/reserva             |
+| I-005 | Implementar autenticación y autorización en backend                   | Completado | Crítica   | JWT con roles admin/client, rutas protegidas y control de propiedad |
+| I-006 | Incorporar evidencia de ejecución de tests                            | Pendiente  | Alta      | Guardar resultados y comandos en la documentación de entrega        |
+| I-007 | Completar evidencia visual responsive en SM, MD y LG                  | Pendiente  | Media     | Capturar y documentar la ejecución en los tres breakpoints          |
+| I-008 | Evaluar implementación de reprogramación de reservas                  | Pendiente  | Baja      | Definir reglas de negocio, endpoint y pantalla                      |
 
 ## Historial de actualización
 

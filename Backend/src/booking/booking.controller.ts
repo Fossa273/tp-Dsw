@@ -140,7 +140,9 @@ async function findAll(req: Request, res: Response) {
   const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
     ? Math.min(requestedLimit, 100)
     : 50;
-  const normalizedClientId = Number.isInteger(clientId) ? clientId : undefined;
+  const normalizedClientId = req.user?.role === 'admin'
+    ? (Number.isInteger(clientId) ? clientId : undefined)
+    : req.user?.id;
   const states = typeof req.query.states === 'string'
     ? req.query.states.split(',').filter((state) => VALID_STATES.includes(state))
     : undefined;
@@ -195,7 +197,12 @@ async function add(req: Request, res: Response) {
     return;
   }
 
-  const isGuest = clientId === undefined || clientId === null;
+  if (req.user?.role === 'client' && clientId !== undefined && Number(clientId) !== req.user.id) {
+    res.status(403).json({ error: 'No puede crear una reserva para otro cliente' });
+    return;
+  }
+  const effectiveClientId = req.user?.role === 'client' ? req.user.id : clientId;
+  const isGuest = effectiveClientId === undefined || effectiveClientId === null;
   const passengerList = Array.isArray(passengers) ? passengers : null;
   if (passengerList && passengerList.length !== seats) {
     res.status(400).json({
@@ -261,7 +268,7 @@ async function add(req: Request, res: Response) {
   }
 
   const [client, trip] = await Promise.all([
-    isGuest ? null : clientRepository.findOne({ id: Number(clientId) }),
+    isGuest ? null : clientRepository.findOne({ id: Number(effectiveClientId) }),
     tripRepository.findOne({ id: Number(tripId) }),
   ]);
 
@@ -305,7 +312,7 @@ async function add(req: Request, res: Response) {
   try {
     const firstPassenger = passengerList?.[0];
     const newBooking = await repository.addWithCapacity({
-    clientId: isGuest ? null : Number(clientId),
+    clientId: isGuest ? null : Number(effectiveClientId),
     tripId: Number(tripId),
     numSeats: seats,
     state: state ? state.toLowerCase() : 'pending',
@@ -339,6 +346,14 @@ async function update(req: Request, res: Response) {
   const currentBooking = await repository.findOne({ id });
   if (!currentBooking) {
     res.status(404).json({ error: 'Reserva no encontrada' });
+    return;
+  }
+  if (req.user?.role === 'client' && currentBooking.clientId !== req.user.id) {
+    res.status(403).json({ error: 'No puede modificar una reserva de otro cliente' });
+    return;
+  }
+  if (req.user?.role === 'client' && clientId !== undefined && Number(clientId) !== req.user.id) {
+    res.status(403).json({ error: 'No puede asignar la reserva a otro cliente' });
     return;
   }
   const shouldSendConfirmation =
@@ -470,6 +485,15 @@ async function update(req: Request, res: Response) {
 
 async function remove(req: Request, res: Response) {
   const id = Number(req.params.id);
+  const currentBooking = await repository.findOne({ id });
+  if (!currentBooking) {
+    res.status(404).json({ error: 'Reserva no encontrada' });
+    return;
+  }
+  if (req.user?.role === 'client' && currentBooking.clientId !== req.user.id) {
+    res.status(403).json({ error: 'No puede eliminar una reserva de otro cliente' });
+    return;
+  }
   try {
     const deletedBooking = await repository.delete({ id });
     if (deletedBooking) {
@@ -488,14 +512,13 @@ async function remove(req: Request, res: Response) {
 
 async function cancel(req: Request, res: Response) {
   const id = Number(req.params.id);
-  const clientId = Number(req.body?.clientId);
   const booking = await repository.findOne({ id });
 
   if (!booking) {
     res.status(404).json({ error: 'Reserva no encontrada' });
     return;
   }
-  if (!Number.isInteger(clientId) || booking.clientId !== clientId) {
+  if (req.user?.role !== 'admin' && booking.clientId !== req.user?.id) {
     res
       .status(403)
       .json({ error: 'No puede cancelar una reserva de otro cliente' });

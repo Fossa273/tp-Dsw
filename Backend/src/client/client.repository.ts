@@ -10,6 +10,7 @@ const PUBLIC_SELECT = {
   phone: true,
   active: true,
   logged: true,
+  role: true,
 } as const;
 
 export interface ClientData {
@@ -22,6 +23,7 @@ export interface ClientData {
   active?: number;
   password?: string;
   logged?: number;
+  role?: string;
 }
 
 export class ClientRepository {

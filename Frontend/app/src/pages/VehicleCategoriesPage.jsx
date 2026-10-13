@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { formatDate } from '../utils/format';
 
 const VehicleCategoriesPage = () => {
   const [categories, setCategories] = useState([]);
@@ -39,7 +40,7 @@ const VehicleCategoriesPage = () => {
       {categories.map((category) => <tr key={category.idCategoria}>
         <td>{category.nombreCategoria}</td>
         <td><input type="number" min="0" step="0.01" value={values[category.idCategoria] ?? ''} onChange={(event) => setValues({ ...values, [category.idCategoria]: event.target.value })} /></td>
-        <td>{(category.priceHistory || []).slice(0, 3).map((entry) => <div key={entry.id}>${entry.precioBase} ({new Date(entry.createdAt).toLocaleDateString('es-AR')})</div>)}</td>
+        <td>{(category.priceHistory || []).slice(0, 3).map((entry) => <div key={entry.id}>${entry.precioBase} ({formatDate(entry.createdAt)})</div>)}</td>
         <td>
           <button className="btn btn-sm btn-secondary" onClick={() => setHistoryCategory(category)}>Ver historial completo</button>
           <button className="btn btn-sm btn-primary" onClick={() => save(category)}>Guardar precio</button>
@@ -50,7 +51,7 @@ const VehicleCategoriesPage = () => {
       <div className="modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <h2>Historial de {historyCategory.nombreCategoria}</h2>
         <div className="crud-table-wrapper"><table className="crud-table"><thead><tr><th>Precio base</th><th>Fecha</th></tr></thead><tbody>
-          {(historyCategory.priceHistory || []).map((entry) => <tr key={entry.id}><td>${entry.precioBase}</td><td>{new Date(entry.createdAt).toLocaleString('es-AR')}</td></tr>)}
+          {(historyCategory.priceHistory || []).map((entry) => <tr key={entry.id}><td>${entry.precioBase}</td><td>{formatDate(entry.createdAt)}</td></tr>)}
         </tbody></table></div>
         <button className="btn btn-secondary" onClick={() => setHistoryCategory(null)}>Cerrar</button>
       </div>

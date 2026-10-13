@@ -82,6 +82,8 @@ FUEL_PRICE_PER_KM="100"
 OSM_USER_AGENT="tp-dsw-rutabus/1.0 contacto@example.com"
 OSM_EMAIL="tu-email-real@example.com"
 OSM_REFERER="http://localhost:5173/"
+JWT_SECRET="reemplazar-por-una-clave-larga-y-segura"
+JWT_EXPIRES_IN="8h"
 ```
 
 `OSM_EMAIL` debe reemplazarse por un email real si se utiliza el cálculo de
@@ -103,6 +105,10 @@ pnpm install
 pnpm run db:generate
 pnpm run db:push
 ```
+
+`JWT_SECRET` es obligatorio para iniciar el backend. Debe ser una clave larga,
+privada y distinta entre desarrollo y producción. `JWT_EXPIRES_IN` controla la
+vigencia de los tokens, por ejemplo `8h`.
 
 Para cargar los datos de demostración, ejecutar:
 

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { createHash } from 'node:crypto';
 import { ClientRepository } from './client.repository.js';
 import { ADMIN_EMAIL } from '../shared/constants.js';
+import { signAuthToken } from '../middleware/auth.middleware.js';
 
 const repository = new ClientRepository();
 
@@ -154,7 +155,16 @@ async function login(req: Request, res: Response) {
   const { password: _p, ...safeClient } = client;
   res.json({
     message: 'Sesion iniciada',
-    data: { ...safeClient, logged: 1 },
+    data: {
+      ...safeClient,
+      role: isAdminEmail(client.email) ? 'admin' : 'client',
+      logged: 1,
+      token: signAuthToken({
+        id: client.id,
+        email: client.email || '',
+        role: isAdminEmail(client.email) ? 'admin' : 'client',
+      }),
+    },
   });
 }
 

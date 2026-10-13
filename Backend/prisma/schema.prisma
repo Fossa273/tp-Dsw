@@ -16,6 +16,7 @@ model Client {
   active    Int     @default(1)
   password  String?
   logged    Int     @default(0)
+  role      String  @default("client")
 
   bookings Booking[]
 

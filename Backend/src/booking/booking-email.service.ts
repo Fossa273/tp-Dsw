@@ -1,10 +1,14 @@
 import 'dotenv/config';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import nodemailer from 'nodemailer';
 import { prisma } from '../shared/db/connection.js';
 
-const ATTACHMENTS_DIR = path.resolve(process.cwd(), 'uploads', 'booking-email');
+// Resolve from the backend source/dist directory instead of process.cwd(), so
+// attachments work whether the server is started from Backend or the repo root.
+const BACKEND_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const ATTACHMENTS_DIR = path.join(BACKEND_DIR, 'uploads', 'booking-email');
 const DEFAULT_SUBJECT = 'Confirmacion de reserva #{{bookingId}}';
 const DEFAULT_BODY = [
   'Hola {{clientName}},',
@@ -92,6 +96,16 @@ function render(template: string, values: Record<string, string>) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? '');
 }
 
+function formatEmailDate(value: Date | string | null | undefined) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  return `${day}/${month}/${date.getFullYear()} ${time}`;
+}
+
 export async function sendBookingConfirmationEmail(booking: any, recipients: string[]) {
   const template = await getBookingEmailTemplate();
   const values = {
@@ -102,24 +116,28 @@ export async function sendBookingConfirmationEmail(booking: any, recipients: str
     origin: booking.trip?.journey?.origin?.name || '-',
     destination: booking.trip?.journey?.destination?.name || '-',
     departure: booking.trip?.departureDate
-      ? new Date(booking.trip.departureDate).toLocaleString('es-AR')
+      ? formatEmailDate(booking.trip.departureDate)
       : booking.trip?.departureTime || '-',
     seats: String(booking.numSeats),
     price: Number(booking.price || 0).toLocaleString('es-AR'),
   };
   const transporter = createTransporter();
+  const attachments = await Promise.all(
+    template.attachments.map(async (attachment) => {
+      await fs.access(attachment.storagePath);
+      return {
+        filename: attachment.filename,
+        path: attachment.storagePath,
+        contentType: attachment.mimeType,
+      };
+    }),
+  );
   await transporter.sendMail({
     from: process.env.MAIL_FROM || process.env.SMTP_USER,
     to: recipients,
     subject: render(template.subject, values),
     text: render(template.body, values),
-    attachments: await Promise.all(
-      template.attachments.map(async (attachment) => ({
-        filename: attachment.filename,
-        path: attachment.storagePath,
-        contentType: attachment.mimeType,
-      })),
-    ),
+    attachments,
   });
 }
 

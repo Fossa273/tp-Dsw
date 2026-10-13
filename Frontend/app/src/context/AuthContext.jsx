@@ -6,6 +6,7 @@ import { ADMIN_EMAIL } from '../utils/constants';
 const AuthContext = createContext(null);
 
 const STORAGE_KEY = 'rutabus_user';
+const TOKEN_KEY = 'rutabus_token';
 
 export { ADMIN_EMAIL };
 
@@ -22,14 +23,16 @@ export function AuthProvider({ children }) {
   const isAdmin = useMemo(
     () =>
       user !== null &&
-      !!user.email &&
-      String(user.email).trim().toLowerCase() === ADMIN_EMAIL,
+      user?.role === 'admin' ||
+      (!!user?.email && String(user.email).trim().toLowerCase() === ADMIN_EMAIL),
     [user]
   );
 
   const saveUser = useCallback((data) => {
-    setUser(data);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const { token, ...userData } = data;
+    setUser(userData);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+    if (token) localStorage.setItem(TOKEN_KEY, token);
   }, []);
 
   const login = useCallback(async (email, password) => {
@@ -52,6 +55,7 @@ export function AuthProvider({ children }) {
         api.auth.logout(currentUser.id).catch(() => {});
       }
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(TOKEN_KEY);
       return null;
     });
   }, []);

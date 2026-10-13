@@ -7,6 +7,45 @@ import { api } from '../services/api';
 import { CloseIcon, MailIcon, PencilIcon, PlusIcon } from '../components/icons';
 import { formatDate } from '../utils/format';
 
+function parseDateFilter(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length !== 8) return '';
+  const day = digits.slice(0, 2);
+  const month = digits.slice(2, 4);
+  const year = digits.slice(4, 8);
+  const date = new Date(`${year}-${month}-${day}T12:00:00`);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() + 1 !== Number(month) ||
+    date.getDate() !== Number(day)
+  ) {
+    return '';
+  }
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateFilterValue(value) {
+  if (!value) return '';
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function maskDateFilter(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)]
+    .filter(Boolean)
+    .join('/');
+}
+
+function openDatePicker(ref) {
+  if (typeof ref.current?.showPicker === 'function') {
+    ref.current.showPicker();
+  } else {
+    ref.current?.click();
+  }
+}
+
 const STATE_OPTIONS = [
   { value: 'pending', label: 'Pendiente' },
   { value: 'confirmed', label: 'Confirmada' },
@@ -41,6 +80,10 @@ const BookingsPage = () => {
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [dateFromInput, setDateFromInput] = useState('');
+  const [dateToInput, setDateToInput] = useState('');
+  const dateFromPickerRef = useRef(null);
+  const dateToPickerRef = useRef(null);
   const [visibleStates, setVisibleStates] = useState({
     pending: true,
     confirmed: true,
@@ -346,13 +389,26 @@ const BookingsPage = () => {
             />
           </div>
           <div className="form-row">
-            <label className="form-label" htmlFor="booking-email-files">Adjuntos</label>
+            <span className="form-label">Adjuntos</span>
+            <label className="file-upload-control" htmlFor="booking-email-files">
+              <span className="btn btn-secondary">Seleccionar archivos</span>
+              <span className="file-upload-name">
+                {templateFiles.length
+                  ? `${templateFiles.length} archivo(s) seleccionado(s)`
+                  : 'Ningún archivo seleccionado'}
+              </span>
+            </label>
             <input
               id="booking-email-files"
+              className="file-upload-input"
               type="file"
               multiple
+              accept="image/*,.pdf"
               onChange={(event) => setTemplateFiles(Array.from(event.target.files || []))}
             />
+            <small className="form-help">
+              Podés adjuntar imágenes o PDF (hasta 5 archivos de 10 MB).
+            </small>
           </div>
           {emailTemplate.attachments?.length > 0 && (
             <ul className="booking-email-attachments">
@@ -523,22 +579,110 @@ const BookingsPage = () => {
         <div className="booking-date-filters" aria-label="Filtrar reservas por fecha de viaje">
           <label>
             Desde
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              aria-label="Fecha de viaje desde"
-            />
+            <div className="date-picker-field">
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/aaaa"
+                value={dateFromInput}
+                onChange={(event) => {
+                  const input = maskDateFilter(event.target.value);
+                  setDateFromInput(input);
+                  const parsed = parseDateFilter(input);
+                  setDateFrom(parsed);
+                }}
+                aria-label="Fecha de viaje desde"
+              />
+              <button
+                type="button"
+                className="date-picker-button"
+                aria-label="Abrir calendario para fecha desde"
+                onClick={() => openDatePicker(dateFromPickerRef)}
+              >
+                <svg
+                  aria-hidden="true"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="17" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              </button>
+              <input
+                ref={dateFromPickerRef}
+                className="date-picker-native"
+                type="date"
+                min={new Date().toISOString().slice(0, 10)}
+                value={dateFrom}
+                tabIndex="-1"
+                aria-hidden="true"
+                onChange={(event) => {
+                  setDateFrom(event.target.value);
+                  setDateFromInput(formatDateFilterValue(event.target.value));
+                }}
+              />
+            </div>
           </label>
           <label>
             Hasta
-            <input
-              type="date"
-              value={dateTo}
-              min={dateFrom || undefined}
-              onChange={(event) => setDateTo(event.target.value)}
-              aria-label="Fecha de viaje hasta"
-            />
+            <div className="date-picker-field">
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/aaaa"
+                value={dateToInput}
+                onChange={(event) => {
+                  const input = maskDateFilter(event.target.value);
+                  setDateToInput(input);
+                  setDateTo(parseDateFilter(input));
+                }}
+                aria-label="Fecha de viaje hasta"
+              />
+              <button
+                type="button"
+                className="date-picker-button"
+                aria-label="Abrir calendario para fecha hasta"
+                onClick={() => openDatePicker(dateToPickerRef)}
+              >
+                <svg
+                  aria-hidden="true"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="17" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              </button>
+              <input
+                ref={dateToPickerRef}
+                className="date-picker-native"
+                type="date"
+                min={dateFrom || new Date().toISOString().slice(0, 10)}
+                value={dateTo}
+                tabIndex="-1"
+                aria-hidden="true"
+                onChange={(event) => {
+                  setDateTo(event.target.value);
+                  setDateToInput(formatDateFilterValue(event.target.value));
+                }}
+              />
+            </div>
           </label>
           {(dateFrom || dateTo) && (
             <button
@@ -547,6 +691,8 @@ const BookingsPage = () => {
               onClick={() => {
                 setDateFrom('');
                 setDateTo('');
+                setDateFromInput('');
+                setDateToInput('');
               }}
             >
               Limpiar fechas

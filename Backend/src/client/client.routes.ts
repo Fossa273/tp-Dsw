@@ -12,17 +12,18 @@ import {
   reactivate,
 } from './client.controller.js';
 import { sanitizeClientInput } from './client.validation.js';
+import { authenticate, requireRole } from '../middleware/auth.middleware.js';
 
 export const router = Router();
 
 router.post('/login', login);
-router.post('/logout', logout);
+router.post('/logout', authenticate, logout);
 router.post('/reset-password', resetPassword);
-router.post('/:id/reactivate', reactivate);
-router.get('/inactive', findAllInactive);
+router.post('/:id/reactivate', authenticate, requireRole('admin'), reactivate);
+router.get('/inactive', authenticate, requireRole('admin'), findAllInactive);
 router.get('/', findAll);
 router.get('/:id', findOne);
 router.post('/', sanitizeClientInput, add);
-router.put('/:id', sanitizeClientInput, update);
-router.patch('/:id', sanitizeClientInput, update);
-router.delete('/:id', remove);
+router.put('/:id', authenticate, requireRole('admin'), sanitizeClientInput, update);
+router.patch('/:id', authenticate, requireRole('admin'), sanitizeClientInput, update);
+router.delete('/:id', authenticate, requireRole('admin'), remove);

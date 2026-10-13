@@ -8,7 +8,36 @@ Documentación de la API REST del backend de RutaBus.
 - **Formato:** JSON, excepto la actualización de la plantilla de email, que usa `multipart/form-data`.
 - **CORS:** el origen permitido se configura con `CORS_ORIGIN` y por defecto es `http://localhost:5173`.
 - **Health check:** `GET /api/health`
-- **Autenticación actual:** el login devuelve los datos de sesión para el frontend, pero la API todavía no utiliza tokens ni middleware de autorización en cada ruta. Esto queda registrado como pendiente para aprobación directa.
+- **Autenticación:** JWT mediante `Authorization: Bearer <token>`. Los listados públicos de viajes, trayectos y localidades no requieren token; las operaciones administrativas y la gestión de reservas sí.
+
+### Login
+
+`POST /api/clients/login`
+
+```json
+{ "email": "admin@rutabus.com", "password": "admin123" }
+```
+
+La respuesta incluye `data.token`, `data.role` (`admin` o `client`) y los datos públicos del usuario. En las solicitudes protegidas se debe enviar:
+
+```http
+Authorization: Bearer <token>
+```
+
+Las rutas administrativas devuelven `401` sin token o con un token inválido y `403` cuando el usuario autenticado no tiene rol `admin`. Un cliente solo puede consultar y modificar sus propias reservas.
+
+### Acceso por recurso
+
+| Recurso | Lectura pública | Escritura |
+|---|---:|---|
+| Viajes, trayectos, localidades, provincias y vehículos | Sí | Administrador |
+| Clientes | Sí (sin inactivos) | Registro público; modificaciones de administrador |
+| Reservas | No | Cliente autenticado o administrador |
+| Conductores y categorías de vehículo | Sí | Administrador |
+
+Las reservas invitadas pueden crearse sin token y no quedan asociadas a un
+cliente. Las reservas asociadas a una cuenta requieren que `clientId` coincida
+con el usuario autenticado; el servidor no confía únicamente en el frontend.
 
 ## Respuestas y errores
 

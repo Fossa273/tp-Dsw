@@ -9,6 +9,8 @@ async function request(endpoint, options = {}) {
     ...options,
     signal: options.signal || controller.signal,
   };
+  const token = localStorage.getItem('rutabus_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
 
   let response;
   try {

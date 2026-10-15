@@ -3,31 +3,19 @@ import { BookingRepository } from './booking.repository.js';
 import { ClientRepository } from '../client/client.repository.js';
 import { TripRepository } from '../trip/trip.repository.js';
 import { sendBookingConfirmationEmail } from './booking-email.service.js';
+import { getYpfSuperPricePerLiter } from '../shared/fuel-price.service.js';
+import { calculateFuelCost } from '../shared/pricing.service.js';
+import { OPERATING_COST_MULTIPLIER } from '../shared/constants.js';
 
 const repository = new BookingRepository();
 const clientRepository = new ClientRepository();
 const tripRepository = new TripRepository();
 
 const VALID_STATES = ['pending', 'confirmed', 'cancelled'];
-const FUEL_PRICE_PER_KM = Number(process.env.FUEL_PRICE_PER_KM ?? 100);
-const OPERATING_COST_MULTIPLIER = 1.4;
 const MAX_BOOKING_ADVANCE_MONTHS = 1;
 
 function roundToNext100(value: number): number {
   return Math.ceil(value / 100) * 100;
-}
-
-async function calculatePrice(tripId: number, seats: number) {
-  const trip = await tripRepository.findOne({ id: tripId });
-  if (!trip || !trip.vehicle?.categoryRelation) return null;
-  const capacity = trip.vehicle.maxCapacity;
-  if (!Number.isFinite(capacity) || capacity <= 0) return null;
-
-  const fuelCost = trip.journey.distanceKm * FUEL_PRICE_PER_KM;
-  const fuelCostPerSeat = (fuelCost * OPERATING_COST_MULTIPLIER) / capacity;
-  const pricePerSeat =
-    fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase;
-  return roundToNext100(pricePerSeat * seats);
 }
 
 function normalizeNumSeats(value: unknown): number | null {
@@ -296,7 +284,12 @@ async function add(req: Request, res: Response) {
     });
     return;
   }
-  const fuelCost = trip.journey.distanceKm * FUEL_PRICE_PER_KM;
+  const fuelPricePerLiter = await getYpfSuperPricePerLiter();
+  const fuelCost = calculateFuelCost(
+    trip.journey.distanceKm,
+    trip.vehicle.categoryRelation.litrosPorKm,
+    fuelPricePerLiter
+  );
   const fuelCostPerSeat = (fuelCost * OPERATING_COST_MULTIPLIER) / capacity;
   const pricePerSeat =
     fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase;

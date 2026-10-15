@@ -78,7 +78,6 @@ Editar `.env` y establecer como mínimo:
 DATABASE_URL="mysql://dsw:dsw@localhost:3306/rutabus"
 PORT="3000"
 CORS_ORIGIN="http://localhost:5173"
-FUEL_PRICE_PER_KM="100"
 OSM_USER_AGENT="tp-dsw-rutabus/1.0 contacto@example.com"
 OSM_EMAIL="tu-email-real@example.com"
 OSM_REFERER="http://localhost:5173/"
@@ -88,7 +87,11 @@ JWT_EXPIRES_IN="8h"
 
 `OSM_EMAIL` debe reemplazarse por un email real si se utiliza el cálculo de
 distancias mediante OpenStreetMap. Las variables SMTP son opcionales; solo son
-necesarias para enviar emails de confirmación:
+necesarias para enviar emails de confirmación.
+
+El precio de la nafta Súper de YPF se consulta en `naftas.com.ar` (Capital
+Federal) y se actualiza en memoria cada 5 minutos; no requiere configuración
+adicional. Las variables SMTP, si se utilizan, se configuran así:
 
 ```env
 SMTP_HOST="smtp.gmail.com"

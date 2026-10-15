@@ -54,6 +54,7 @@ model VehicleCategory {
   idCategoria     Int      @id @default(autoincrement()) @map("idcategoria")
   nombreCategoria String   @map("nombrecategoria")
   precioBase      Float    @map("preciobase")
+  litrosPorKm    Float    @default(0.1) @map("litros_por_km")
   vehicles        Vehicle[]
   priceHistory    VehicleCategoryPrice[]
 

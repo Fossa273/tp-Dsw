@@ -7,12 +7,12 @@ import {
   durationFromDistance,
   getDistanceKm,
 } from '../src/shared/maps.service.js';
-import { ADMIN_EMAIL } from '../src/shared/constants.js';
+import { ADMIN_EMAIL, OPERATING_COST_MULTIPLIER } from '../src/shared/constants.js';
+import { getYpfSuperPricePerLiter } from '../src/shared/fuel-price.service.js';
+import { calculateFuelCost } from '../src/shared/pricing.service.js';
 
 const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
-const FUEL_PRICE_PER_KM = Number(process.env.FUEL_PRICE_PER_KM ?? 100);
-const OPERATING_COST_MULTIPLIER = 1.4;
 
 function roundToNext100(value: number) {
   return Math.ceil(value / 100) * 100;
@@ -76,7 +76,11 @@ async function calculateSeedJourneys() {
   return journeys;
 }
 
-async function calculateSeedBookingPrice(tripId: number, seats: number) {
+async function calculateSeedBookingPrice(
+  tripId: number,
+  seats: number,
+  fuelPricePerLiter: number
+) {
   const trip = await prisma.trip.findUnique({
     where: { id: tripId },
     include: {
@@ -88,7 +92,11 @@ async function calculateSeedBookingPrice(tripId: number, seats: number) {
     throw new Error(`No se pudo calcular el precio del viaje ${tripId}`);
   }
 
-  const fuelCost = trip.journey.distanceKm * FUEL_PRICE_PER_KM;
+  const fuelCost = calculateFuelCost(
+    trip.journey.distanceKm,
+    trip.vehicle.categoryRelation.litrosPorKm,
+    fuelPricePerLiter
+  );
   const fuelCostPerSeat =
     (fuelCost * OPERATING_COST_MULTIPLIER) / trip.vehicle.maxCapacity;
   const pricePerSeat =
@@ -228,14 +236,17 @@ async function main() {
     )
   );
 
-  await prisma.vehicleCategory.createMany({
-    data: [
-      { idCategoria: 1, nombreCategoria: 'Combi', precioBase: 10000 },
-      { idCategoria: 2, nombreCategoria: 'Colectivo', precioBase: 18000 },
-      { idCategoria: 3, nombreCategoria: 'Colectivo alto', precioBase: 25000 },
-    ],
-    skipDuplicates: true,
-  });
+  for (const category of [
+    { idCategoria: 1, nombreCategoria: 'Combi', precioBase: 10000, litrosPorKm: 0.14 },
+    { idCategoria: 2, nombreCategoria: 'Colectivo', precioBase: 18000, litrosPorKm: 0.38 },
+    { idCategoria: 3, nombreCategoria: 'Colectivo alto', precioBase: 25000, litrosPorKm: 0.45 },
+  ]) {
+    await prisma.vehicleCategory.upsert({
+      where: { idCategoria: category.idCategoria },
+      create: category,
+      update: { litrosPorKm: category.litrosPorKm },
+    });
+  }
 
   for (const price of [
     { categoryId: 1, precioBase: 10000 },
@@ -591,6 +602,7 @@ async function main() {
     }))
   );
 
+  const fuelPricePerLiter = await getYpfSuperPricePerLiter();
   await prisma.$transaction(
     (
       await Promise.all(
@@ -598,7 +610,8 @@ async function main() {
           ...booking,
           price: await calculateSeedBookingPrice(
             booking.tripId,
-            booking.numSeats
+            booking.numSeats,
+            fuelPricePerLiter
           ),
         }))
       )

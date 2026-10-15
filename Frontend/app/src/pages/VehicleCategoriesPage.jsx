@@ -13,37 +13,52 @@ const VehicleCategoriesPage = () => {
     try {
       const response = await api.vehicleCategories.getAll();
       setCategories(response.data || []);
-      setValues(Object.fromEntries((response.data || []).map((category) => [category.idCategoria, category.precioBase])));
+      setValues(Object.fromEntries((response.data || []).map((category) => [
+        category.idCategoria,
+        { precioBase: category.precioBase, litrosPorKm: category.litrosPorKm },
+      ])));
     } catch (error) { setMessage({ type: 'error', text: error.message }); }
   };
   useEffect(() => { load(); }, []);
 
+  const setCategoryValue = (categoryId, key, value) => {
+    setValues({
+      ...values,
+      [categoryId]: { ...values[categoryId], [key]: value },
+    });
+  };
+
   const save = async (category) => {
-    const current = Number(category.precioBase);
-    const next = Number(values[category.idCategoria]);
-    if (!Number.isFinite(next) || next < 0) {
+    const precioBase = Number(values[category.idCategoria]?.precioBase);
+    const litrosPorKm = Number(values[category.idCategoria]?.litrosPorKm);
+    if (!Number.isFinite(precioBase) || precioBase < 0) {
       setMessage({ type: 'error', text: 'El precio base debe ser un numero mayor o igual a 0' });
       return;
     }
-    if (!window.confirm(`Vas a cambiar el precio base de ${category.nombreCategoria} de $${current} a $${next}. ¿Deseas guardar este cambio?`)) return;
+    if (!Number.isFinite(litrosPorKm) || litrosPorKm <= 0) {
+      setMessage({ type: 'error', text: 'El consumo debe ser un numero mayor a 0 litros por kilometro' });
+      return;
+    }
+    if (!window.confirm(`Vas a actualizar el precio base y el consumo de ${category.nombreCategoria}. ¿Deseas guardar estos cambios?`)) return;
     try {
-      await api.vehicleCategories.updatePrice(category.idCategoria, next);
-      setMessage({ type: 'success', text: 'Precio base actualizado y registrado en el historial.' });
+      await api.vehicleCategories.updateSettings(category.idCategoria, { precioBase, litrosPorKm });
+      setMessage({ type: 'success', text: 'Precio base y consumo actualizados.' });
       await load();
     } catch (error) { setMessage({ type: 'error', text: error.message }); }
   };
 
   return <div className="crud-page">
-    <h1>Precios de categorias de vehiculos</h1>
+    <h1>Categorias de vehiculos</h1>
     {message && <div className={`crud-message ${message.type === 'error' ? 'msg-error' : 'msg-success'}`}>{message.text}</div>}
-    <div className="crud-table-wrapper"><table className="crud-table"><thead><tr><th>Categoria</th><th>Precio base vigente</th><th>Historial</th><th>Accion</th></tr></thead><tbody>
+    <div className="crud-table-wrapper"><table className="crud-table"><thead><tr><th>Categoria</th><th>Precio base vigente</th><th>Consumo (L/km)</th><th>Historial de precios</th><th>Accion</th></tr></thead><tbody>
       {categories.map((category) => <tr key={category.idCategoria}>
         <td>{category.nombreCategoria}</td>
-        <td><input type="number" min="0" step="0.01" value={values[category.idCategoria] ?? ''} onChange={(event) => setValues({ ...values, [category.idCategoria]: event.target.value })} /></td>
+        <td><input type="number" min="0" step="0.01" value={values[category.idCategoria]?.precioBase ?? ''} onChange={(event) => setCategoryValue(category.idCategoria, 'precioBase', event.target.value)} /></td>
+        <td><input type="number" min="0.0001" step="0.01" value={values[category.idCategoria]?.litrosPorKm ?? ''} onChange={(event) => setCategoryValue(category.idCategoria, 'litrosPorKm', event.target.value)} /></td>
         <td>{(category.priceHistory || []).slice(0, 3).map((entry) => <div key={entry.id}>${entry.precioBase} ({formatDate(entry.createdAt)})</div>)}</td>
         <td>
           <button className="btn btn-sm btn-secondary" onClick={() => setHistoryCategory(category)}>Ver historial completo</button>
-          <button className="btn btn-sm btn-primary" onClick={() => save(category)}>Guardar precio</button>
+          <button className="btn btn-sm btn-primary" onClick={() => save(category)}>Guardar cambios</button>
         </td>
       </tr>)}
     </tbody></table></div>

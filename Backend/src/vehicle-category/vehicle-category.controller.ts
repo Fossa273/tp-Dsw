@@ -11,4 +11,37 @@ async function updatePrice(req: Request, res: Response) {
   catch { res.status(404).json({ error: 'Categoria no encontrada' }); }
 }
 
-export { findAll, updatePrice };
+async function updateFuelConsumption(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  const litrosPorKm = Number(req.body.litrosPorKm);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: 'El identificador de categoria no es valido' });
+    return;
+  }
+  if (!Number.isFinite(litrosPorKm) || litrosPorKm <= 0) {
+    res.status(400).json({ error: 'El consumo debe ser un numero mayor a 0 litros por kilometro' });
+    return;
+  }
+  res.json(await repository.updateFuelConsumption(id, litrosPorKm));
+}
+
+async function updateSettings(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  const precioBase = Number(req.body.precioBase);
+  const litrosPorKm = Number(req.body.litrosPorKm);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: 'El identificador de categoria no es valido' });
+    return;
+  }
+  if (!Number.isFinite(precioBase) || precioBase < 0) {
+    res.status(400).json({ error: 'El precio base debe ser un numero mayor o igual a 0' });
+    return;
+  }
+  if (!Number.isFinite(litrosPorKm) || litrosPorKm <= 0) {
+    res.status(400).json({ error: 'El consumo debe ser un numero mayor a 0 litros por kilometro' });
+    return;
+  }
+  res.json(await repository.updateSettings(id, precioBase, litrosPorKm));
+}
+
+export { findAll, updatePrice, updateFuelConsumption, updateSettings };

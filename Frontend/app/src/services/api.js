@@ -155,10 +155,20 @@ export const api = {
   },
   vehicleCategories: {
     getAll: () => request('/vehicle-categories'),
+    updateSettings: (id, settings) =>
+      request(`/vehicle-categories/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(settings),
+      }),
     updatePrice: (id, precioBase) =>
       request(`/vehicle-categories/${id}/price`, {
         method: 'PATCH',
         body: JSON.stringify({ precioBase }),
+      }),
+    updateFuelConsumption: (id, litrosPorKm) =>
+      request(`/vehicle-categories/${id}/fuel-consumption`, {
+        method: 'PATCH',
+        body: JSON.stringify({ litrosPorKm }),
       }),
   },
 

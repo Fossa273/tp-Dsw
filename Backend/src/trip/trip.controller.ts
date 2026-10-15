@@ -4,19 +4,21 @@ import { TripData } from './trip.repository.js';
 import { JourneyRepository } from '../journey/journey.repository.js';
 import { DriverRepository } from '../driver/driver.repository.js';
 import { VehicleRepository } from '../vehicle/vehicle.repository.js';
+import { getYpfSuperPricePerLiter } from '../shared/fuel-price.service.js';
+import { calculateFuelCost } from '../shared/pricing.service.js';
+import { OPERATING_COST_MULTIPLIER } from '../shared/constants.js';
+import { computeArrival, computeArrivalDate } from '../shared/trip-time.service.js';
 
 const repository = new TripRepository();
 const journeyRepository = new JourneyRepository();
 const driverRepository = new DriverRepository();
 const vehicleRepository = new VehicleRepository();
-const FUEL_PRICE_PER_KM = Number(process.env.FUEL_PRICE_PER_KM ?? 100);
-const OPERATING_COST_MULTIPLIER = 1.4;
 
 function roundToNext100(value: number): number {
   return Math.ceil(value / 100) * 100;
 }
 
-function calculatePricePerPerson(trip: any) {
+function calculatePricePerPerson(trip: any, fuelPricePerLiter: number) {
   if (!trip?.vehicle?.categoryRelation) return null;
   const capacity = Number(trip.vehicle.maxCapacity);
   if (!Number.isFinite(capacity) || capacity <= 0) return null;
@@ -26,13 +28,35 @@ function calculatePricePerPerson(trip: any) {
     Number.isFinite(Number(trip.promoPrice)) &&
     (!trip.promoExpiry || trip.promoExpiry > new Date());
   if (promotionIsActive) return Number(trip.promoPrice);
-  const fuelCost = trip.journey.distanceKm * FUEL_PRICE_PER_KM;
+  const fuelCost = calculateFuelCost(
+    trip.journey.distanceKm,
+    trip.vehicle.categoryRelation.litrosPorKm,
+    fuelPricePerLiter
+  );
   const fuelCostPerSeat = (fuelCost * OPERATING_COST_MULTIPLIER) / capacity;
   return roundToNext100(fuelCostPerSeat + trip.vehicle.categoryRelation.precioBase);
 }
 
-function withPricePerPerson<T extends object>(trip: T) {
-  return { ...trip, pricePerPerson: calculatePricePerPerson(trip) };
+function withPricePerPerson<T extends {
+  journey: { durationMinutes: number };
+  departureTime: string;
+  scheduleType: string;
+  departureDate: Date | null;
+}>(trip: T, fuelPricePerLiter: number) {
+  const [hours, minutes] = trip.departureTime.split(':').slice(0, 2).map(Number);
+  const arrival = computeArrival(
+    hours * 60 + minutes,
+    trip.journey.durationMinutes
+  );
+  return {
+    ...trip,
+    arrivalTime: arrival.arrivalTime,
+    arrivesNextDay: arrival.arrivesNextDay,
+    arrivalDate: trip.scheduleType === 'specific' && trip.departureDate
+      ? computeArrivalDate(trip.departureDate, trip.journey.durationMinutes)
+      : null,
+    pricePerPerson: calculatePricePerPerson(trip, fuelPricePerLiter),
+  };
 }
 
 async function validateDependencies(
@@ -74,15 +98,6 @@ function minutesToTime(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
-// departure + duration -> arrivalTime and whether it lands on the next day.
-function computeArrival(departureMinutes: number, durationMinutes: number) {
-  const total = departureMinutes + durationMinutes;
-  return {
-    arrivalTime: minutesToTime(total >= 1440 ? total % 1440 : total),
-    arrivesNextDay: total >= 1440,
-  };
 }
 
 const DAYS: Record<string, number> = {
@@ -189,30 +204,34 @@ async function findAll(req: Request, res: Response) {
     ? String(req.query.sort)
     : 'schedule';
   const order = req.query.order === 'desc' ? 'desc' : 'asc';
+  const fuelPricePerLiter = await getYpfSuperPricePerLiter();
   if (req.query.page || req.query.limit || search) {
     const result = await repository.paginated(page, limit, undefined, search, sort, order);
-    res.json({ ...result, data: result.data.map(withPricePerPerson) });
+    res.json({ ...result, data: result.data.map((trip) => withPricePerPerson(trip, fuelPricePerLiter)) });
   } else {
-    res.json({ data: (await repository.findAll()).map(withPricePerPerson) });
+    res.json({ data: (await repository.findAll()).map((trip) => withPricePerPerson(trip, fuelPricePerLiter)) });
   }
 }
 
 async function findAllInactive(req: Request, res: Response) {
-  res.json({ data: (await repository.findAllInactive()).map(withPricePerPerson) });
+  const fuelPricePerLiter = await getYpfSuperPricePerLiter();
+  res.json({ data: (await repository.findAllInactive()).map((trip) => withPricePerPerson(trip, fuelPricePerLiter)) });
 }
 
 async function findOne(req: Request, res: Response) {
   const id = Number(req.params.id);
   const trip = await repository.findOne({ id });
   if (trip) {
-    res.json(withPricePerPerson(trip));
+    const fuelPricePerLiter = await getYpfSuperPricePerLiter();
+    res.json(withPricePerPerson(trip, fuelPricePerLiter));
   } else {
     res.status(404).json({ error: 'Viaje no encontrado' });
   }
 }
 
 async function findPromoted(_req: Request, res: Response) {
-  res.json({ data: (await repository.findPromoted()).map(withPricePerPerson) });
+  const fuelPricePerLiter = await getYpfSuperPricePerLiter();
+  res.json({ data: (await repository.findPromoted()).map((trip) => withPricePerPerson(trip, fuelPricePerLiter)) });
 }
 
 async function search(req: Request, res: Response) {
@@ -231,11 +250,9 @@ async function search(req: Request, res: Response) {
     }
     return true;
   });
+  const fuelPricePerLiter = await getYpfSuperPricePerLiter();
   res.json({
-    data: filtered.map((trip) => ({
-      ...trip,
-      pricePerPerson: calculatePricePerPerson(trip),
-    })),
+    data: filtered.map((trip) => withPricePerPerson(trip, fuelPricePerLiter)),
   });
 }
 

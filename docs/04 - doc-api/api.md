@@ -353,17 +353,27 @@ Elimina un vehículo si no tiene viajes dependientes.
 
 ### `GET /vehicle-categories`
 
-Lista categorías con su precio base e historial de precios.
+Lista categorías con su precio base, consumo en litros por kilómetro e historial
+de precios.
 
-### `PATCH /vehicle-categories/:id/price`
+### `PATCH /vehicle-categories/:id`
 
-Actualiza el precio base de una categoría.
+Actualiza el precio base y el consumo de una categoría en una sola operación.
+El cambio del precio base se registra en el historial; el consumo no genera
+historial.
 
 ```json
 {
-  "precioBase": 18000
+  "precioBase": 18000,
+  "litrosPorKm": 0.14
 }
 ```
+
+### `PATCH /vehicle-categories/:id/fuel-consumption`
+
+El precio de combustible se obtiene de la API de Naftas para YPF Súper en
+Capital Federal y se refresca cada 5 minutos. El costo de combustible de un
+viaje se calcula como `distanciaKm * litrosPorKm * precioPorLitro`.
 
 ## Viajes
 

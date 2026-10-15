@@ -27,7 +27,7 @@ const ADMIN_ITEMS = [
   {
     key: 'vehicle-categories',
     title: 'Categorias y precios',
-    description: 'Modificar precios base y consultar su historial.',
+    description: 'Configurar precios base y consumo de combustible por categoria.',
     iconClass: 'vehicles',
     icon: <span aria-hidden="true">$</span>,
   },

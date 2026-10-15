@@ -30,4 +30,4 @@ router.get('/:id', findOne);
 router.post('/', sanitizeClientInput, add);
 router.put('/:id', authenticate, requireSelfOrAdmin, sanitizeClientInput, update);
 router.patch('/:id', authenticate, requireSelfOrAdmin, sanitizeClientInput, update);
-router.delete('/:id', authenticate, requireRole('admin'), remove);
+router.delete('/:id', authenticate, requireSelfOrAdmin, remove);

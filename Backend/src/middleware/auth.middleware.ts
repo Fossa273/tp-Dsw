@@ -60,6 +60,15 @@ export function requireRole(role: AuthRole) {
   };
 }
 
+export function requireSelfOrAdmin(req: Request, res: Response, next: NextFunction) {
+  const requestedId = Number(req.params.id);
+  if (req.user?.role === 'admin' || req.user?.id === requestedId) {
+    next();
+    return;
+  }
+  res.status(403).json({ error: 'No tiene permisos para modificar este cliente' });
+}
+
 export function signAuthToken(user: AuthUser) {
   const options: SignOptions = {
     expiresIn: (process.env.JWT_EXPIRES_IN || '8h') as SignOptions['expiresIn'],

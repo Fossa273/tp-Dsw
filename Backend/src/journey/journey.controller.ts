@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import { JourneyRepository } from './journey.repository.js';
+import { TripRepository } from '../trip/trip.repository.js';
 import { LocalityRepository } from '../locality/locality.repository.js';
 import { getDistanceKm, durationFromDistance } from '../shared/maps.service.js';
 
 const repository = new JourneyRepository();
+const tripRepository = new TripRepository();
 const localityRepository = new LocalityRepository();
 
 // Validates that both referenced localities exist and are different.
@@ -271,6 +273,9 @@ async function update(req: Request, res: Response) {
     durationMinutes: duration,
   });
   if (updatedJourney) {
+    if (duration !== undefined && duration !== current.durationMinutes) {
+      await tripRepository.refreshArrivalsForJourney(id, updatedJourney.durationMinutes);
+    }
     res.status(200).json({
       ...updatedJourney,
       ...(warning ? { warning } : {}),

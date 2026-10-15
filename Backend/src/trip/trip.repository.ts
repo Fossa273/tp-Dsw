@@ -1,4 +1,5 @@
 import { prisma } from '../shared/db/connection.js';
+import { computeArrival, computeArrivalDate } from '../shared/trip-time.service.js';
 
 export interface TripData {
   id?: number;
@@ -44,6 +45,39 @@ const TRIP_INCLUDE = {
 } as const;
 
 export class TripRepository {
+  public async refreshArrivalsForJourney(journeyId: number, durationMinutes: number) {
+    await prisma.$transaction(async (tx) => {
+      const trips = await tx.trip.findMany({
+        where: { journeyId },
+        select: {
+          id: true,
+          scheduleType: true,
+          departureTime: true,
+          departureDate: true,
+        },
+      });
+
+      for (const trip of trips) {
+        const departureMinutes = trip.departureTime
+          .split(':')
+          .slice(0, 2)
+          .map(Number)
+          .reduce((hours, minutes) => hours * 60 + minutes, 0);
+        const arrival = computeArrival(departureMinutes, durationMinutes);
+        await tx.trip.update({
+          where: { id: trip.id },
+          data: {
+            arrivalTime: arrival.arrivalTime,
+            arrivesNextDay: arrival.arrivesNextDay,
+            arrivalDate: trip.scheduleType === 'specific' && trip.departureDate
+              ? computeArrivalDate(trip.departureDate, durationMinutes)
+              : null,
+          },
+        });
+      }
+    });
+  }
+
   // Active trips, recurring weekly schedule sorted by day, then departure time.
   public async findAll() {
     return prisma.trip.findMany({

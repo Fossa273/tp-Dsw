@@ -43,6 +43,7 @@ const TripsPage = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const msgTimer = useRef(null);
+  const formRef = useRef(null);
 
   const showMessage = (text, type = 'success') => {
     setMsg(text);
@@ -52,6 +53,12 @@ const TripsPage = () => {
   };
 
   useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
+
+  useEffect(() => {
+    if (editingId !== null) {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [editingId]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -189,7 +196,7 @@ const TripsPage = () => {
         </div>
       )}
 
-      {showCreateForm && <form className="crud-form" onSubmit={handleSubmit}>
+      {showCreateForm && <form ref={formRef} className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Viaje' : 'Nuevo Viaje'}</h2>
         <div className="form-row">
           <label htmlFor="viaje-ruta" className="form-label">

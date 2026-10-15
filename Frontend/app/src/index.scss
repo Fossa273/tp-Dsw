@@ -1149,13 +1149,18 @@ body {
 .crud-table .actions {
   display: table-cell;
   min-width: 110px;
-  text-align: right;
+  text-align: center;
   white-space: normal;
+  vertical-align: middle;
 }
 
 .crud-table .actions > * {
   margin: 2px;
   vertical-align: middle;
+}
+
+.crud-table:has(td.actions) th:last-child {
+  text-align: center;
 }
 
 .crud-table .actions .confirm-msg {

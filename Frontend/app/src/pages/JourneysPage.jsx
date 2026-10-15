@@ -56,6 +56,7 @@ const JourneysPage = () => {
   const [showInactive, setShowInactive] = useState(true);
   const [loadingInactive, setLoadingInactive] = useState(false);
   const msgTimer = useRef(null);
+  const formRef = useRef(null);
 
   const showMessage = (text, type = 'success') => {
     setMsg(text);
@@ -65,6 +66,12 @@ const JourneysPage = () => {
   };
 
   useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
+
+  useEffect(() => {
+    if (editingId !== null) {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [editingId]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -187,7 +194,7 @@ const JourneysPage = () => {
         </div>
       )}
 
-      {showCreateForm && <form className="crud-form" onSubmit={handleSubmit}>
+      {showCreateForm && <form ref={formRef} className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Trayecto' : 'Nuevo Trayecto'}</h2>
         <p className="profile-section-desc">
           La distancia se calcula automaticamente con OpenStreetMap y una

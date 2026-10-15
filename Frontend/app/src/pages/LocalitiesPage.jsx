@@ -36,8 +36,8 @@ const LocalitiesPage = () => {
   const [pendingName, setPendingName] = useState('');
   const [pendingEditId, setPendingEditId] = useState(null);
 
-
   const msgTimer = useRef(null);
+  const formRef = useRef(null);
 
   const showMessage = (text, type = 'success') => {
     setMsg(text);
@@ -47,6 +47,12 @@ const LocalitiesPage = () => {
   };
 
   useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
+
+  useEffect(() => {
+    if (editingId !== null) {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [editingId]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -218,7 +224,7 @@ const LocalitiesPage = () => {
         </div>
       )}
 
-      {showCreateForm && <form className="crud-form" onSubmit={handleSubmit}>
+      {showCreateForm && <form ref={formRef} className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Localidad' : 'Nueva Localidad'}</h2>
         <div className="form-row">
           <input

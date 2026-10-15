@@ -233,12 +233,20 @@ const DriversPage = () => {
         dni: draft.dni.trim(),
         phone: draft.phone.trim(),
       });
+      if (draft.active === '0') {
+        await remove(id);
+        await fetchInactive();
+      }
       setDrafts((prev) => {
         const next = { ...prev };
         delete next[String(id)];
         return next;
       });
-      showMessage('Datos actualizados correctamente');
+      showMessage(
+        draft.active === '0'
+          ? 'Conductor dado de baja correctamente'
+          : 'Datos actualizados correctamente',
+      );
     } catch (errMsg) {
       showMessage(errMsg.message, 'error');
     }
@@ -591,11 +599,24 @@ const DriversPage = () => {
                       )}
                     </td>
                     <td>
-                      <span
-                        className={`status-badge ${inactiveRow ? 'badge-inactive' : 'badge-active'}`}
-                      >
-                        {inactiveRow ? 'Inactivo' : 'Activo'}
-                      </span>
+                      {editing ? (
+                        <select
+                          className="inline-input"
+                          value={draft.active}
+                          onChange={(e) =>
+                            handleDraftChange(d.id, 'active', e.target.value)
+                          }
+                        >
+                          <option value="1">Activo</option>
+                          <option value="0">Inactivo</option>
+                        </select>
+                      ) : (
+                        <span
+                          className={`status-badge ${inactiveRow ? 'badge-inactive' : 'badge-active'}`}
+                        >
+                          {inactiveRow ? 'Inactivo' : 'Activo'}
+                        </span>
+                      )}
                     </td>
                     <td className="actions">
                       {inactiveRow ? (
@@ -650,6 +671,7 @@ const DriversPage = () => {
                                   lastName: d.lastName || '',
                                   dni: d.dni || '',
                                   phone: d.phone || '',
+                                  active: '1',
                                 },
                               }));
                             }}

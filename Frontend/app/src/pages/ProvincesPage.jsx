@@ -28,6 +28,7 @@ const ProvincesPage = () => {
   const [sort, setSort] = useState('name-asc');
 
   const msgTimer = useRef(null);
+  const formRef = useRef(null);
 
   const showMessage = (text, type = 'success') => {
     setMsg(text);
@@ -37,6 +38,12 @@ const ProvincesPage = () => {
   };
 
   useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
+
+  useEffect(() => {
+    if (editingId !== null) {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [editingId]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -149,7 +156,7 @@ const ProvincesPage = () => {
         </div>
       )}
 
-      {showCreateForm && <form className="crud-form" onSubmit={handleSubmit}>
+      {showCreateForm && <form ref={formRef} className="crud-form" onSubmit={handleSubmit}>
         <h2>{editingId ? 'Editar Provincia' : 'Nueva Provincia'}</h2>
         <div className="form-row">
           <input

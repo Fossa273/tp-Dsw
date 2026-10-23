@@ -3,6 +3,7 @@ import { useTrips } from '../hooks/useTrips';
 import { useJourneys } from '../hooks/useJourneys';
 import { useDrivers } from '../hooks/useDrivers';
 import { useVehicles } from '../hooks/useVehicles';
+import { api } from '../services/api';
 import { PlusIcon } from '../components/icons';
 import { formatDate } from '../utils/format';
 import { formatDateInput, maskDateInput, parseDateInput } from '../utils/dateInput';
@@ -42,6 +43,8 @@ const TripsPage = () => {
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('success');
   const [submitting, setSubmitting] = useState(false);
+  const [reservedSeats, setReservedSeats] = useState(null);
+  const [reservedSeatsError, setReservedSeatsError] = useState('');
 
   const msgTimer = useRef(null);
   const formRef = useRef(null);
@@ -54,6 +57,26 @@ const TripsPage = () => {
   };
 
   useEffect(() => () => { if (msgTimer.current) clearTimeout(msgTimer.current); }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadReservedSeats = async () => {
+      setReservedSeats(null);
+      setReservedSeatsError('');
+      if (trips.length === 0) {
+        setReservedSeats({});
+        return;
+      }
+      try {
+        const response = await api.bookings.seatsByTrips(trips.map((trip) => trip.id));
+        if (active) setReservedSeats(response.data || {});
+      } catch (loadError) {
+        if (active) setReservedSeatsError(loadError.message);
+      }
+    };
+    loadReservedSeats();
+    return () => { active = false; };
+  }, [trips]);
 
   useEffect(() => {
     if (editingId !== null) {
@@ -213,6 +236,11 @@ const TripsPage = () => {
           }`}
         >
           {msg}
+        </div>
+      )}
+      {reservedSeatsError && (
+        <div className="crud-message msg-error" role="alert">
+          No se pudo cargar la cantidad de asientos reservados: {reservedSeatsError}
         </div>
       )}
 
@@ -419,6 +447,7 @@ const TripsPage = () => {
               <th>Recorrido</th>
               <th>Conductor</th>
               <th>Vehiculo</th>
+              <th>Asientos reservados</th>
               <th>Precio unitario</th>
               <th>Salida</th>
               <th>Llegada</th>
@@ -434,6 +463,13 @@ const TripsPage = () => {
                 <td>{v.driver ? driverName(v.driver) : '-'}</td>
                 <td>
                   Unidad #{v.vehicle?.id ?? v.vehicleId} ({v.vehicle?.maxCapacity ?? '-'} asientos)
+                </td>
+                <td>
+                  {reservedSeatsError
+                    ? 'No disponible'
+                    : reservedSeats === null
+                      ? 'Cargando...'
+                      : `${reservedSeats[v.id] ?? 0}/${v.vehicle?.maxCapacity ?? '-'}`}
                 </td>
                 <td>
                   {v.pricePerPerson == null

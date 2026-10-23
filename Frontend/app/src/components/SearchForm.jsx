@@ -192,6 +192,12 @@ const SearchForm = ({ selectedPromotion }) => {
           errors[`${index}.${field}`] = 'Este campo es obligatorio.';
         }
       });
+      if (passenger.dni && !/^\d{7,8}$/.test(passenger.dni.trim())) {
+        errors[`${index}.dni`] = 'El DNI debe tener entre 7 y 8 digitos.';
+      }
+      if (passenger.phone && !/^\d{6,15}$/.test(passenger.phone.trim())) {
+        errors[`${index}.phone`] = 'El telefono debe tener entre 6 y 15 digitos.';
+      }
       if (
         passenger.email &&
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(passenger.email.trim())
@@ -470,6 +476,8 @@ const SearchForm = ({ selectedPromotion }) => {
                               id={`booking-${index}-${name}`}
                               name={name}
                               type={type}
+                              inputMode={name === 'dni' || name === 'phone' ? 'numeric' : undefined}
+                              maxLength={name === 'dni' ? 8 : name === 'phone' ? 15 : undefined}
                               value={passenger[name]}
                               onChange={(event) => handleBookingChange(index, event)}
                               aria-invalid={Boolean(fieldErrors[errorKey])}

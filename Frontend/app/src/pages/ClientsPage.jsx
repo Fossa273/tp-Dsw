@@ -51,6 +51,9 @@ const validateClient = (data, { requirePassword = false } = {}) => {
   if (String(data.phone).length < 6) {
     return 'El telefono debe tener al menos 6 digitos';
   }
+  if (String(data.phone).length > 15) {
+    return 'El telefono no puede tener mas de 15 digitos';
+  }
   if (requirePassword) {
     if (!data.password || String(data.password).length < 6) {
       return 'La contraseña debe tener al menos 6 caracteres';
@@ -64,7 +67,7 @@ const ClientsPage = () => {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('dni-asc');
   const { clients, pagination, loading, error, create, update, remove, refetch } =
-    useClients(page, 50, { search, sort: sort.startsWith('name') ? 'name' : 'dni', order: sort.endsWith('desc') ? 'desc' : 'asc' });
+    useClients(page, 20, { search, sort: sort.startsWith('name') ? 'name' : 'dni', order: sort.endsWith('desc') ? 'desc' : 'asc' });
 
   const [inactive, setInactive] = useState([]);
   const [showInactive, setShowInactive] = useState(true);
@@ -348,6 +351,9 @@ const ClientsPage = () => {
               <input
                 id="reg-phone"
                 name="phone"
+                type="tel"
+                inputMode="numeric"
+                maxLength="15"
                 placeholder="Solo numeros"
                 value={registerForm.phone}
                 onChange={handleRegisterChange}
@@ -361,6 +367,8 @@ const ClientsPage = () => {
               <input
                 id="reg-dni"
                 name="dni"
+                inputMode="numeric"
+                maxLength="8"
                 placeholder="DNI (solo numeros)"
                 value={registerForm.dni}
                 onChange={handleRegisterChange}
@@ -480,6 +488,8 @@ const ClientsPage = () => {
                       {editing ? (
                         <input
                           className="inline-input"
+                          inputMode="numeric"
+                          maxLength="8"
                           value={draft.dni}
                           onChange={(e) => handleDraftChange(c.id, 'dni', e.target.value)}
                         />
@@ -530,6 +540,9 @@ const ClientsPage = () => {
                       {editing ? (
                         <input
                           className="inline-input"
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength="15"
                           value={draft.phone}
                           onChange={(e) =>
                             handleDraftChange(c.id, 'phone', e.target.value)

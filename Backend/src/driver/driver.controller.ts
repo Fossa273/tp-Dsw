@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import { DriverRepository } from './driver.repository.js';
+import {
+  validateDni,
+  validatePersonContact,
+  validatePhone,
+} from '../shared/person-validation.js';
 
 const repository = new DriverRepository();
 
@@ -25,8 +30,13 @@ async function findOne(req: Request, res: Response) {
 async function add(req: Request, res: Response) {
   const { dni, firstName, lastName, phone } = req.body.sanitizeInput;
 
-  if (!dni) {
-    res.status(400).json({ error: 'El DNI es obligatorio' });
+  if (!dni || !phone) {
+    res.status(400).json({ error: 'El DNI y el telefono son obligatorios' });
+    return;
+  }
+  const contactError = validatePersonContact(dni, phone);
+  if (contactError) {
+    res.status(400).json({ error: contactError });
     return;
   }
 
@@ -43,6 +53,16 @@ async function add(req: Request, res: Response) {
 async function update(req: Request, res: Response) {
   const { dni, firstName, lastName, phone } = req.body.sanitizeInput;
   const id = Number(req.params.id);
+
+  if (dni !== undefined || phone !== undefined) {
+    const contactError =
+      (dni !== undefined ? validateDni(dni) : null) ||
+      (phone !== undefined ? validatePhone(phone) : null);
+    if (contactError) {
+      res.status(400).json({ error: contactError });
+      return;
+    }
+  }
 
   if (dni !== undefined) {
     const existing = await repository.findByDni(dni);

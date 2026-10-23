@@ -21,6 +21,18 @@ const DEFAULT_BODY = [
   '',
   'Gracias por viajar con RutaBus.',
 ].join('\n');
+const CANCELLATION_SUBJECT = 'Cancelacion de reserva #{{bookingId}}';
+const CANCELLATION_BODY = [
+  'Hola {{clientName}},',
+  '',
+  'Tu reserva #{{bookingId}} fue {{action}}.',
+  'Trayecto: {{origin}} -> {{destination}}',
+  'Salida: {{departure}}',
+  'Asientos: {{seats}}',
+  'Total: ${{price}}',
+  '',
+  'Si tenes alguna consulta, contactanos.',
+].join('\n');
 
 function createTransporter() {
   const user = process.env.SMTP_USER;
@@ -37,14 +49,19 @@ function createTransporter() {
   });
 }
 
-export async function getBookingEmailTemplate() {
+export async function getBookingEmailTemplate(templateId = 1) {
+  const isCancellationTemplate = templateId === 2;
   let template = await prisma.bookingEmailTemplate.findUnique({
-    where: { id: 1 },
+    where: { id: templateId },
     include: { attachments: true },
   });
   if (!template) {
     template = await prisma.bookingEmailTemplate.create({
-      data: { id: 1, subject: DEFAULT_SUBJECT, body: DEFAULT_BODY },
+      data: {
+        id: templateId,
+        subject: isCancellationTemplate ? CANCELLATION_SUBJECT : DEFAULT_SUBJECT,
+        body: isCancellationTemplate ? CANCELLATION_BODY : DEFAULT_BODY,
+      },
       include: { attachments: true },
     });
   }
@@ -55,9 +72,10 @@ export async function updateBookingEmailTemplate(
   subject: string,
   body: string,
   files: Express.Multer.File[],
+  templateId = 1,
 ) {
   await fs.mkdir(ATTACHMENTS_DIR, { recursive: true });
-  const current = await getBookingEmailTemplate();
+  const current = await getBookingEmailTemplate(templateId);
   const attachmentData = [];
   for (const file of files) {
     const filename = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -84,9 +102,9 @@ export async function updateBookingEmailTemplate(
   return updated;
 }
 
-export async function removeBookingEmailAttachment(id: number) {
+export async function removeBookingEmailAttachment(id: number, templateId = 1) {
   const attachment = await prisma.bookingEmailAttachment.findUnique({ where: { id } });
-  if (!attachment) return false;
+  if (!attachment || attachment.templateId !== templateId) return false;
   await prisma.bookingEmailAttachment.delete({ where: { id } });
   await fs.unlink(attachment.storagePath).catch(() => undefined);
   return true;
@@ -104,6 +122,19 @@ function formatEmailDate(value: Date | string | null | undefined) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   return `${day}/${month}/${date.getFullYear()} ${time}`;
+}
+
+export function getBookingEmailRecipients(booking: any) {
+  return [
+    booking.client?.email,
+    ...(booking.passengers ?? []).map((passenger: any) => passenger.email),
+    booking.passengerEmail,
+  ]
+    .map((email) => String(email ?? '').trim())
+    .filter((email, index, emails) =>
+      email &&
+      emails.findIndex((candidate) => candidate.toLowerCase() === email.toLowerCase()) === index
+    );
 }
 
 export async function sendBookingConfirmationEmail(booking: any, recipients: string[]) {
@@ -139,6 +170,73 @@ export async function sendBookingConfirmationEmail(booking: any, recipients: str
     text: render(template.body, values),
     attachments,
   });
+}
+
+export async function sendBookingCancellationEmail(
+  booking: any,
+  recipients: string[],
+  action: 'cancelada' | 'eliminada',
+) {
+  const template = await getBookingEmailTemplate(2);
+  const values = {
+    clientName: booking.client
+      ? `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim()
+      : `${booking.passengerFirstName || ''} ${booking.passengerLastName || ''}`.trim() || 'cliente',
+    bookingId: String(booking.id),
+    origin: booking.trip?.journey?.origin?.name || '-',
+    destination: booking.trip?.journey?.destination?.name || '-',
+    departure: booking.trip?.departureDate
+      ? formatEmailDate(booking.trip.departureDate)
+      : booking.trip?.departureTime || '-',
+    seats: String(booking.numSeats),
+    price: Number(booking.price || 0).toLocaleString('es-AR'),
+    action,
+  };
+  const transporter = createTransporter();
+  const attachments = await Promise.all(
+    template.attachments.map(async (attachment) => {
+      await fs.access(attachment.storagePath);
+      return {
+        filename: attachment.filename,
+        path: attachment.storagePath,
+        contentType: attachment.mimeType,
+      };
+    }),
+  );
+  await Promise.all(
+    recipients.map((recipient) =>
+      transporter.sendMail({
+        from: process.env.MAIL_FROM || process.env.SMTP_USER,
+        to: recipient,
+        subject: render(template.subject, values),
+        text: render(template.body, values),
+        attachments,
+      }),
+    ),
+  );
+}
+
+export async function sendBookingCancellationNotice(
+  booking: any,
+  action: 'cancelada' | 'eliminada',
+) {
+  const recipients = getBookingEmailRecipients(booking);
+  if (recipients.length === 0) {
+    return `La reserva fue ${action}, pero no tiene emails de destino`;
+  }
+  try {
+    await sendBookingCancellationEmail(booking, recipients, action);
+    return null;
+  } catch (error) {
+    console.error(`[EMAIL] No se pudo enviar el aviso de reserva ${action}:`, error);
+    const responseCode =
+      typeof error === 'object' && error !== null && 'responseCode' in error
+        ? Number(error.responseCode)
+        : null;
+    return responseCode === 535
+      ? `La reserva fue ${action}, pero Gmail rechazo las credenciales SMTP. Configure una contrasena de aplicacion.`
+      : `La reserva fue ${action}, pero no se pudo enviar el email`;
+  }
 }
 
 export { DEFAULT_BODY, DEFAULT_SUBJECT };

@@ -208,6 +208,7 @@ const VehiclesPage = () => {
         <table className="crud-table">
           <thead>
             <tr>
+              <th>ID</th>
               <th>Capacidad Maxima</th>
               <th>Categoria (precio base)</th>
               <th>Baño</th>
@@ -218,6 +219,7 @@ const VehiclesPage = () => {
           <tbody>
             {filtered.map((v) => (
               <tr key={v.id}>
+                <td>{v.id}</td>
                 <td>{v.maxCapacity} pasajeros</td>
                 <td>{v.categoryRelation?.nombreCategoria || '-'} (${v.categoryRelation?.precioBase ?? '-'})</td>
                 <td>{v.hasBathroom ? 'Si' : 'No'}</td>

@@ -4,7 +4,7 @@ import { useClients } from '../hooks/useClients';
 import { useTrips } from '../hooks/useTrips';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { CloseIcon, MailIcon, PencilIcon, PlusIcon } from '../components/icons';
+import { MailIcon, MailOffIcon, PencilIcon, PlusIcon } from '../components/icons';
 import { formatDate } from '../utils/format';
 
 function parseDateFilter(value) {
@@ -74,6 +74,89 @@ const tripDepartureDate = (trip) => {
   return departure.toISOString();
 };
 
+function BookingEmailTemplateEditor({
+  idPrefix,
+  title,
+  description,
+  template,
+  form,
+  setForm,
+  files,
+  setFiles,
+  saving,
+  onSubmit,
+  onDeleteAttachment,
+}) {
+  return (
+    <form className="crud-form booking-email-template" onSubmit={onSubmit}>
+      <h2>{title}</h2>
+      <p className="profile-section-desc">{description}</p>
+      <div className="form-row">
+        <label className="form-label" htmlFor={`${idPrefix}-subject`}>Asunto</label>
+        <input
+          id={`${idPrefix}-subject`}
+          value={form.subject}
+          onChange={(event) => setForm({ ...form, subject: event.target.value })}
+          required
+        />
+      </div>
+      <div className="form-row">
+        <label className="form-label" htmlFor={`${idPrefix}-body`}>Mensaje</label>
+        <textarea
+          id={`${idPrefix}-body`}
+          rows="9"
+          value={form.body}
+          onChange={(event) => setForm({ ...form, body: event.target.value })}
+          required
+        />
+      </div>
+      <div className="form-row">
+        <span className="form-label">Adjuntos</span>
+        <label className="file-upload-control" htmlFor={`${idPrefix}-files`}>
+          <span className="btn btn-secondary">Seleccionar archivos</span>
+          <span className="file-upload-name">
+            {files.length
+              ? `${files.length} archivo(s) seleccionado(s)`
+              : 'Ningún archivo seleccionado'}
+          </span>
+        </label>
+        <input
+          id={`${idPrefix}-files`}
+          className="file-upload-input"
+          type="file"
+          multiple
+          accept="image/*,.pdf"
+          onChange={(event) => setFiles(Array.from(event.target.files || []))}
+        />
+        <small className="form-help">
+          Podés adjuntar imágenes o PDF (hasta 5 archivos de 10 MB).
+        </small>
+      </div>
+      {template.attachments?.length > 0 && (
+        <ul className="booking-email-attachments">
+          {template.attachments.map((attachment) => (
+            <li key={attachment.id}>
+              <span>{attachment.filename}</span>
+              <button
+                type="button"
+                className="btn btn-sm btn-delete"
+                onClick={() => onDeleteAttachment(attachment.id)}
+              >
+                Quitar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="form-actions">
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? 'Guardando...' : 'Guardar mensaje'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 const BookingsPage = () => {
   const { user, isAdmin } = useAuth();
   const [page, setPage] = useState(1);
@@ -89,16 +172,18 @@ const BookingsPage = () => {
     confirmed: true,
     cancelled: true,
   });
-  const { bookings, pagination, loading, error, create, update, remove, refetch } =
+  const [showCompletedTrips, setShowCompletedTrips] = useState(true);
+  const { bookings, pagination, loading, error, create, update, refetch } =
     useBookings(
       isAdmin ? undefined : user?.id,
       page,
-      50,
+      20,
       {
         search: search.trim(),
         states: Object.entries(visibleStates)
           .filter(([, visible]) => visible)
           .map(([state]) => state),
+        includeCompleted: showCompletedTrips,
         dateFrom,
         dateTo,
       },
@@ -112,7 +197,6 @@ const BookingsPage = () => {
     numSeats: '',
     state: 'pending',
   });
-  const [pendingDelete, setPendingDelete] = useState(null);
   const [editingState, setEditingState] = useState(null);
   const [pendingCancel, setPendingCancel] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -121,10 +205,15 @@ const BookingsPage = () => {
   const [formErrors, setFormErrors] = useState({});
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEmailTemplate, setShowEmailTemplate] = useState(false);
+  const [showCancellationEmailTemplate, setShowCancellationEmailTemplate] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState(null);
   const [templateForm, setTemplateForm] = useState({ subject: '', body: '' });
   const [templateFiles, setTemplateFiles] = useState([]);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [cancellationEmailTemplate, setCancellationEmailTemplate] = useState(null);
+  const [cancellationTemplateForm, setCancellationTemplateForm] = useState({ subject: '', body: '' });
+  const [cancellationTemplateFiles, setCancellationTemplateFiles] = useState([]);
+  const [savingCancellationTemplate, setSavingCancellationTemplate] = useState(false);
 
   const [selectedBooking, setSelectedBooking] = useState(null);
   const msgTimer = useRef(null);
@@ -145,39 +234,60 @@ const BookingsPage = () => {
 
   useEffect(() => {
     if (!isAdmin) return;
-    api.bookings.getEmailTemplate()
-      .then((template) => {
-        setEmailTemplate(template);
-        setTemplateForm({ subject: template.subject, body: template.body });
+    Promise.all([
+      api.bookings.getEmailTemplate(),
+      api.bookings.getCancellationEmailTemplate(),
+    ])
+      .then(([confirmationTemplate, cancellationTemplate]) => {
+        setEmailTemplate(confirmationTemplate);
+        setTemplateForm({ subject: confirmationTemplate.subject, body: confirmationTemplate.body });
+        setCancellationEmailTemplate(cancellationTemplate);
+        setCancellationTemplateForm({
+          subject: cancellationTemplate.subject,
+          body: cancellationTemplate.body,
+        });
       })
       .catch((err) => showMessage(err.message, 'error'));
   }, [isAdmin]);
 
-  const saveEmailTemplate = async (event) => {
+  const saveTemplate = async (event, isCancellation) => {
     event.preventDefault();
+    const form = isCancellation ? cancellationTemplateForm : templateForm;
+    const files = isCancellation ? cancellationTemplateFiles : templateFiles;
+    const setSaving = isCancellation ? setSavingCancellationTemplate : setSavingTemplate;
+    const setSavedTemplate = isCancellation
+      ? setCancellationEmailTemplate
+      : setEmailTemplate;
+    const setSelectedFiles = isCancellation ? setCancellationTemplateFiles : setTemplateFiles;
     try {
-      setSavingTemplate(true);
-      const saved = await api.bookings.updateEmailTemplate({
-        ...templateForm,
-        attachments: templateFiles,
-      });
-      setEmailTemplate(saved);
-      setTemplateFiles([]);
+      setSaving(true);
+      const saved = isCancellation
+        ? await api.bookings.updateCancellationEmailTemplate({ ...form, attachments: files })
+        : await api.bookings.updateEmailTemplate({ ...form, attachments: files });
+      setSavedTemplate(saved);
+      setSelectedFiles([]);
       event.target.reset();
-      showMessage('Mensaje de confirmacion actualizado correctamente');
+      showMessage(
+        `Mensaje de ${isCancellation ? 'cancelacion' : 'confirmacion'} actualizado correctamente`,
+      );
     } catch (err) {
       showMessage(err.message, 'error');
     } finally {
-      setSavingTemplate(false);
+      setSaving(false);
     }
   };
 
-  const deleteEmailAttachment = async (id) => {
+  const deleteEmailAttachment = async (id, isCancellation = false) => {
     try {
-      const saved = await api.bookings.deleteEmailAttachment(id);
+      const saved = isCancellation
+        ? await api.bookings.deleteCancellationEmailAttachment(id)
+        : await api.bookings.deleteEmailAttachment(id);
       if (saved) {
-        const template = await api.bookings.getEmailTemplate();
-        setEmailTemplate(template);
+        const template = isCancellation
+          ? await api.bookings.getCancellationEmailTemplate()
+          : await api.bookings.getEmailTemplate();
+        if (isCancellation) setCancellationEmailTemplate(template);
+        else setEmailTemplate(template);
       }
       showMessage('Adjunto eliminado correctamente');
     } catch (err) {
@@ -224,20 +334,6 @@ const BookingsPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (pendingDelete !== id) {
-      setPendingDelete(id);
-      return;
-    }
-    setPendingDelete(null);
-    try {
-      await remove(id);
-      showMessage('Reserva eliminada correctamente');
-    } catch (err) {
-      showMessage(err.message, 'error');
-    }
-  };
-
   const handleCancelBooking = async (id) => {
     if (pendingCancel !== id) {
       setPendingCancel(id);
@@ -245,9 +341,12 @@ const BookingsPage = () => {
     }
     setPendingCancel(null);
     try {
-      await api.bookings.cancel(id, user.id);
+      const result = await api.bookings.cancel(id, user.id);
       await refetch();
-      showMessage('Reserva cancelada correctamente');
+      showMessage(
+        result?.warning || 'Reserva cancelada correctamente',
+        result?.warning ? 'error' : 'success',
+      );
     } catch (err) {
       showMessage(err.message, 'error');
     }
@@ -270,7 +369,6 @@ const BookingsPage = () => {
   };
 
   const startStateEdit = (booking) => {
-    setPendingDelete(null);
     setEditingState({ id: booking.id, state: booking.state || 'pending' });
   };
 
@@ -289,7 +387,6 @@ const BookingsPage = () => {
   const goToPage = (nextPage) => {
     if (nextPage < 1 || nextPage > pagination.totalPages) return;
     setPage(nextPage);
-    setPendingDelete(null);
     setPendingCancel(null);
     setEditingState(null);
   };
@@ -343,9 +440,24 @@ const BookingsPage = () => {
               className="btn btn-primary btn-icon-only"
               aria-label={showEmailTemplate ? 'Cerrar mensaje de confirmacion' : 'Editar mensaje de confirmacion'}
               title={showEmailTemplate ? 'Cerrar mensaje' : 'Editar mensaje de confirmacion'}
-              onClick={() => setShowEmailTemplate((current) => !current)}
+              onClick={() => {
+                setShowEmailTemplate((current) => !current);
+                setShowCancellationEmailTemplate(false);
+              }}
             >
               <MailIcon />
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-icon-only"
+              aria-label={showCancellationEmailTemplate ? 'Cerrar mensaje de cancelacion' : 'Editar mensaje de cancelacion'}
+              title={showCancellationEmailTemplate ? 'Cerrar mensaje' : 'Editar mensaje de cancelacion'}
+              onClick={() => {
+                setShowCancellationEmailTemplate((current) => !current);
+                setShowEmailTemplate(false);
+              }}
+            >
+              <MailOffIcon />
             </button>
           </div>
         )}
@@ -362,76 +474,35 @@ const BookingsPage = () => {
       )}
 
       {isAdmin && emailTemplate && showEmailTemplate && (
-        <form className="crud-form booking-email-template" onSubmit={saveEmailTemplate}>
-          <h2>Mensaje de confirmacion por email</h2>
-          <p className="profile-section-desc">
-            Se enviara unicamente cuando una reserva pase al estado Confirmada.
-            Variables disponibles: {'{{clientName}}'}, {'{{bookingId}}'}, {'{{origin}}'},
-            {'{{destination}}'}, {'{{departure}}'}, {'{{seats}}'} y {'{{price}}'}.
-          </p>
-          <div className="form-row">
-            <label className="form-label" htmlFor="booking-email-subject">Asunto</label>
-            <input
-              id="booking-email-subject"
-              value={templateForm.subject}
-              onChange={(event) => setTemplateForm({ ...templateForm, subject: event.target.value })}
-              required
-            />
-          </div>
-          <div className="form-row">
-            <label className="form-label" htmlFor="booking-email-body">Mensaje</label>
-            <textarea
-              id="booking-email-body"
-              rows="9"
-              value={templateForm.body}
-              onChange={(event) => setTemplateForm({ ...templateForm, body: event.target.value })}
-              required
-            />
-          </div>
-          <div className="form-row">
-            <span className="form-label">Adjuntos</span>
-            <label className="file-upload-control" htmlFor="booking-email-files">
-              <span className="btn btn-secondary">Seleccionar archivos</span>
-              <span className="file-upload-name">
-                {templateFiles.length
-                  ? `${templateFiles.length} archivo(s) seleccionado(s)`
-                  : 'Ningún archivo seleccionado'}
-              </span>
-            </label>
-            <input
-              id="booking-email-files"
-              className="file-upload-input"
-              type="file"
-              multiple
-              accept="image/*,.pdf"
-              onChange={(event) => setTemplateFiles(Array.from(event.target.files || []))}
-            />
-            <small className="form-help">
-              Podés adjuntar imágenes o PDF (hasta 5 archivos de 10 MB).
-            </small>
-          </div>
-          {emailTemplate.attachments?.length > 0 && (
-            <ul className="booking-email-attachments">
-              {emailTemplate.attachments.map((attachment) => (
-                <li key={attachment.id}>
-                  <span>{attachment.filename}</span>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-delete"
-                    onClick={() => deleteEmailAttachment(attachment.id)}
-                  >
-                    Quitar
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary" disabled={savingTemplate}>
-              {savingTemplate ? 'Guardando...' : 'Guardar mensaje'}
-            </button>
-          </div>
-        </form>
+        <BookingEmailTemplateEditor
+          idPrefix="booking-confirmation-email"
+          title="Mensaje de confirmacion por email"
+          description={<>Se enviara cuando una reserva pase al estado Confirmada. Variables disponibles: {'{{clientName}}'}, {'{{bookingId}}'}, {'{{origin}}'}, {'{{destination}}'}, {'{{departure}}'}, {'{{seats}}'} y {'{{price}}'}.</>}
+          template={emailTemplate}
+          form={templateForm}
+          setForm={setTemplateForm}
+          files={templateFiles}
+          setFiles={setTemplateFiles}
+          saving={savingTemplate}
+          onSubmit={(event) => saveTemplate(event, false)}
+          onDeleteAttachment={(id) => deleteEmailAttachment(id)}
+        />
+      )}
+
+      {isAdmin && cancellationEmailTemplate && showCancellationEmailTemplate && (
+        <BookingEmailTemplateEditor
+          idPrefix="booking-cancellation-email"
+          title="Mensaje de cancelacion/eliminacion por email"
+          description={<>Se enviara a cada email asociado cuando se cancele una reserva o se elimine su viaje. Variables disponibles: {'{{clientName}}'}, {'{{bookingId}}'}, {'{{origin}}'}, {'{{destination}}'}, {'{{departure}}'}, {'{{seats}}'}, {'{{price}}'} y {'{{action}}'}.</>}
+          template={cancellationEmailTemplate}
+          form={cancellationTemplateForm}
+          setForm={setCancellationTemplateForm}
+          files={cancellationTemplateFiles}
+          setFiles={setCancellationTemplateFiles}
+          saving={savingCancellationTemplate}
+          onSubmit={(event) => saveTemplate(event, true)}
+          onDeleteAttachment={(id) => deleteEmailAttachment(id, true)}
+        />
       )}
 
       {error && (
@@ -575,6 +646,17 @@ const BookingsPage = () => {
               {option.label}
             </label>
           ))}
+          <label className="booking-filter">
+            <input
+              type="checkbox"
+              checked={showCompletedTrips}
+              onChange={() => {
+                setShowCompletedTrips((visible) => !visible);
+                setPage(1);
+              }}
+            />
+            Viajes finalizados
+          </label>
         </div>
         <div className="booking-date-filters" aria-label="Filtrar reservas por fecha de viaje">
           <label>
@@ -789,24 +871,6 @@ const BookingsPage = () => {
                         Cancelar
                       </button>
                     )
-                  ) : pendingDelete === r.id ? (
-                    <>
-                      <span className="confirm-msg">
-                        ¿Eliminar esta reserva?
-                      </span>
-                      <button
-                        className="btn btn-sm btn-delete"
-                        onClick={() => handleDelete(r.id)}
-                      >
-                        Confirmar
-                      </button>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => setPendingDelete(null)}
-                      >
-                        Cancelar
-                      </button>
-                    </>
                   ) : (
                     <>
                       {editingState?.id === r.id ? (
@@ -836,14 +900,6 @@ const BookingsPage = () => {
                           <PencilIcon />
                         </button>
                       )}
-                      <button
-                        className="btn btn-sm btn-delete btn-icon-only"
-                        aria-label="Eliminar reserva"
-                        title="Eliminar reserva"
-                        onClick={() => handleDelete(r.id)}
-                      >
-                        <CloseIcon />
-                      </button>
                     </>
                   )}
                 </td>

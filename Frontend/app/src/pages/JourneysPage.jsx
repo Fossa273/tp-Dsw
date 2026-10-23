@@ -35,7 +35,7 @@ const JourneysPage = () => {
     remove,
     reactivate,
     refetch,
-  } = useJourneys(page, 50, {
+  } = useJourneys(page, 20, {
     search,
     sort: sort.startsWith('distance') ? 'distanceKm' : 'durationMinutes',
     order: sort.endsWith('desc') ? 'desc' : 'asc',

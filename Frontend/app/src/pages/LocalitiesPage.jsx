@@ -20,7 +20,7 @@ const LocalitiesPage = () => {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('name-asc');
   const { localities, pagination, loading, error, refetch } = useLocalities(
-    page, 50, { search, sort: 'name', order: sort.endsWith('desc') ? 'desc' : 'asc' },
+    page, 20, { search, sort: 'name', order: sort.endsWith('desc') ? 'desc' : 'asc' },
   );
   const { provinces, loading: loadingProvinces } = useProvinces();
 

@@ -34,3 +34,27 @@ export async function deleteAttachment(req: Request, res: Response) {
   }
   res.json({ message: 'Adjunto eliminado' });
 }
+
+export async function getCancellationTemplate(_req: Request, res: Response) {
+  res.json(await getBookingEmailTemplate(2));
+}
+
+export async function updateCancellationTemplate(req: Request, res: Response) {
+  const subject = String(req.body.subject || '').trim();
+  const body = String(req.body.body || '').trim();
+  if (!subject || !body) {
+    res.status(400).json({ error: 'El asunto y el mensaje son obligatorios' });
+    return;
+  }
+  const files = (req.files || []) as Express.Multer.File[];
+  res.json(await updateBookingEmailTemplate(subject, body, files, 2));
+}
+
+export async function deleteCancellationAttachment(req: Request, res: Response) {
+  const removed = await removeBookingEmailAttachment(Number(req.params.id), 2);
+  if (!removed) {
+    res.status(404).json({ error: 'Adjunto no encontrado' });
+    return;
+  }
+  res.json({ message: 'Adjunto eliminado' });
+}

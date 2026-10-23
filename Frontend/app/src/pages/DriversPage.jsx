@@ -40,6 +40,9 @@ const validateDriver = (data) => {
   if (String(data.phone).length < 6) {
     return 'El telefono debe tener al menos 6 digitos';
   }
+  if (String(data.phone).length > 15) {
+    return 'El telefono no puede tener mas de 15 digitos';
+  }
   return null;
 };
 
@@ -417,6 +420,8 @@ const DriversPage = () => {
               <input
                 id="reg-dni"
                 name="dni"
+                inputMode="numeric"
+                maxLength="8"
                 placeholder="DNI (solo numeros)"
                 value={registerForm.dni}
                 onChange={handleRegisterChange}
@@ -428,6 +433,9 @@ const DriversPage = () => {
               <input
                 id="reg-phone"
                 name="phone"
+                type="tel"
+                inputMode="numeric"
+                maxLength="15"
                 placeholder="Solo numeros"
                 value={registerForm.phone}
                 onChange={handleRegisterChange}
@@ -550,6 +558,8 @@ const DriversPage = () => {
                       {editing ? (
                         <input
                           className="inline-input"
+                          inputMode="numeric"
+                          maxLength="8"
                           value={draft.dni}
                           onChange={(e) =>
                             handleDraftChange(d.id, 'dni', e.target.value)
@@ -589,6 +599,9 @@ const DriversPage = () => {
                       {editing ? (
                         <input
                           className="inline-input"
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength="15"
                           value={draft.phone}
                           onChange={(e) =>
                             handleDraftChange(d.id, 'phone', e.target.value)

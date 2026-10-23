@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useClients(page, limit = 50, filters = {}) {
+export function useClients(page, limit = 20, filters = {}) {
   const { search = '', sort = '', order = '' } = filters;
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);

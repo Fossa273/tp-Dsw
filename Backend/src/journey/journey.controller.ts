@@ -51,7 +51,7 @@ function normalizePositiveInt(value: unknown, fallback: number) {
 
 async function findAll(req: Request, res: Response) {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 20));
   const search = typeof req.query.search === 'string' ? req.query.search : '';
   const sort = ['id', 'distanceKm', 'durationMinutes'].includes(String(req.query.sort)) ? String(req.query.sort) : 'id';
   const order = req.query.order === 'desc' ? 'desc' : 'asc';

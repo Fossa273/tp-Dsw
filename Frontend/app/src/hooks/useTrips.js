@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useTrips(page, limit = 50, filters = {}) {
+export function useTrips(page, limit = 20, filters = {}) {
   const { search = '', sort = '', order = '' } = filters;
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,8 +39,9 @@ export function useTrips(page, limit = 50, filters = {}) {
   };
 
   const remove = async (id) => {
-    await api.trips.delete(id);
+    const res = await api.trips.delete(id);
     await fetchAll();
+    return res;
   };
 
   return {

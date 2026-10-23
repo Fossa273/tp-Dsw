@@ -55,6 +55,14 @@ export const MailIcon = () => (
   </svg>
 );
 
+export const MailOffIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="M22 7l-10 6L2 7" />
+    <line x1="3" y1="21" x2="21" y2="3" />
+  </svg>
+);
+
 export const LockIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <rect x="3" y="11" width="18" height="11" rx="2" />

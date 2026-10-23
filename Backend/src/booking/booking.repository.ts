@@ -81,6 +81,7 @@ export class BookingRepository {
       states?: string[];
       dateFrom?: Date;
       dateTo?: Date;
+      includeCompleted?: boolean;
     } = {},
   ) {
     const skip = (page - 1) * limit;
@@ -89,13 +90,28 @@ export class BookingRepository {
     const where = {
       ...(clientId === undefined ? {} : { clientId }),
       ...(filters.states ? { state: { in: filters.states } } : {}),
-      ...(filters.dateFrom || filters.dateTo
+      ...(filters.dateFrom || filters.dateTo || filters.includeCompleted === false
         ? {
             trip: {
-              departureDate: {
-                ...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
-                ...(filters.dateTo ? { lte: filters.dateTo } : {}),
-              },
+              AND: [
+                ...(filters.dateFrom || filters.dateTo
+                  ? [{
+                      departureDate: {
+                        ...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
+                        ...(filters.dateTo ? { lte: filters.dateTo } : {}),
+                      },
+                    }]
+                  : []),
+                ...(filters.includeCompleted === false
+                  ? [{
+                      OR: [
+                        { scheduleType: { not: 'specific' } },
+                        { arrivalDate: null },
+                        { arrivalDate: { gt: new Date() } },
+                      ],
+                    }]
+                  : []),
+              ],
             },
           }
         : {}),
@@ -128,6 +144,14 @@ export class BookingRepository {
     return prisma.booking.findUnique({
       where: { id: item.id },
       include: BOOKING_INCLUDE,
+    });
+  }
+
+  public async findByTripId(tripId: number) {
+    return prisma.booking.findMany({
+      where: { tripId },
+      include: BOOKING_INCLUDE,
+      orderBy: { id: 'asc' },
     });
   }
 
@@ -227,10 +251,6 @@ export class BookingRepository {
       data,
       include: BOOKING_INCLUDE,
     });
-  }
-
-  public async delete(item: { id: number }) {
-    return prisma.booking.delete({ where: { id: item.id } });
   }
 
   public async seatsByTripIds(tripIds: number[]) {

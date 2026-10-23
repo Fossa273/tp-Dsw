@@ -253,7 +253,7 @@ export const api = {
   },
 
   bookings: {
-    getAll: (clientId, { page, limit, search, states, dateFrom, dateTo } = {}) => {
+    getAll: (clientId, { page, limit, search, states, dateFrom, dateTo, includeCompleted } = {}) => {
       const qs = new URLSearchParams();
       if (clientId) qs.set('clientId', clientId);
       if (page) qs.set('page', page);
@@ -262,6 +262,9 @@ export const api = {
       if (Array.isArray(states)) qs.set('states', states.join(','));
       if (dateFrom) qs.set('dateFrom', dateFrom);
       if (dateTo) qs.set('dateTo', dateTo);
+      if (includeCompleted !== undefined) {
+        qs.set('includeCompleted', String(includeCompleted));
+      }
       const query = qs.toString();
       return request(query ? `/bookings?${query}` : '/bookings');
     },
@@ -283,7 +286,6 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ clientId }),
       }),
-    delete: (id) => request(`/bookings/${id}`, { method: 'DELETE' }),
     getEmailTemplate: () => request('/bookings/email-template'),
     updateEmailTemplate: ({ subject, body, attachments }) => {
       const formData = new FormData();
@@ -298,5 +300,22 @@ export const api = {
     },
     deleteEmailAttachment: (id) =>
       request(`/bookings/email-template/attachments/${id}`, { method: 'DELETE' }),
+    getCancellationEmailTemplate: () =>
+      request('/bookings/email-template/cancellation'),
+    updateCancellationEmailTemplate: ({ subject, body, attachments }) => {
+      const formData = new FormData();
+      formData.append('subject', subject);
+      formData.append('body', body);
+      attachments.forEach((file) => formData.append('attachments', file));
+      return request('/bookings/email-template/cancellation', {
+        method: 'PUT',
+        headers: {},
+        body: formData,
+      });
+    },
+    deleteCancellationEmailAttachment: (id) =>
+      request(`/bookings/email-template/cancellation/attachments/${id}`, {
+        method: 'DELETE',
+      }),
   },
 };

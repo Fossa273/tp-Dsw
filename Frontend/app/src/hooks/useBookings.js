@@ -2,8 +2,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useBookings(clientId, page = 1, limit = 50, filters = {}) {
-  const { search = '', states, dateFrom = '', dateTo = '' } = filters;
+export function useBookings(clientId, page = 1, limit = 20, filters = {}) {
+  const {
+    search = '',
+    states,
+    dateFrom = '',
+    dateTo = '',
+    includeCompleted = true,
+  } = filters;
   const statesKey = Array.isArray(states) ? states.join(',') : '';
   const statesProvided = Array.isArray(states);
   const [bookings, setBookings] = useState([]);
@@ -26,6 +32,7 @@ export function useBookings(clientId, page = 1, limit = 50, filters = {}) {
         states: statesProvided
           ? (statesKey ? statesKey.split(',') : [])
           : undefined,
+        includeCompleted,
         dateFrom,
         dateTo,
       });
@@ -42,7 +49,7 @@ export function useBookings(clientId, page = 1, limit = 50, filters = {}) {
     } finally {
       setLoading(false);
     }
-  }, [clientId, page, limit, search, statesKey, statesProvided, dateFrom, dateTo]);
+  }, [clientId, page, limit, search, statesKey, statesProvided, includeCompleted, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchAll();
@@ -60,11 +67,6 @@ export function useBookings(clientId, page = 1, limit = 50, filters = {}) {
     return res;
   };
 
-  const remove = async (id) => {
-    await api.bookings.delete(id);
-    await fetchAll();
-  };
-
   const retry = async () => {
     await fetchAll();
   };
@@ -76,7 +78,6 @@ export function useBookings(clientId, page = 1, limit = 50, filters = {}) {
     error,
     create,
     update,
-    remove,
     refetch: retry,
   };
 }

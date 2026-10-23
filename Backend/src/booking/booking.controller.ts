@@ -2,10 +2,15 @@ import { Request, Response } from 'express';
 import { BookingRepository } from './booking.repository.js';
 import { ClientRepository } from '../client/client.repository.js';
 import { TripRepository } from '../trip/trip.repository.js';
-import { sendBookingConfirmationEmail } from './booking-email.service.js';
+import {
+  sendBookingCancellationNotice,
+  getBookingEmailRecipients,
+  sendBookingConfirmationEmail,
+} from './booking-email.service.js';
 import { getYpfSuperPricePerLiter } from '../shared/fuel-price.service.js';
 import { calculateFuelCost } from '../shared/pricing.service.js';
 import { OPERATING_COST_MULTIPLIER } from '../shared/constants.js';
+import { validatePersonContact } from '../shared/person-validation.js';
 
 const repository = new BookingRepository();
 const clientRepository = new ClientRepository();
@@ -126,8 +131,8 @@ async function findAll(req: Request, res: Response) {
     ? requestedPage
     : 1;
   const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
-    ? Math.min(requestedLimit, 100)
-    : 50;
+    ? Math.min(requestedLimit, 20)
+    : 20;
   const normalizedClientId = req.user?.role === 'admin'
     ? (Number.isInteger(clientId) ? clientId : undefined)
     : req.user?.id;
@@ -141,9 +146,11 @@ async function findAll(req: Request, res: Response) {
     ? new Date(`${req.query.dateTo}T23:59:59.999`)
     : undefined;
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+  const includeCompleted = req.query.includeCompleted !== 'false';
   res.json(await repository.paginated(page, limit, normalizedClientId, {
     search,
     states,
+    includeCompleted,
     dateFrom: dateFrom && !Number.isNaN(dateFrom.getTime()) ? dateFrom : undefined,
     dateTo: dateTo && !Number.isNaN(dateTo.getTime()) ? dateTo : undefined,
   }));
@@ -217,6 +224,11 @@ async function add(req: Request, res: Response) {
         res.status(400).json({ error: 'Todos los datos de los pasajeros son obligatorios' });
         return;
       }
+      const contactError = validatePersonContact(passenger.dni, passenger.phone);
+      if (contactError) {
+        res.status(400).json({ error: contactError });
+        return;
+      }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(passenger.email).trim())) {
         res.status(400).json({ error: 'El email de cada pasajero no es valido' });
         return;
@@ -247,6 +259,13 @@ async function add(req: Request, res: Response) {
   ) {
     res.status(400).json({ error: 'El email del pasajero no es valido' });
     return;
+  }
+  if (!passengerList) {
+    const contactError = validatePersonContact(passengerDni, passengerPhone);
+    if (contactError) {
+      res.status(400).json({ error: contactError });
+      return;
+    }
   }
   if (state !== undefined && !VALID_STATES.includes(state.toLowerCase())) {
     res
@@ -351,6 +370,8 @@ async function update(req: Request, res: Response) {
   }
   const shouldSendConfirmation =
     currentBooking.state !== 'confirmed' && state?.toLowerCase() === 'confirmed';
+  const shouldSendCancellation =
+    currentBooking.state !== 'cancelled' && state?.toLowerCase() === 'cancelled';
   const changesTripOrSeats =
     (tripId !== undefined && tripId !== null) ||
     (numSeats !== undefined && numSeats !== null);
@@ -433,17 +454,16 @@ async function update(req: Request, res: Response) {
     state: state === undefined ? undefined : String(state).toLowerCase(),
   });
   if (updatedBooking) {
+    if (shouldSendCancellation) {
+      const warning = await sendBookingCancellationNotice(updatedBooking, 'cancelada');
+      res.status(200).json({
+        ...updatedBooking,
+        ...(warning ? { warning } : {}),
+      });
+      return;
+    }
     if (shouldSendConfirmation) {
-      const recipients = [
-        updatedBooking.client?.email,
-        ...(updatedBooking.passengers ?? []).map((passenger) => passenger.email),
-        updatedBooking.passengerEmail,
-      ]
-        .map((email) => String(email ?? '').trim())
-        .filter((email, index, emails) =>
-          email &&
-          emails.findIndex((candidate) => candidate.toLowerCase() === email.toLowerCase()) === index
-        );
+      const recipients = getBookingEmailRecipients(updatedBooking);
       if (recipients.length === 0) {
         res.status(200).json({
           ...updatedBooking,
@@ -476,33 +496,6 @@ async function update(req: Request, res: Response) {
   }
 }
 
-async function remove(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const currentBooking = await repository.findOne({ id });
-  if (!currentBooking) {
-    res.status(404).json({ error: 'Reserva no encontrada' });
-    return;
-  }
-  if (req.user?.role === 'client' && currentBooking.clientId !== req.user.id) {
-    res.status(403).json({ error: 'No puede eliminar una reserva de otro cliente' });
-    return;
-  }
-  try {
-    const deletedBooking = await repository.delete({ id });
-    if (deletedBooking) {
-      res.json({ message: 'Reserva eliminada' });
-    } else {
-      res.status(404).json({ error: 'Reserva no encontrada' });
-    }
-  } catch (err: any) {
-    if (err?.code === 'P2025') {
-      res.status(404).json({ error: 'Reserva no encontrada' });
-      return;
-    }
-    throw err;
-  }
-}
-
 async function cancel(req: Request, res: Response) {
   const id = Number(req.params.id);
   const booking = await repository.findOne({ id });
@@ -529,7 +522,13 @@ async function cancel(req: Request, res: Response) {
   }
 
   const updatedBooking = await repository.update({ id, state: 'cancelled' });
-  res.json(updatedBooking);
+  const warning = updatedBooking
+    ? await sendBookingCancellationNotice(updatedBooking, 'cancelada')
+    : null;
+  res.json({
+    ...updatedBooking,
+    ...(warning ? { warning } : {}),
+  });
 }
 
 async function seatsByTrips(req: Request, res: Response) {
@@ -543,4 +542,4 @@ async function seatsByTrips(req: Request, res: Response) {
   res.json({ data: seats });
 }
 
-export { findAll, findOne, add, update, remove, cancel, seatsByTrips };
+export { findAll, findOne, add, update, cancel, seatsByTrips };

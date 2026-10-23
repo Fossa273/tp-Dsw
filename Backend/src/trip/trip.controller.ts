@@ -8,8 +8,11 @@ import { getYpfSuperPricePerLiter } from '../shared/fuel-price.service.js';
 import { calculateFuelCost } from '../shared/pricing.service.js';
 import { OPERATING_COST_MULTIPLIER } from '../shared/constants.js';
 import { computeArrival, computeArrivalDate } from '../shared/trip-time.service.js';
+import { BookingRepository } from '../booking/booking.repository.js';
+import { sendBookingCancellationNotice } from '../booking/booking-email.service.js';
 
 const repository = new TripRepository();
+const bookingRepository = new BookingRepository();
 const journeyRepository = new JourneyRepository();
 const driverRepository = new DriverRepository();
 const vehicleRepository = new VehicleRepository();
@@ -198,7 +201,7 @@ async function validateResourceAvailability(
 
 async function findAll(req: Request, res: Response) {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 20));
   const search = typeof req.query.search === 'string' ? req.query.search : '';
   const sort = ['schedule', 'dayOfWeek', 'departureTime'].includes(String(req.query.sort))
     ? String(req.query.sort)
@@ -505,8 +508,26 @@ async function remove(req: Request, res: Response) {
     res.status(404).json({ error: 'Viaje no encontrado' });
     return;
   }
+  const bookings = await bookingRepository.findByTripId(id);
+  const emailWarnings: string[] = [];
+  for (const booking of bookings) {
+    if (booking.state === 'cancelled') continue;
+    const cancelledBooking = await bookingRepository.update({
+      id: booking.id,
+      state: 'cancelled',
+    });
+    if (cancelledBooking) {
+      const warning = await sendBookingCancellationNotice(cancelledBooking, 'cancelada');
+      if (warning) emailWarnings.push(`Reserva #${booking.id}: ${warning}`);
+    }
+  }
   await repository.deactivate({ id });
-  res.json({ message: 'Viaje desactivado' });
+  res.json({
+    message: 'Viaje desactivado y reservas canceladas',
+    ...(emailWarnings.length
+      ? { warning: `No se pudieron completar algunos avisos: ${emailWarnings.join('; ')}` }
+      : {}),
+  });
 }
 
 async function reactivate(req: Request, res: Response) {

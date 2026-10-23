@@ -5,6 +5,7 @@ import { useDrivers } from '../hooks/useDrivers';
 import { useVehicles } from '../hooks/useVehicles';
 import { PlusIcon } from '../components/icons';
 import { formatDate } from '../utils/format';
+import { formatDateInput, maskDateInput, parseDateInput } from '../utils/dateInput';
 import Pagination from '../components/Pagination';
 
 const DAYS = [
@@ -18,7 +19,7 @@ const TripsPage = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const { trips, pagination, loading, error, create, update, remove, refetch } =
-    useTrips(page, 50, { search, sort: 'schedule', order: 'asc' });
+    useTrips(page, 20, { search, sort: 'schedule', order: 'asc' });
   const { journeys, loading: loadingJourneys } = useJourneys();
   const { drivers, loading: loadingDrivers } = useDrivers();
   const { vehicles, loading: loadingVehicles } = useVehicles();
@@ -61,7 +62,10 @@ const TripsPage = () => {
   }, [editingId]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const value = e.target.name === 'departureDate' || e.target.name === 'promoExpiry'
+      ? maskDateInput(e.target.value)
+      : e.target.value;
+    setForm({ ...form, [e.target.name]: value });
   };
 
   const handleSubmit = async (e) => {
@@ -75,8 +79,19 @@ const TripsPage = () => {
       showMessage('Debe seleccionar el dia y la hora de salida', 'error');
       return;
     }
-    if (form.scheduleType === 'specific' && !form.departureDate) {
-      showMessage('La fecha y hora de salida son obligatorias', 'error');
+    const departureDate = parseDateInput(form.departureDate);
+    if (
+      form.scheduleType === 'specific' &&
+      (!departureDate || !form.departureTime)
+    ) {
+      showMessage('Ingresa una fecha valida (dd/mm/aaaa) y la hora de salida', 'error');
+      return;
+    }
+    const promoExpiry = form.promoExpiry
+      ? parseDateInput(form.promoExpiry)
+      : '';
+    if (form.promoExpiry && !promoExpiry) {
+      showMessage('Ingresa una fecha de vencimiento valida (dd/mm/aaaa)', 'error');
       return;
     }
     if (form.isPromoted && (!form.promoPrice || Number(form.promoPrice) <= 0)) {
@@ -92,11 +107,11 @@ const TripsPage = () => {
       dayOfWeek: form.scheduleType === 'weekly' ? Number(form.dayOfWeek) : undefined,
       departureTime: form.scheduleType === 'weekly' ? form.departureTime : undefined,
       departureDate: form.scheduleType === 'specific'
-        ? new Date(form.departureDate).toISOString()
+        ? new Date(`${departureDate}T${form.departureTime}:00`).toISOString()
         : undefined,
       isPromoted: form.isPromoted,
-      promoExpiry: form.isPromoted && form.promoExpiry
-        ? new Date(form.promoExpiry).toISOString()
+      promoExpiry: form.isPromoted && promoExpiry
+        ? new Date(`${promoExpiry}T00:00:00.000Z`).toISOString()
         : null,
       promoPrice: form.isPromoted ? Number(form.promoPrice) : null,
     };
@@ -128,10 +143,12 @@ const TripsPage = () => {
       vehicleId: String(trip.vehicleId ?? ''),
       scheduleType: trip.scheduleType || 'weekly',
       dayOfWeek: String(trip.dayOfWeek ?? ''),
-      departureTime: trip.departureTime || '',
-      departureDate: trip.departureDate ? new Date(trip.departureDate).toISOString().slice(0, 16) : '',
+      departureTime: trip.departureDate
+        ? new Date(trip.departureDate).toTimeString().slice(0, 5)
+        : trip.departureTime || '',
+      departureDate: trip.departureDate ? formatDateInput(trip.departureDate) : '',
       isPromoted: !!trip.isPromoted,
-      promoExpiry: trip.promoExpiry ? new Date(trip.promoExpiry).toISOString().slice(0, 10) : '',
+      promoExpiry: trip.promoExpiry ? formatDateInput(trip.promoExpiry, true) : '',
       promoPrice: trip.promoPrice ?? '',
     });
   };
@@ -143,12 +160,15 @@ const TripsPage = () => {
     }
     setPendingDelete(null);
     try {
-      await remove(id);
+      const result = await remove(id);
       if (String(editingId) === String(id)) {
         setEditingId(null);
         setForm({ journeyId: '', driverId: '', vehicleId: '', scheduleType: 'weekly', dayOfWeek: '', departureTime: '', departureDate: '', isPromoted: false, promoExpiry: '', promoPrice: '' });
       }
-      showMessage('Viaje eliminado correctamente');
+      showMessage(
+        result?.warning || result?.message || 'Viaje eliminado correctamente',
+        result?.warning ? 'error' : 'success',
+      );
     } catch (err) {
       showMessage(err.message, 'error');
     }
@@ -233,7 +253,7 @@ const TripsPage = () => {
             <option value="">-- Seleccionar conductor --</option>
             {drivers.map((d) => (
               <option key={d.id} value={d.id}>
-                {driverName(d)}
+                {driverName(d)}{d.dni ? ` (${d.dni})` : ''}
               </option>
             ))}
           </select>
@@ -253,7 +273,7 @@ const TripsPage = () => {
             <option value="">-- Seleccionar vehiculo --</option>
             {vehicles.filter((v) => !v.maintenance || String(v.id) === String(form.vehicleId)).map((v) => (
               <option key={v.id} value={v.id}>
-                Unidad #{v.id} ({v.category}, {v.maxCapacity} asientos{v.hasBathroom ? ', con baño' : ''}{v.maintenance ? ', en mantenimiento' : ''})
+                Unidad (ID #{v.id}) - {v.category}, {v.maxCapacity} asientos{v.hasBathroom ? ', con baño' : ''}{v.maintenance ? ', en mantenimiento' : ''}
               </option>
             ))}
           </select>
@@ -288,10 +308,33 @@ const TripsPage = () => {
             </div>
           </>
         ) : (
-          <div className="form-row">
-            <label htmlFor="viaje-salida" className="form-label">Fecha y hora de salida</label>
-            <input id="viaje-salida" name="departureDate" type="datetime-local" value={form.departureDate} onChange={handleChange} required />
-          </div>
+          <>
+            <div className="form-row">
+              <label htmlFor="viaje-salida" className="form-label">Fecha de salida (dd/mm/aaaa)</label>
+              <input
+                id="viaje-salida"
+                name="departureDate"
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/aaaa"
+                maxLength="10"
+                value={form.departureDate}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="form-row">
+              <label htmlFor="viaje-salida-hora" className="form-label">Hora de salida</label>
+              <input
+                id="viaje-salida-hora"
+                name="departureTime"
+                type="time"
+                value={form.departureTime}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </>
         )}
         <p className="profile-section-desc">
           La fecha y hora de llegada se calculan automaticamente sumando la duracion del trayecto.
@@ -327,7 +370,10 @@ const TripsPage = () => {
               <input
                 id="viaje-promo-expiry"
                 name="promoExpiry"
-                type="date"
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/aaaa"
+                maxLength="10"
                 value={form.promoExpiry}
                 onChange={handleChange}
               />

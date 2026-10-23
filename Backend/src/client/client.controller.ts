@@ -3,6 +3,11 @@ import { createHash } from 'node:crypto';
 import { ClientRepository } from './client.repository.js';
 import { ADMIN_EMAIL } from '../shared/constants.js';
 import { signAuthToken } from '../middleware/auth.middleware.js';
+import {
+  validateDni,
+  validatePersonContact,
+  validatePhone,
+} from '../shared/person-validation.js';
 
 const repository = new ClientRepository();
 
@@ -19,7 +24,7 @@ function hashPassword(password: string): string {
 
 async function findAll(req: Request, res: Response) {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 20));
   const search = typeof req.query.search === 'string' ? req.query.search : '';
   const sort = ['dni', 'name', 'id'].includes(String(req.query.sort)) ? String(req.query.sort) : 'dni';
   const order = req.query.order === 'desc' ? 'desc' : 'asc';
@@ -55,6 +60,16 @@ async function add(req: Request, res: Response) {
     return;
   }
 
+  if (!dni || !phone) {
+    res.status(400).json({ error: 'El DNI y el telefono son obligatorios' });
+    return;
+  }
+  const contactError = validatePersonContact(dni, phone);
+  if (contactError) {
+    res.status(400).json({ error: contactError });
+    return;
+  }
+
   if (isAdminEmail(email)) {
     res.status(403).json({ error: 'No se puede usar el email del administrador' });
     return;
@@ -87,6 +102,16 @@ async function update(req: Request, res: Response) {
   if (!current) {
     res.status(404).json({ error: 'Cliente no encontrado' });
     return;
+  }
+
+  if (dni !== undefined || phone !== undefined) {
+    const contactError =
+      (dni !== undefined ? validateDni(dni) : null) ||
+      (phone !== undefined ? validatePhone(phone) : null);
+    if (contactError) {
+      res.status(400).json({ error: contactError });
+      return;
+    }
   }
 
   // The administrator email is fixed: the admin cannot change it and no

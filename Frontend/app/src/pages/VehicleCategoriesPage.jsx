@@ -53,8 +53,33 @@ const VehicleCategoriesPage = () => {
     <div className="crud-table-wrapper"><table className="crud-table"><thead><tr><th>Categoria</th><th>Precio base vigente</th><th>Consumo (L/km)</th><th>Historial de precios</th><th>Accion</th></tr></thead><tbody>
       {categories.map((category) => <tr key={category.idCategoria}>
         <td>{category.nombreCategoria}</td>
-        <td><input type="number" min="0" step="0.01" value={values[category.idCategoria]?.precioBase ?? ''} onChange={(event) => setCategoryValue(category.idCategoria, 'precioBase', event.target.value)} /></td>
-        <td><input type="number" min="0.0001" step="0.01" value={values[category.idCategoria]?.litrosPorKm ?? ''} onChange={(event) => setCategoryValue(category.idCategoria, 'litrosPorKm', event.target.value)} /></td>
+        <td>
+          <div className="category-setting-input">
+            <span className="category-setting-prefix">$</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              aria-label={`Precio base de ${category.nombreCategoria}`}
+              value={values[category.idCategoria]?.precioBase ?? ''}
+              onChange={(event) => setCategoryValue(category.idCategoria, 'precioBase', event.target.value)}
+            />
+            <span className="category-setting-unit">ARS</span>
+          </div>
+        </td>
+        <td>
+          <div className="category-setting-input">
+            <input
+              type="number"
+              min="0.0001"
+              step="0.01"
+              aria-label={`Consumo de ${category.nombreCategoria}`}
+              value={values[category.idCategoria]?.litrosPorKm ?? ''}
+              onChange={(event) => setCategoryValue(category.idCategoria, 'litrosPorKm', event.target.value)}
+            />
+            <span className="category-setting-unit">L/km</span>
+          </div>
+        </td>
         <td>{(category.priceHistory || []).slice(0, 3).map((entry) => <div key={entry.id}>${entry.precioBase} ({formatDate(entry.createdAt)})</div>)}</td>
         <td>
           <button className="btn btn-sm btn-secondary" onClick={() => setHistoryCategory(category)}>Ver historial completo</button>

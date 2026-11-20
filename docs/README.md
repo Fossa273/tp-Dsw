@@ -160,10 +160,10 @@ La respuesta esperada contiene `"status":"ok"`.
 
 ## 5. Configurar y ejecutar el frontend
 
-Abrir otra terminal y ubicarse en `Frontend/app`:
+Abrir otra terminal y ubicarse en `Frontend`:
 
 ```bash
-cd Frontend/app
+cd Frontend
 pnpm install
 ```
 

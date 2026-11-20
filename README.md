@@ -9,7 +9,7 @@ Status: draft
 El proyecto se despliega como dos proyectos de Vercel:
 
 1. **Frontend**
-   - Root Directory: `Frontend/app`
+   - Root Directory: `Frontend`
    - Framework Preset: `Vite`
    - Build Command: `pnpm run build`
    - Output Directory: `dist`

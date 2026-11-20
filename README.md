@@ -4,6 +4,26 @@ tags: #dsw #tp
 
 Status: draft
 
+## Deploy en Vercel
+
+El proyecto se despliega como dos proyectos de Vercel:
+
+1. **Frontend**
+   - Root Directory: `Frontend/app`
+   - Framework Preset: `Vite`
+   - Build Command: `pnpm run build`
+   - Output Directory: `dist`
+   - Variable de entorno: `VITE_API_URL=https://<backend-vercel>.vercel.app/api`
+
+2. **Backend**
+   - Root Directory: `Backend`
+   - Build Command: `pnpm run build`
+   - Variables de entorno requeridas: `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGIN`
+   - `CORS_ORIGIN` debe contener la URL del frontend. Para varios orígenes, separarlos por comas.
+
+El resto de variables SMTP, OSM y JWT disponibles en `Backend/.env.example` son opcionales solo según las funciones que se quieran habilitar.
+La base MySQL debe ser accesible desde Vercel; una instancia local no será accesible desde el deploy.
+
 ## 1. Objetivo
 
 > Para instalar y ejecutar el proyecto, consultar las

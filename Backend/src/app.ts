@@ -19,7 +19,19 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Origen no permitido por CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   credentials: true,
 }));
@@ -87,18 +99,22 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`http://localhost:${PORT}/`);
-});
+export default app;
 
-const shutdown = async () => {
-  console.log('\nShutting down gracefully...');
-  server.close(async () => {
-    await prisma.$disconnect();
-    console.log('Server stopped.');
-    process.exit(0);
+if (!process.env.VERCEL) {
+  const server = app.listen(PORT, () => {
+    console.log(`http://localhost:${PORT}/`);
   });
-};
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+  const shutdown = async () => {
+    console.log('\nShutting down gracefully...');
+    server.close(async () => {
+      await prisma.$disconnect();
+      console.log('Server stopped.');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}

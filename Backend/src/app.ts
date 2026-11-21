@@ -1,7 +1,6 @@
 import express, { NextFunction, Request, Response } from 'express';
 import 'dotenv/config';
 import cors from 'cors';
-import helmet from 'helmet';
 import { Prisma } from '@prisma/client';
 import { router as clientRoutes } from './client/client.routes.js';
 import { router as localityRoutes } from './locality/locality.routes.js';
@@ -17,7 +16,6 @@ import { PORT } from './shared/constants.js';
 
 const app = express();
 
-app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')

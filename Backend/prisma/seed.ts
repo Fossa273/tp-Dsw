@@ -1,8 +1,7 @@
 /// <reference types="node" />
 
 import 'dotenv/config';
-import { PrismaMariaDb } from '@prisma/adapter-mariadb';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../src/shared/db/connection.js';
 import {
   durationFromDistance,
   getDistanceKm,
@@ -11,8 +10,6 @@ import { ADMIN_EMAIL, OPERATING_COST_MULTIPLIER } from '../src/shared/constants.
 import { getYpfSuperPricePerLiter } from '../src/shared/fuel-price.service.js';
 import { calculateFuelCost } from '../src/shared/pricing.service.js';
 
-const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
-const prisma = new PrismaClient({ adapter });
 
 function roundToNext100(value: number) {
   return Math.ceil(value / 100) * 100;
@@ -578,7 +575,8 @@ async function main() {
           active: trip.active,
         },
       })
-    )
+    ),
+    { timeout: 120000 }
   );
 
   // ------------------------------------------------------------
@@ -627,7 +625,8 @@ async function main() {
           price: booking.price,
         },
       })
-    )
+    ),
+    { timeout: 120000 }
   );
 
   // ------------------------------------------------------------

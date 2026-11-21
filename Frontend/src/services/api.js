@@ -1,6 +1,9 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 
 async function request(endpoint, options = {}) {
+  if (!API_BASE) {
+    throw new Error('VITE_API_URL no está configurada.');
+  }
   const url = `${API_BASE}${endpoint}`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);

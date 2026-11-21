@@ -1,3 +1,8 @@
 #Agentes de opencode
 AGENTS.md
 .github/workflows/agents.yml
+
+# Environment variables
+.env
+.env.*
+!.env.example

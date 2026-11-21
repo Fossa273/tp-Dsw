@@ -38,7 +38,11 @@ app.use(cors({
 app.use(express.json({ limit: '100kb' }));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    databaseConfigured: Boolean(process.env.DATABASE_URL),
+  });
 });
 
 app.use('/api/clients', clientRoutes);

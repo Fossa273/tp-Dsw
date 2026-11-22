@@ -13,8 +13,8 @@ nuevos cambios o evidencias.
 
 ## Features
 
-| ID    | Feature                                           | Estado      | Prioridad | Responsable | Evidencia                                                                                 |
-| ----- | ------------------------------------------------- | ----------- | --------- | ----------- | ----------------------------------------------------------------------------------------- |
+| ID    | Feature                                           | Estado      | Prioridad | Responsable | Evidencia                                                                             |
+| ----- | ------------------------------------------------- | ----------- | --------- | ----------- | ------------------------------------------------------------------------------------- |
 | F-001 | CRUD de provincias                                | Completado  | Alta      | Equipo      | [ProvincesPage.jsx](../Frontend/src/pages/ProvincesPage.jsx) y API de provincias      |
 | F-002 | CRUD de vehículos                                 | Completado  | Alta      | Equipo      | [VehiclesPage.jsx](../Frontend/src/pages/VehiclesPage.jsx) y API de vehículos         |
 | F-003 | CRUD de clientes                                  | Completado  | Alta      | Equipo      | [ClientsPage.jsx](../Frontend/src/pages/ClientsPage.jsx) y API de clientes            |
@@ -26,17 +26,21 @@ nuevos cambios o evidencias.
 | F-009 | Categorías e histórico de precios                 | Completado  | Media     | Equipo      | [VehicleCategoriesPage.jsx](../Frontend/src/pages/VehicleCategoriesPage.jsx)          |
 | F-010 | Login de cliente y administrador                  | En progreso | Alta      | Equipo      | [AuthContext.jsx](../Frontend/src/context/AuthContext.jsx)                            |
 | F-011 | Protección de rutas del frontend por rol          | Completado  | Alta      | Equipo      | [App.jsx](../Frontend/src/App.jsx)                                                    |
-| F-012 | Protección de rutas API por rol                   | Completado  | Alta      | Equipo      | JWT, middleware de autenticación y autorización por rol                                   |
+| F-012 | Protección de rutas API por rol                   | Completado  | Alta      | Equipo      | JWT, middleware de autenticación y autorización por rol                               |
 | F-013 | Listado de reservas con filtro por rango de fecha | Completado  | Alta      | Equipo      | [BookingsPage.jsx](../Frontend/src/pages/BookingsPage.jsx)                            |
 | F-014 | Detalle completo de reserva y cliente             | Completado  | Alta      | Equipo      | Modal de detalle en [BookingsPage.jsx](../Frontend/src/pages/BookingsPage.jsx)        |
 | F-015 | Búsqueda de viajes por trayecto y fecha           | Completado  | Alta      | Equipo      | `GET /api/trips/search` y [SearchForm.jsx](../Frontend/src/components/SearchForm.jsx) |
-| F-016 | Cancelación de reservas                           | Completado  | Alta      | Equipo      | `POST /api/bookings/:id/cancel`                                                           |
-| F-017 | Precio dinámico por viaje                         | Completado  | Media     | Equipo      | Cálculo en controlador de viajes y reservas                                               |
-| F-018 | Email de confirmación y plantilla configurable    | Completado  | Media     | Equipo      | [booking-email.service.ts](../Backend/src/booking/booking-email.service.ts)               |
-| F-019 | Datos demo para probar paginación                 | Completado  | Media     | Equipo      | [seed.ts](../Backend/prisma/seed.ts)                                                      |
-| F-020 | Documentación de instalación                      | Completado  | Media     | Equipo      | [README.md](./README.md)                                                                  |
-| F-021 | Documentación de API                              | Completado  | Media     | Equipo      | [api.md](./doc-api/api.md)                                                                |
-| F-022 | Reprogramación de reservas                        | Pendiente   | Baja      | Equipo      | Definido como alcance adicional/voluntario                                                |
+| F-016 | Cancelación de reservas                           | Completado  | Alta      | Equipo      | `POST /api/bookings/:id/cancel`                                                       |
+| F-017 | Precio dinámico por viaje                         | Completado  | Media     | Equipo      | Cálculo en controlador de viajes y reservas                                           |
+| F-018 | Email de confirmación y plantilla configurable    | Completado  | Media     | Equipo      | [booking-email.service.ts](../Backend/src/booking/booking-email.service.ts)           |
+| F-019 | Datos demo para probar paginación                 | Completado  | Media     | Equipo      | [seed.ts](../Backend/prisma/seed.ts)                                                  |
+| F-020 | Documentación de instalación                      | Completado  | Media     | Equipo      | [README.md](./README.md)                                                              |
+| F-021 | Documentación de API                              | Completado  | Media     | Equipo      | [api.md](./doc-api/api.md)                                                            |
+| F-022 | Reprogramación de reservas                        | Pendiente   | Baja      | Equipo      | Definido como alcance adicional/voluntario                                            |
+| F-023 | Deploy de frontend y backend en Vercel            | Completado  | Alta      | Equipo      | Frontend y backend desplegados; backend configurado con variables de producción       |
+| F-024 | Base de datos MySQL en TiDB Cloud                 | Completado  | Alta      | Equipo      | Persistencia configurada mediante `DATABASE_URL`                                      |
+| F-025 | Tests unitarios con Vitest                        | Completado  | Alta      | Equipo      | [Header.test.jsx](../Frontend/src/components/Header.test.jsx)                         |
+| F-026 | Tests end-to-end con Playwright                   | Completado  | Alta      | Equipo      | [example.spec.ts](../e2e/tests/example.spec.ts)                                       |
 
 ## Bugs corregidos
 
@@ -44,31 +48,32 @@ nuevos cambios o evidencias.
 | ----- | ------------------------------------------------------------------------------------- | ---------- | --------- | ------------------------------------------------------------------------------------------------------------ |
 | B-001 | Las respuestas no JSON del backend podían provocar errores poco claros en el frontend | Completado | Alta      | El servicio API detecta el `content-type` y muestra un error amigable                                        |
 | B-002 | Faltaban datos de DNI y teléfono del cliente en el detalle de reserva                 | Completado | Alta      | La relación de cliente fue ampliada en [booking.repository.ts](../Backend/src/booking/booking.repository.ts) |
-| B-003 | La lista de reservas no permitía filtrar por rango de fecha de viaje                  | Completado | Alta      | Se agregaron filtros desde/hasta en [BookingsPage.jsx](../Frontend/src/pages/BookingsPage.jsx)           |
+| B-003 | La lista de reservas no permitía filtrar por rango de fecha de viaje                  | Completado | Alta      | Se agregaron filtros desde/hasta en [BookingsPage.jsx](../Frontend/src/pages/BookingsPage.jsx)               |
 | B-004 | La seed no tenía suficientes datos para comprobar la paginación                       | Completado | Media     | Se agregaron clientes, localidades, trayectos, viajes y reservas en [seed.ts](../Backend/prisma/seed.ts)     |
 
 ## Bugs conocidos
 
-| ID    | Bug o riesgo                                                                                       | Estado     | Prioridad | Impacto                                                                               |
-| ----- | -------------------------------------------------------------------------------------------------- | ---------- | --------- | ------------------------------------------------------------------------------------- |
-| B-005 | La autorización se controla en el frontend, pero las rutas API no tienen autenticación persistente | Completado | Crítica   | Se agregó JWT y autorización backend por rol y propietario de reserva                 |
-| B-006 | No existen tests automatizados en el repositorio                                                   | Abierto    | Alta      | No hay evidencia automatizada de regresión para backend, frontend ni flujos completos |
+| ID    | Bug o riesgo                                                                                       | Estado     | Prioridad | Impacto                                                                |
+| ----- | -------------------------------------------------------------------------------------------------- | ---------- | --------- | ---------------------------------------------------------------------- |
+| B-005 | La autorización se controla en el frontend, pero las rutas API no tienen autenticación persistente | Completado | Crítica   | Se agregó JWT y autorización backend por rol y propietario de reserva  |
+| B-006 | No existen tests automatizados en el repositorio                                                   | Completado | Alta      | Se incorporaron tests unitarios con Vitest y end-to-end con Playwright |
 
 ## Issues y tareas pendientes
 
 | ID    | Issue                                                                 | Estado     | Prioridad | Próximo paso                                                        |
 | ----- | --------------------------------------------------------------------- | ---------- | --------- | ------------------------------------------------------------------- |
-| I-001 | Agregar tests unitarios de backend para cumplir la aprobación directa | Pendiente  | Alta      | Incorporar Jest y cubrir reglas de reservas/precios                 |
-| I-002 | Agregar un test de integración de API                                 | Pendiente  | Alta      | Incorporar Supertest y probar un flujo de reserva                   |
-| I-003 | Agregar test unitario de componente React                             | Pendiente  | Alta      | Incorporar Vitest y React Testing Library                           |
-| I-004 | Agregar test end-to-end                                               | Pendiente  | Alta      | Incorporar Playwright y cubrir login + consulta/reserva             |
+| I-001 | Agregar tests unitarios de backend para cumplir la aprobación directa | Completado | Alta      | Vitest cubre cálculo de combustible y horarios de viajes            |
+| I-002 | Agregar un test de integración de API                                 | Completado | Alta      | Supertest verifica health check, autenticación y rutas inexistentes |
+| I-003 | Agregar test unitario de componente React                             | Completado | Alta      | Vitest y React Testing Library cubren el componente Header          |
+| I-004 | Agregar test end-to-end                                               | Completado | Alta      | Playwright cubre el login administrativo                            |
 | I-005 | Implementar autenticación y autorización en backend                   | Completado | Crítica   | JWT con roles admin/client, rutas protegidas y control de propiedad |
-| I-006 | Incorporar evidencia de ejecución de tests                            | Pendiente  | Alta      | Guardar resultados y comandos en la documentación de entrega        |
-| I-007 | Completar evidencia visual responsive en SM, MD y LG                  | Pendiente  | Media     | Capturar y documentar la ejecución en los tres breakpoints          |
-| I-008 | Evaluar implementación de reprogramación de reservas                  | Pendiente  | Baja      | Definir reglas de negocio, endpoint y pantalla                      |
+| I-006 | Incorporar evidencia de ejecución de tests                            | Completado | Alta      | Se documentaron Vitest, Playwright y su integración en CI           |
+| I-007 | Completar evidencia visual responsive en SM, MD y LG                  | Completado | Media     | Capturas automatizadas en SM, MD y LG dentro de la documentación    |
 
 ## Historial de actualización
 
-| Fecha      | Cambio                                                  |
-| ---------- | ------------------------------------------------------- |
-| 13/10/2026 | Se crea el tracking inicial de features, bugs e issues. |
+| Fecha      | Cambio                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| 13/10/2026 | Se crea el tracking inicial de features, bugs e issues.                                        |
+| 22/11/2026 | Se documentan deploy en Vercel, base TiDB Cloud y tests automatizados con Vitest y Playwright. |
+| 22/11/2026 | Se completan las pruebas unitarias e integracion del backend con Vitest y Supertest.         |

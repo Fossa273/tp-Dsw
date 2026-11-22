@@ -103,7 +103,7 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 
 export default app;
 
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
   const server = app.listen(PORT, () => {
     console.log(`http://localhost:${PORT}/`);
   });

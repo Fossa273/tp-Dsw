@@ -23,7 +23,7 @@ A continuación se detalla la documentación mínima a incluir para cada entrega
 |documentacion de la API||X|
 |evidencia de ejecución de test automáticos||X|
 |demo de app en video|TBD|X|
-|deploy|TBD|TBD|
+|deploy|X|X|
 
 ## Links a Pull Requests / Merge Requests
 
@@ -52,9 +52,9 @@ encuentran en [README.md](./README.md).
 ## Minutas de reunión y avance
 
 Las minutas y los hitos de avance del grupo se encuentran en
-[minutas.md](./minutas.md).
+[minutas.md](./02%20-%20reuniones/minutas.md).
 
 ## Tracking de features, bugs e issues
 
 El seguimiento de funcionalidades, bugs conocidos y tareas pendientes se
-encuentra en [tracking.md](./tracking.md).
+encuentra en [tracking.md](./03%20-%20tracking/tracking.md).

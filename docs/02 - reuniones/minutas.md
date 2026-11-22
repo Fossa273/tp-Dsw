@@ -20,7 +20,7 @@ WhatsApp.
 - [17/08/2026 - Inicio del frontend](./2026-08-17-minuta.md)
 - [08/09/2026 - Finalización de CRUD](./2026-09-08-minuta.md)
 - [13/10/2026 - Revision para regularidad](./2026-10-13-minuta.md)
-- [-/-/2026 - Implementacion de Testing y Fin de proyecto]()
+- [22/11/2026 - Deploy en Vercel, TiDB Cloud y pruebas automaticas](./2026-11-22-minuta.md)
 
 Las fechas anteriores documentan hitos de coordinación y avance. Los detalles
 específicos de cada reunión pueden ampliarse posteriormente por los integrantes.

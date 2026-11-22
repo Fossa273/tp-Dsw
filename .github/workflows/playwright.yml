@@ -1,0 +1,80 @@
+name: Playwright Tests
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: rutabus
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: mysql://root:root@localhost:3306/rutabus
+      JWT_SECRET: playwright-test-secret
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+
+    - uses: pnpm/action-setup@v4
+      with:
+        version: 11.1.2
+        run_install: false
+
+    - name: Install frontend dependencies
+      run: pnpm install --frozen-lockfile
+      working-directory: Frontend
+
+    - name: Run frontend unit tests
+      run: pnpm run test
+      working-directory: Frontend
+
+    - name: Install backend dependencies
+      run: pnpm install --frozen-lockfile
+      working-directory: Backend
+
+    - name: Prepare database
+      run: pnpm run db:generate && pnpm run db:push && pnpm run db:seed
+      working-directory: Backend
+
+    - name: Run backend unit and integration tests
+      run: pnpm run test
+      working-directory: Backend
+
+    - name: Install E2E dependencies
+      run: pnpm install --frozen-lockfile
+      working-directory: e2e
+
+    - name: Install Playwright Browsers
+      run: pnpm exec playwright install --with-deps chromium
+      working-directory: e2e
+
+    - name: Run Playwright tests
+      run: pnpm run test -- --project=chromium
+      working-directory: e2e
+
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-report
+        path: e2e/playwright-report/
+        retention-days: 30

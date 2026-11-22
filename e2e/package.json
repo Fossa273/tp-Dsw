@@ -1,0 +1,14 @@
+{
+  "name": "rutabus-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:responsive": "playwright test responsive.spec.ts --project=chromium",
+    "test:ui": "playwright test --ui",
+    "show-report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6"
+  }
+}

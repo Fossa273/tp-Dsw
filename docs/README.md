@@ -4,6 +4,21 @@ Estas instrucciones permiten instalar y ejecutar RutaBus localmente en Windows,
 macOS o Linux. El proyecto está compuesto por un backend Node/Express con
 MySQL y un frontend React/Vite.
 
+## Deploy y ambientes
+
+Al 22/11/2026, el frontend y el backend estan desplegados en Vercel. El backend
+consume una base MySQL alojada en TiDB Cloud mediante la variable
+`DATABASE_URL`.
+
+Variables requeridas en producción:
+
+- `VITE_API_URL`: URL publica del backend con el sufijo `/api`.
+- `DATABASE_URL`: cadena de conexion a la base MySQL de TiDB Cloud.
+- `JWT_SECRET`: clave privada para firmar tokens.
+- `CORS_ORIGIN`: origen permitido del frontend desplegado.
+
+El frontend debe desplegarse desde `Frontend` y el backend desde `Backend`.
+
 ## Requisitos previos
 
 - Node.js 20 o superior.
@@ -198,6 +213,39 @@ consultar y gestionar sus reservas.
 
 ## Comandos útiles
 
+### Tests end-to-end con Playwright
+
+Desde la carpeta `e2e`:
+
+```bash
+pnpm install
+pnpm exec playwright install chromium
+pnpm run test -- --project=chromium
+```
+
+Playwright inicia automáticamente el backend en `http://localhost:3000` y el
+frontend en `http://localhost:5173`. Requiere una instancia de MySQL accesible
+en el puerto 3306 y una base `rutabus` ya inicializada con la seed.
+
+Comandos interactivos disponibles:
+
+```bash
+pnpm run test:ui
+pnpm run show-report
+```
+
+### Evidencia visual responsive
+
+Desde `e2e`, generar las capturas en tres viewports:
+
+```bash
+pnpm run test:responsive
+```
+
+El test genera imágenes en `docs/05 - evidencias/responsive/` para SM
+(375 × 667), MD (768 × 1024) y LG (1440 × 900). Incluye la pagina principal
+y el flujo administrativo luego del inicio de sesion.
+
 ### Backend
 
 ```bash
@@ -217,6 +265,28 @@ pnpm run build           # Build de producción
 pnpm run preview         # Servir el build generado
 pnpm run lint            # Ejecutar ESLint
 ```
+
+### Tests unitarios del frontend
+
+Desde `Frontend`:
+
+```bash
+pnpm run test
+pnpm run test:watch
+```
+
+Los tests unitarios usan Vitest, jsdom y React Testing Library.
+
+## Evidencia de pruebas automatizadas - 22/11/2026
+
+| Tipo | Herramienta | Ubicacion | Estado |
+| --- | --- | --- | --- |
+| Unitario frontend | Vitest + React Testing Library | `Frontend/src/components/Header.test.jsx` | 3 tests aprobados |
+| Unitario backend | Vitest | `Backend/src/shared/*.test.ts` | 4 tests aprobados |
+| Integracion API | Vitest + Supertest | `Backend/src/test/app.integration.test.ts` | 3 tests aprobados |
+| End-to-end | Playwright + Chromium | `e2e/tests/example.spec.ts` | 1 test aprobado |
+
+Los resultados y la configuracion de CI quedan integrados en GitHub Actions.
 
 ## Solución de problemas
 

@@ -81,6 +81,13 @@ export class ClientRepository {
     });
   }
 
+  public async findByEmail(email: string) {
+    return prisma.client.findFirst({
+      where: { email, active: 1 },
+      select: PUBLIC_SELECT,
+    });
+  }
+
   public async add(item: ClientData) {
     return prisma.client.create({
       data: {

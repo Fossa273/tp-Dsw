@@ -87,4 +87,12 @@ export class LocalityRepository {
   public async delete(item: { id: number }) {
     return prisma.locality.delete({ where: { id: item.id } });
   }
+
+  public async countAssociatedJourneys(id: number) {
+    const [originCount, destinationCount] = await Promise.all([
+      prisma.journey.count({ where: { originId: id } }),
+      prisma.journey.count({ where: { destinationId: id } }),
+    ]);
+    return originCount + destinationCount;
+  }
 }

@@ -1,243 +1,50 @@
 import { Request, Response } from 'express';
-import { createHash } from 'node:crypto';
-import { ClientRepository } from './client.repository.js';
-import { ADMIN_EMAIL } from '../shared/constants.js';
-import { signAuthToken } from '../middleware/auth.middleware.js';
-import {
-  validateDni,
-  validatePersonContact,
-  validatePhone,
-} from '../shared/person-validation.js';
+import { ClientService } from './client.service.js';
 
-const repository = new ClientRepository();
-
-function isAdminEmail(value: unknown): boolean {
-  return (
-    typeof value === 'string' &&
-    value.trim().toLowerCase() === ADMIN_EMAIL
-  );
-}
-
-function hashPassword(password: string): string {
-  return createHash('sha256').update(password).digest('hex');
-}
+const service = new ClientService();
 
 async function findAll(req: Request, res: Response) {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 20));
-  const search = typeof req.query.search === 'string' ? req.query.search : '';
-  const sort = ['dni', 'name', 'id'].includes(String(req.query.sort)) ? String(req.query.sort) : 'dni';
-  const order = req.query.order === 'desc' ? 'desc' : 'asc';
-  res.json(req.query.page || req.query.limit || search
-    ? await repository.paginated(page, limit, search, sort, order)
-    : { data: await repository.findAll() });
+  res.json(await service.findAll(req.query));
 }
 
-// Inactive clients listing (admin only)
-async function findAllInactive(req: Request, res: Response) {
-  res.json({ data: await repository.findAllInactive() });
+async function findAllInactive(_req: Request, res: Response) {
+  res.json({ data: await service.findAllInactive() });
 }
 
 async function findOne(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const client = await repository.findOne({ id });
-  if (client) {
-    res.json(client);
-  } else {
-    res.status(404).json({ error: 'Cliente no encontrado' });
-  }
+  res.json(await service.findOne(req.params.id));
 }
 
-// Client registration (with password for login)
 async function add(req: Request, res: Response) {
-  const { firstName, lastName, dni, email, phone, password } =
-    req.body.sanitizeInput;
-
-  if (!email || !password) {
-    res
-      .status(400)
-      .json({ error: 'Email y contraseña son obligatorios para registrarse' });
-    return;
-  }
-
-  if (!dni || !phone) {
-    res.status(400).json({ error: 'El DNI y el telefono son obligatorios' });
-    return;
-  }
-  const contactError = validatePersonContact(dni, phone);
-  if (contactError) {
-    res.status(400).json({ error: contactError });
-    return;
-  }
-
-  if (isAdminEmail(email)) {
-    res.status(403).json({ error: 'No se puede usar el email del administrador' });
-    return;
-  }
-
-  const existing = await repository.findByEmailWithPassword(email);
-  if (existing) {
-    res.status(409).json({ error: 'Ya existe una cuenta con ese email' });
-    return;
-  }
-
-  const created = await repository.add({
-    firstName,
-    lastName,
-    dni,
-    email,
-    phone,
-    password: hashPassword(password),
-  });
-  const { password: _p, ...safeCreated } = created;
-  res.status(201).json(safeCreated);
+  res.status(201).json(await service.add(req.body.sanitizeInput));
 }
 
 async function update(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const { firstName, lastName, dni, email, phone, password } =
-    req.body.sanitizeInput;
-
-  const current = await repository.findOne({ id });
-  if (!current) {
-    res.status(404).json({ error: 'Cliente no encontrado' });
-    return;
-  }
-
-  if (dni !== undefined || phone !== undefined) {
-    const contactError =
-      (dni !== undefined ? validateDni(dni) : null) ||
-      (phone !== undefined ? validatePhone(phone) : null);
-    if (contactError) {
-      res.status(400).json({ error: contactError });
-      return;
-    }
-  }
-
-  // The administrator email is fixed: the admin cannot change it and no
-  // other account may adopt it.
-  if (isAdminEmail(current.email)) {
-    if (email !== undefined && !isAdminEmail(email)) {
-      res.status(403).json({ error: 'No se puede cambiar el email del administrador' });
-      return;
-    }
-  } else if (email !== undefined && isAdminEmail(email)) {
-    res.status(403).json({ error: 'No se puede usar el email del administrador' });
-    return;
-  }
-
-  const updatedClient = await repository.update({
-    id,
-    firstName,
-    lastName,
-    dni,
-    email,
-    phone,
-    password: password ? hashPassword(password) : undefined,
-  });
-  if (updatedClient) {
-    res.status(200).json(updatedClient);
-  } else {
-    res.status(404).json({ error: 'Cliente no encontrado' });
-  }
+  res.status(200).json(
+    await service.update(req.params.id, req.body.sanitizeInput)
+  );
 }
 
 async function remove(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const current = await repository.findOne({ id });
-  if (!current) {
-    res.status(404).json({ error: 'Cliente no encontrado' });
-    return;
-  }
-  if (isAdminEmail(current.email)) {
-    res.status(403).json({ error: 'No se puede dar de baja al administrador' });
-    return;
-  }
-  const deletedClient = await repository.delete({ id });
-  if (deletedClient) {
-    res.json({ message: 'Cliente dado de baja' });
-  } else {
-    res.status(404).json({ error: 'Cliente no encontrado' });
-  }
+  res.json(await service.remove(req.params.id));
 }
 
-// ------------------- AUTH -------------------
-
 async function login(req: Request, res: Response) {
-  const { email, password } = req.body || {};
-  if (!email || !password) {
-    res.status(400).json({ error: 'Email y contraseña son obligatorios' });
-    return;
-  }
-
-  const client = await repository.findByEmailWithPassword(email);
-  if (!client || client.password !== hashPassword(password)) {
-    res.status(401).json({ error: 'Email o contraseña incorrectos' });
-    return;
-  }
-
-  await repository.setLogged(client.id, true);
-  const { password: _p, ...safeClient } = client;
-  res.json({
-    message: 'Sesion iniciada',
-    data: {
-      ...safeClient,
-      role: isAdminEmail(client.email) ? 'admin' : 'client',
-      logged: 1,
-      token: signAuthToken({
-        id: client.id,
-        email: client.email || '',
-        role: isAdminEmail(client.email) ? 'admin' : 'client',
-      }),
-    },
-  });
+  res.json(await service.login(req.body?.email, req.body?.password));
 }
 
 async function logout(req: Request, res: Response) {
-  const { id } = req.body || {};
-  if (id === undefined || id === null) {
-    res.status(400).json({ error: 'Falta el id del cliente' });
-    return;
-  }
-  const ok = await repository.setLogged(Number(id), false);
-  if (!ok) {
-    res.status(404).json({ error: 'Cliente no encontrado' });
-    return;
-  }
-  res.json({ message: 'Sesion cerrada' });
+  res.json(await service.logout(req.body?.id));
 }
 
-// Password reset using only the email (test page)
 async function resetPassword(req: Request, res: Response) {
-  const { email, password } = req.body || {};
-  if (!email || !password) {
-    res
-      .status(400)
-      .json({ error: 'Debe indicar el email y la nueva contraseña' });
-    return;
-  }
-  const ok = await repository.updatePasswordByEmail(
-    email,
-    hashPassword(password)
+  res.json(
+    await service.resetPassword(req.body?.email, req.body?.password)
   );
-  if (!ok) {
-    res.status(404).json({ error: 'No existe una cuenta con ese email' });
-    return;
-  }
-  res.json({ message: 'Contraseña actualizada correctamente' });
 }
 
-// Reactivate a client that was logically deleted (admin only)
 async function reactivate(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const ok = await repository.reactivate(id);
-  if (!ok) {
-    res
-      .status(404)
-      .json({ error: 'No se encontro un cliente dado de baja con ese id' });
-    return;
-  }
-  res.json({ message: 'Cliente dado de alta correctamente' });
+  res.json(await service.reactivate(req.params.id));
 }
 
 export {

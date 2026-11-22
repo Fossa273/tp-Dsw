@@ -1,97 +1,31 @@
 import { Request, Response } from 'express';
-import { VehicleRepository } from './vehicle.repository.js';
+import { VehicleService } from './vehicle.service.js';
 
-const repository = new VehicleRepository();
-const VALID_CATEGORY_IDS = [1, 2, 3];
+const service = new VehicleService();
 
-async function findAll(req: Request, res: Response) {
-  res.json({ data: await repository.findAll() });
+async function findAll(_req: Request, res: Response) {
+  res.json({ data: await service.findAll() });
 }
 
 async function findOne(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const vehicle = await repository.findOne({ id });
-  if (vehicle) {
-    res.json(vehicle);
-  } else {
-    res.status(404).json({ error: 'Vehiculo no encontrado' });
-  }
+  res.json(await service.findOne(req.params.id));
 }
 
 async function add(req: Request, res: Response) {
-  const { maxCapacity, categoryId, hasBathroom, maintenance } = req.body.sanitizeInput;
-  if (maxCapacity === undefined || maxCapacity === null) {
-    res.status(400).json({ error: 'La capacidad maxima es obligatoria' });
-    return;
-  }
-  const cap = Number(maxCapacity);
-  if (!Number.isInteger(cap) || cap < 1) {
-    res
-      .status(400)
-      .json({ error: 'La capacidad maxima debe ser un entero mayor a 0' });
-    return;
-  }
-  if (!VALID_CATEGORY_IDS.includes(Number(categoryId))) {
-    res.status(400).json({ error: 'La categoria del vehiculo no es valida' });
-    return;
-  }
-  const newVehicle = await repository.add({ maxCapacity: cap, categoryId: Number(categoryId), hasBathroom: Boolean(hasBathroom), maintenance: Boolean(maintenance) });
-  res.status(201).json(newVehicle);
+  const vehicle = await service.add(req.body.sanitizeInput);
+  res.status(201).json(vehicle);
 }
 
 async function update(req: Request, res: Response) {
-  const { maxCapacity, categoryId, hasBathroom, maintenance } = req.body.sanitizeInput;
-  if (maxCapacity === undefined || maxCapacity === null) {
-    res.status(400).json({ error: 'La capacidad maxima es obligatoria' });
-    return;
-  }
-  const cap = Number(maxCapacity);
-  if (!Number.isInteger(cap) || cap < 1) {
-    res
-      .status(400)
-      .json({ error: 'La capacidad maxima debe ser un entero mayor a 0' });
-    return;
-  }
-  if (!VALID_CATEGORY_IDS.includes(Number(categoryId))) {
-    res.status(400).json({ error: 'La categoria del vehiculo no es valida' });
-    return;
-  }
-  const updatedVehicle = await repository.update({
-    id: Number(req.params.id),
-    maxCapacity: cap,
-    categoryId: Number(categoryId),
-    hasBathroom: Boolean(hasBathroom),
-    ...(maintenance !== undefined ? { maintenance: Boolean(maintenance) } : {}),
-  });
-  if (updatedVehicle) {
-    res.status(200).json(updatedVehicle);
-  } else {
-    res.status(404).json({ error: 'Vehiculo no encontrado' });
-  }
+  const vehicle = await service.update(
+    req.params.id,
+    req.body.sanitizeInput
+  );
+  res.status(200).json(vehicle);
 }
 
 async function remove(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  try {
-    const deletedVehicle = await repository.delete({ id });
-    if (deletedVehicle) {
-      res.json({ message: 'Vehiculo eliminado' });
-    } else {
-      res.status(404).json({ error: 'Vehiculo no encontrado' });
-    }
-  } catch (err: any) {
-    if (err?.code === 'P2025') {
-      res.status(404).json({ error: 'Vehiculo no encontrado' });
-      return;
-    }
-    if (err?.code === 'P2003') {
-      res.status(409).json({
-        error: 'No se puede eliminar el vehiculo porque tiene viajes asociados',
-      });
-      return;
-    }
-    throw err;
-  }
+  res.json(await service.remove(req.params.id));
 }
 
 export { findAll, findOne, add, update, remove };

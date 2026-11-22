@@ -51,4 +51,8 @@ export class VehicleRepository {
   public async delete(item: { id: number }) {
     return prisma.vehicle.delete({ where: { id: item.id } });
   }
+
+  public async countActiveTrips(id: number) {
+    return prisma.trip.count({ where: { vehicleId: id, active: 1 } });
+  }
 }

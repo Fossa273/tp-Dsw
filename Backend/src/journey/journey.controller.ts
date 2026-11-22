@@ -1,325 +1,36 @@
 import { Request, Response } from 'express';
-import { JourneyRepository } from './journey.repository.js';
-import { TripRepository } from '../trip/trip.repository.js';
-import { LocalityRepository } from '../locality/locality.repository.js';
-import { getDistanceKm, durationFromDistance } from '../shared/maps.service.js';
+import { JourneyService } from './journey.service.js';
 
-const repository = new JourneyRepository();
-const tripRepository = new TripRepository();
-const localityRepository = new LocalityRepository();
-
-// Validates that both referenced localities exist and are different.
-// Returns an error message string, or null when the input is valid.
-async function validateLocalities(originId: number, destinationId: number) {
-  if (originId === destinationId) {
-    return 'El origen y el destino deben ser localidades distintas';
-  }
-  const origin = await localityRepository.findOne({ id: originId });
-  if (!origin) {
-    return 'La localidad de origen no existe';
-  }
-  const destination = await localityRepository.findOne({ id: destinationId });
-  if (!destination) {
-    return 'La localidad de destino no existe';
-  }
-  return null;
-}
-
-// "CABA, Buenos Aires, Argentina" (province improves geocoding)
-function localityLabel(locality: any): string {
-  const base = locality?.name?.trim() ?? '';
-  const province = locality?.province?.name?.trim();
-  return province ? `${base}, ${province}, Argentina` : `${base}, Argentina`;
-}
-
-// Loads both localities (with their province) to build geocoding labels.
-async function loadLocalityLabel(id: number) {
-  const loc = await localityRepository.findOne({ id });
-  if (!loc) {
-    return null;
-  }
-  return { id, label: localityLabel(loc) };
-}
-
-function normalizePositiveInt(value: unknown, fallback: number) {
-  const num = Number(value);
-  if (!Number.isFinite(num) || num < 0) {
-    return fallback;
-  }
-  return Math.round(num);
-}
+const service = new JourneyService();
 
 async function findAll(req: Request, res: Response) {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 20));
-  const search = typeof req.query.search === 'string' ? req.query.search : '';
-  const sort = ['id', 'distanceKm', 'durationMinutes'].includes(String(req.query.sort)) ? String(req.query.sort) : 'id';
-  const order = req.query.order === 'desc' ? 'desc' : 'asc';
-  res.json(req.query.page || req.query.limit || search
-    ? await repository.paginated(page, limit, search, sort, order)
-    : { data: await repository.findAll() });
+  res.json(await service.findAll(req.query));
 }
 
-async function findAllInactive(req: Request, res: Response) {
-  res.json({ data: await repository.findAllInactive() });
+async function findAllInactive(_req: Request, res: Response) {
+  res.json({ data: await service.findAllInactive() });
 }
 
 async function findOne(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const journey = await repository.findOne({ id });
-  if (journey) {
-    res.json(journey);
-  } else {
-    res.status(404).json({ error: 'Trayecto no encontrado' });
-  }
-}
-
-// Computes distanceKm (OpenStreetMap) and durationMinutes (fixed 90 km/h).
-// With manualDistanceKm === null, relies on Nominatim and OSRM.
-// Returns { distanceKm, durationMinutes, warning? } or { error }.
-async function resolveDistanceAndDuration(
-  originId: number,
-  destinationId: number,
-  manualDistanceKm: number | null,
-  manualDurationMinutes: number | null
-) {
-  let distanceKm = manualDistanceKm;
-  let warning: string | undefined;
-
-  if (manualDistanceKm === null) {
-    const origin = await loadLocalityLabel(originId);
-    const destination = await loadLocalityLabel(destinationId);
-    if (!origin || !destination) {
-      return { error: 'No se pudieron cargar las localidades' };
-    }
-    try {
-      distanceKm = await getDistanceKm(origin.label, destination.label);
-    } catch (err: any) {
-      return {
-        error:
-          (err?.message ?? 'No se pudo calcular la distancia') +
-          '. Podes ingresar la distancia manualmente.',
-      };
-    }
-  }
-
-  const durationMinutes =
-    manualDurationMinutes === null
-      ? durationFromDistance(distanceKm!)
-      : manualDurationMinutes;
-
-  return { distanceKm: distanceKm!, durationMinutes, warning };
+  res.json(await service.findOne(req.params.id));
 }
 
 async function add(req: Request, res: Response) {
-  const { originId, destinationId, distanceKm, durationMinutes } =
-    req.body.sanitizeInput;
-
-  if (originId === undefined || originId === null) {
-    res.status(400).json({ error: 'La localidad de origen es obligatoria' });
-    return;
-  }
-  if (destinationId === undefined || destinationId === null) {
-    res.status(400).json({ error: 'La localidad de destino es obligatoria' });
-    return;
-  }
-
-  const originIdNum = Number(originId);
-  const destinationIdNum = Number(destinationId);
-
-  const localityError = await validateLocalities(originIdNum, destinationIdNum);
-  if (localityError) {
-    res.status(400).json({ error: localityError });
-    return;
-  }
-
-  const existing = await repository.findByJourney(
-    originIdNum,
-    destinationIdNum
-  );
-  if (existing) {
-    res.status(409).json({
-      error: 'Ya existe un trayecto entre esas localidades',
-    });
-    return;
-  }
-
-  // distanceKm provided -> manual override; otherwise auto-calculated by OSRM.
-  const isManualDistance =
-    distanceKm !== undefined && distanceKm !== null && Number(distanceKm) > 0;
-  const isManualDuration =
-    durationMinutes !== undefined &&
-    durationMinutes !== null &&
-    Number(durationMinutes) >= 0;
-
-  const resolved = await resolveDistanceAndDuration(
-    originIdNum,
-    destinationIdNum,
-    isManualDistance ? normalizePositiveInt(distanceKm, 0) : null,
-    isManualDuration ? normalizePositiveInt(durationMinutes, 0) : null
-  );
-  if ('error' in resolved) {
-    res.status(502).json({ error: resolved.error });
-    return;
-  }
-
-  const newJourney = await repository.add({
-    originId: originIdNum,
-    destinationId: destinationIdNum,
-    distanceKm: resolved.distanceKm,
-    durationMinutes: resolved.durationMinutes,
-  });
-  res.status(201).json({
-    ...newJourney,
-    ...(resolved.warning ? { warning: resolved.warning } : {}),
-  });
+  res.status(201).json(await service.add(req.body.sanitizeInput));
 }
 
 async function update(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const { originId, destinationId, distanceKm, durationMinutes } =
-    req.body.sanitizeInput;
-
-  const current = await repository.findOne({ id });
-  if (!current) {
-    res.status(404).json({ error: 'Trayecto no encontrado' });
-    return;
-  }
-
-  const finalOriginId =
-    originId !== undefined && originId !== null
-      ? Number(originId)
-      : current.originId;
-  const finalDestinationId =
-    destinationId !== undefined && destinationId !== null
-      ? Number(destinationId)
-      : current.destinationId;
-
-  const localityError = await validateLocalities(
-    finalOriginId,
-    finalDestinationId
+  res.status(200).json(
+    await service.update(req.params.id, req.body.sanitizeInput)
   );
-  if (localityError) {
-    res.status(400).json({ error: localityError });
-    return;
-  }
-
-  const existing = await repository.findByJourney(
-    finalOriginId,
-    finalDestinationId
-  );
-  if (existing && existing.id !== id) {
-    res.status(409).json({
-      error: 'Ya existe un trayecto entre esas localidades',
-    });
-    return;
-  }
-
-  const originChanged = finalOriginId !== current.originId;
-  const destinationChanged = finalDestinationId !== current.destinationId;
-  const isManualDistance =
-    distanceKm !== undefined && distanceKm !== null && Number(distanceKm) > 0;
-  const isManualDuration =
-    durationMinutes !== undefined &&
-    durationMinutes !== null &&
-    Number(durationMinutes) >= 0;
-
-  // Recalculate when localities changed or no distance was provided.
-  const needsRecompute =
-    originChanged ||
-    destinationChanged ||
-    current.distanceKm === null ||
-    !isManualDistance;
-
-  let distance: number | undefined;
-  let duration: number | undefined;
-  let warning: string | undefined;
-
-  if (needsRecompute) {
-    const manualDistance = isManualDistance
-      ? normalizePositiveInt(distanceKm, 0)
-      : null;
-    const manualDuration = isManualDuration
-      ? normalizePositiveInt(durationMinutes, 0)
-      : null;
-    const resolved = await resolveDistanceAndDuration(
-      finalOriginId,
-      finalDestinationId,
-      manualDistance,
-      manualDuration
-    );
-    if ('error' in resolved) {
-      res.status(502).json({ error: resolved.error });
-      return;
-    }
-    distance = resolved.distanceKm;
-    duration = resolved.durationMinutes;
-    warning = resolved.warning;
-  } else {
-    // Keep changes to distance/duration only.
-    distance = isManualDistance
-      ? normalizePositiveInt(distanceKm, 0)
-      : undefined;
-    duration = isManualDuration
-      ? normalizePositiveInt(durationMinutes, 0)
-      : undefined;
-  }
-
-  const updatedJourney = await repository.update({
-    id,
-    originId: finalOriginId,
-    destinationId: finalDestinationId,
-    distanceKm: distance,
-    durationMinutes: duration,
-  });
-  if (updatedJourney) {
-    if (duration !== undefined && duration !== current.durationMinutes) {
-      await tripRepository.refreshArrivalsForJourney(id, updatedJourney.durationMinutes);
-    }
-    res.status(200).json({
-      ...updatedJourney,
-      ...(warning ? { warning } : {}),
-    });
-  } else {
-    res.status(404).json({ error: 'Trayecto no encontrado' });
-  }
 }
 
 async function remove(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  try {
-    const deletedJourney = await repository.deactivate({ id });
-    if (deletedJourney) {
-      res.json({ message: 'Trayecto dado de baja correctamente' });
-    } else {
-      res.status(404).json({ error: 'Trayecto no encontrado' });
-    }
-  } catch (err: any) {
-    if (err?.code === 'P2025') {
-      res.status(404).json({ error: 'Trayecto no encontrado' });
-      return;
-    }
-    if (err?.code === 'ACTIVE_TRIPS' || err?.code === 'P2003') {
-      res.status(409).json({
-        error:
-          'No se puede eliminar el trayecto porque tiene viajes activos. Elimine esos viajes primero.',
-      });
-      return;
-    }
-    throw err;
-  }
+  res.json(await service.remove(req.params.id));
 }
 
 async function reactivate(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const ok = await repository.reactivate({ id });
-  if (!ok) {
-    res
-      .status(404)
-      .json({ error: 'No se encontro un trayecto dado de baja con ese id' });
-    return;
-  }
-  res.json({ message: 'Trayecto dado de alta correctamente' });
+  res.json(await service.reactivate(req.params.id));
 }
 
 export { findAll, findAllInactive, findOne, update, add, remove, reactivate };

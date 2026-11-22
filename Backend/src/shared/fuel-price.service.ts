@@ -1,3 +1,5 @@
+import { ApiError } from './api-error.js';
+
 const FUEL_API_URL = 'https://naftas.com.ar/api/fuel?city=CAPITAL%20FEDERAL';
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -24,13 +26,23 @@ async function fetchYpfSuperPrice(): Promise<number> {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) {
-    throw new Error(`La API de combustibles respondio con HTTP ${response.status}`);
+    throw new ApiError(
+      502,
+      'No se pudo consultar el precio actualizado del combustible',
+      { providerStatus: response.status },
+      'FUEL_PROVIDER_HTTP_ERROR'
+    );
   }
 
   const data = (await response.json()) as FuelApiResponse;
   const price = data?.['CAPITAL FEDERAL']?.empresas?.YPF?.SUPER?.precio;
   if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
-    throw new Error('La API de combustibles no devolvio un precio valido para YPF SUPER');
+    throw new ApiError(
+      502,
+      'No se obtuvo un precio valido de YPF SUPER',
+      undefined,
+      'FUEL_PROVIDER_INVALID_PRICE'
+    );
   }
 
   return price;

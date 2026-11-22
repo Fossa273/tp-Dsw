@@ -1,4 +1,5 @@
 import { prisma } from '../shared/db/connection.js';
+import { ApiError } from '../shared/api-error.js';
 
 export class VehicleCategoryRepository {
   findAll() { return prisma.vehicleCategory.findMany({ include: { priceHistory: { orderBy: { createdAt: 'desc' } } }, orderBy: { idCategoria: 'asc' } }); }
@@ -16,7 +17,14 @@ export class VehicleCategoryRepository {
         where: { idCategoria: id },
         select: { precioBase: true },
       });
-      if (!current) throw new Error('Categoria no encontrada');
+      if (!current) {
+        throw new ApiError(
+          404,
+          'Categoria no encontrada',
+          undefined,
+          'VEHICLE_CATEGORY_NOT_FOUND'
+        );
+      }
 
       const category = await tx.vehicleCategory.update({
         where: { idCategoria: id },

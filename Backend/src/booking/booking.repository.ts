@@ -1,4 +1,5 @@
 import { prisma } from '../shared/db/connection.js';
+import { ApiError } from '../shared/api-error.js';
 
 export interface BookingData {
   id?: number;
@@ -200,8 +201,11 @@ export class BookingRepository {
       const usedSeats = rows._sum.numSeats ?? 0;
       const requestedSeats = item.numSeats ?? 1;
       if (usedSeats + requestedSeats > capacity) {
-        throw new Error(
-          `El viaje no tiene suficientes asientos disponibles (capacidad ${capacity}, asientos ya reservados ${usedSeats})`
+        throw new ApiError(
+          409,
+          `La reserva excede los asientos disponibles (capacidad ${capacity}, asientos ya reservados ${usedSeats})`,
+          { capacity, usedSeats, requestedSeats },
+          'BOOKING_CAPACITY_CHANGED'
         );
       }
 

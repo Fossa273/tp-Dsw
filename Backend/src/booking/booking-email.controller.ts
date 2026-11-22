@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import multer from 'multer';
 import {
   getBookingEmailTemplate,
-  removeBookingEmailAttachment,
-  updateBookingEmailTemplate,
+  removeBookingEmailAttachmentInput,
+  updateBookingEmailTemplateInput,
 } from './booking-email.service.js';
 
 export const bookingEmailUpload = multer({
@@ -16,45 +16,44 @@ export async function getTemplate(_req: Request, res: Response) {
 }
 
 export async function updateTemplate(req: Request, res: Response) {
-  const subject = String(req.body.subject || '').trim();
-  const body = String(req.body.body || '').trim();
-  if (!subject || !body) {
-    res.status(400).json({ error: 'El asunto y el mensaje son obligatorios' });
-    return;
-  }
-  const files = (req.files || []) as Express.Multer.File[];
-  res.json(await updateBookingEmailTemplate(subject, body, files));
+  res.json(
+    await updateBookingEmailTemplateInput(
+      req.body.subject,
+      req.body.body,
+      (req.files || []) as Express.Multer.File[]
+    )
+  );
 }
 
 export async function deleteAttachment(req: Request, res: Response) {
-  const removed = await removeBookingEmailAttachment(Number(req.params.id));
-  if (!removed) {
-    res.status(404).json({ error: 'Adjunto no encontrado' });
-    return;
-  }
-  res.json({ message: 'Adjunto eliminado' });
+  res.json(
+    await removeBookingEmailAttachmentInput(req.params.id)
+  );
 }
 
 export async function getCancellationTemplate(_req: Request, res: Response) {
   res.json(await getBookingEmailTemplate(2));
 }
 
-export async function updateCancellationTemplate(req: Request, res: Response) {
-  const subject = String(req.body.subject || '').trim();
-  const body = String(req.body.body || '').trim();
-  if (!subject || !body) {
-    res.status(400).json({ error: 'El asunto y el mensaje son obligatorios' });
-    return;
-  }
-  const files = (req.files || []) as Express.Multer.File[];
-  res.json(await updateBookingEmailTemplate(subject, body, files, 2));
+export async function updateCancellationTemplate(
+  req: Request,
+  res: Response
+) {
+  res.json(
+    await updateBookingEmailTemplateInput(
+      req.body.subject,
+      req.body.body,
+      (req.files || []) as Express.Multer.File[],
+      2
+    )
+  );
 }
 
-export async function deleteCancellationAttachment(req: Request, res: Response) {
-  const removed = await removeBookingEmailAttachment(Number(req.params.id), 2);
-  if (!removed) {
-    res.status(404).json({ error: 'Adjunto no encontrado' });
-    return;
-  }
-  res.json({ message: 'Adjunto eliminado' });
+export async function deleteCancellationAttachment(
+  req: Request,
+  res: Response
+) {
+  res.json(
+    await removeBookingEmailAttachmentInput(req.params.id, 2)
+  );
 }

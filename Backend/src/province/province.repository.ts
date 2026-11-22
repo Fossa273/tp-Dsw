@@ -36,4 +36,8 @@ export class ProvinceRepository {
   public async delete(item: { id: number }) {
     return prisma.province.delete({ where: { id: item.id } });
   }
+
+  public async countAssociatedLocalities(id: number) {
+    return prisma.locality.count({ where: { provinceId: id } });
+  }
 }

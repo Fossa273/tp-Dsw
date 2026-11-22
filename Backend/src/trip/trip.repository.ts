@@ -131,6 +131,12 @@ export class TripRepository {
     });
   }
 
+  public async findActiveByJourney(journeyId: number) {
+    return prisma.trip.count({
+      where: { journeyId, active: 1 },
+    });
+  }
+
   public async add(item: TripData) {
     return prisma.trip.create({
       data: {

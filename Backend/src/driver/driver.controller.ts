@@ -1,112 +1,36 @@
 import { Request, Response } from 'express';
-import { DriverRepository } from './driver.repository.js';
-import {
-  validateDni,
-  validatePersonContact,
-  validatePhone,
-} from '../shared/person-validation.js';
+import { DriverService } from './driver.service.js';
 
-const repository = new DriverRepository();
+const service = new DriverService();
 
-async function findAll(req: Request, res: Response) {
-  res.json({ data: await repository.findAll() });
+async function findAll(_req: Request, res: Response) {
+  res.json({ data: await service.findAll() });
 }
 
-// Inactive drivers listing (admin only)
-async function findAllInactive(req: Request, res: Response) {
-  res.json({ data: await repository.findAllInactive() });
+async function findAllInactive(_req: Request, res: Response) {
+  res.json({ data: await service.findAllInactive() });
 }
 
 async function findOne(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const driver = await repository.findOne({ id });
-  if (driver) {
-    res.json(driver);
-  } else {
-    res.status(404).json({ error: 'Conductor no encontrado' });
-  }
+  res.json(await service.findOne(req.params.id));
 }
 
 async function add(req: Request, res: Response) {
-  const { dni, firstName, lastName, phone } = req.body.sanitizeInput;
-
-  if (!dni || !phone) {
-    res.status(400).json({ error: 'El DNI y el telefono son obligatorios' });
-    return;
-  }
-  const contactError = validatePersonContact(dni, phone);
-  if (contactError) {
-    res.status(400).json({ error: contactError });
-    return;
-  }
-
-  const existing = await repository.findByDni(dni);
-  if (existing) {
-    res.status(409).json({ error: 'Ya existe un conductor con ese DNI' });
-    return;
-  }
-
-  const created = await repository.add({ dni, firstName, lastName, phone });
-  res.status(201).json(created);
+  res.status(201).json(await service.add(req.body.sanitizeInput));
 }
 
 async function update(req: Request, res: Response) {
-  const { dni, firstName, lastName, phone } = req.body.sanitizeInput;
-  const id = Number(req.params.id);
-
-  if (dni !== undefined || phone !== undefined) {
-    const contactError =
-      (dni !== undefined ? validateDni(dni) : null) ||
-      (phone !== undefined ? validatePhone(phone) : null);
-    if (contactError) {
-      res.status(400).json({ error: contactError });
-      return;
-    }
-  }
-
-  if (dni !== undefined) {
-    const existing = await repository.findByDni(dni);
-    if (existing && existing.id !== id) {
-      res.status(409).json({ error: 'Ya existe un conductor con ese DNI' });
-      return;
-    }
-  }
-
-  const updatedDriver = await repository.update({
-    id,
-    dni,
-    firstName,
-    lastName,
-    phone,
-  });
-  if (updatedDriver) {
-    res.status(200).json(updatedDriver);
-  } else {
-    res.status(404).json({ error: 'Conductor no encontrado' });
-  }
+  res.status(200).json(
+    await service.update(req.params.id, req.body.sanitizeInput)
+  );
 }
 
 async function remove(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const deletedDriver = await repository.delete({ id });
-  if (deletedDriver) {
-    res.json({ message: 'Conductor dado de baja' });
-  } else {
-    res.status(404).json({ error: 'Conductor no encontrado' });
-  }
+  res.json(await service.remove(req.params.id));
 }
 
-// Reactivate a driver that was logically deleted (admin only)
 async function reactivate(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const ok = await repository.reactivate(id);
-  if (!ok) {
-    res
-      .status(404)
-      .json({ error: 'No se encontro un conductor dado de baja con ese id' });
-    return;
-  }
-  res.json({ message: 'Conductor dado de alta correctamente' });
+  res.json(await service.reactivate(req.params.id));
 }
 
 export { findAll, findAllInactive, findOne, add, update, remove, reactivate };

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
+import { ApiError } from '../shared/api-error.js';
 
 export type AuthRole = 'admin' | 'client';
 
@@ -12,7 +13,12 @@ export type AuthUser = {
 const JWT_SECRET = process.env.JWT_SECRET ?? '';
 
 if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET es obligatorio para iniciar el backend');
+  throw new ApiError(
+    500,
+    'La autenticacion no esta configurada en el servidor',
+    undefined,
+    'AUTH_CONFIGURATION_MISSING'
+  );
 }
 
 declare global {
@@ -53,7 +59,10 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 export function requireRole(role: AuthRole) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.user?.role !== role) {
-      res.status(403).json({ error: 'No tiene permisos para realizar esta operacion' });
+      const message = role === 'admin'
+        ? 'Se requieren permisos de administrador para realizar esta operacion'
+        : 'Se requieren permisos de cliente para realizar esta operacion';
+      res.status(403).json({ error: message });
       return;
     }
     next();

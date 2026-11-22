@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { ApiError } from './api-error.js';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
@@ -37,8 +38,11 @@ async function getJson(url: URL): Promise<unknown> {
   });
   if (!response.ok) {
     const provider = url.hostname.includes('nominatim') ? 'Nominatim' : 'OSRM';
-    throw new Error(
-      `OpenStreetMap (${provider}) respondio con HTTP ${response.status}`
+    throw new ApiError(
+      502,
+      `No se pudo consultar ${provider} para verificar la localidad`,
+      { provider, status: response.status },
+      'MAP_PROVIDER_HTTP_ERROR'
     );
   }
   return response.json();
@@ -113,8 +117,11 @@ export async function getDistanceKm(
   const data = (await getJson(routeUrl)) as OsrmRouteResponse;
   const distance = data?.routes?.[0]?.distance;
   if (data?.code !== 'Ok' || typeof distance !== 'number') {
-    throw new Error(
-      'OpenStreetMap no pudo calcular la distancia entre las localidades'
+    throw new ApiError(
+      502,
+      'No se pudo calcular la distancia entre las localidades. Puede ingresar la distancia manualmente.',
+      undefined,
+      'MAP_ROUTE_NOT_FOUND'
     );
   }
 
@@ -137,7 +144,12 @@ async function geocodeCoordinates(
   const results = await getNominatimJson(url);
   const result = results?.[0];
   if (!result?.lat || !result?.lon) {
-    throw new Error(`OpenStreetMap no encontro la localidad "${label}"`);
+    throw new ApiError(
+      422,
+      `No se encontraron coordenadas para la localidad "${label}"`,
+      undefined,
+      'MAP_LOCATION_NOT_FOUND'
+    );
   }
   return { lat: result.lat, lon: result.lon };
 }

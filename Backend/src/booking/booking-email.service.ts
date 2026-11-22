@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import nodemailer from 'nodemailer';
 import { prisma } from '../shared/db/connection.js';
+import { ApiError, isPositiveInteger } from '../shared/api-error.js';
 
 // Resolve from the backend source/dist directory instead of process.cwd(), so
 // attachments work whether the server is started from Backend or the repo root.
@@ -240,3 +241,36 @@ export async function sendBookingCancellationNotice(
 }
 
 export { DEFAULT_BODY, DEFAULT_SUBJECT };
+
+export async function updateBookingEmailTemplateInput(
+  subjectValue: unknown,
+  bodyValue: unknown,
+  files: Express.Multer.File[],
+  templateId = 1
+) {
+  const subject = typeof subjectValue === 'string'
+    ? subjectValue.trim()
+    : '';
+  const body = typeof bodyValue === 'string'
+    ? bodyValue.trim()
+    : '';
+  if (!subject || !body) {
+    throw new ApiError(400, 'El asunto y el mensaje son obligatorios');
+  }
+  return updateBookingEmailTemplate(subject, body, files, templateId);
+}
+
+export async function removeBookingEmailAttachmentInput(
+  rawId: unknown,
+  templateId = 1
+) {
+  const id = Number(rawId);
+  if (!isPositiveInteger(id)) {
+    throw new ApiError(400, 'El identificador del adjunto no es valido');
+  }
+  const removed = await removeBookingEmailAttachment(id, templateId);
+  if (!removed) {
+    throw new ApiError(404, 'Adjunto no encontrado');
+  }
+  return { message: 'Adjunto eliminado' };
+}

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '@prisma/client';
+import { ApiError } from '../api-error.js';
 
 let prismaInstance: PrismaClient | undefined;
 
@@ -11,12 +12,22 @@ function getPrisma(): PrismaClient {
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    throw new Error('DATABASE_URL no está configurada.');
+    throw new ApiError(
+      500,
+      'La conexion a la base de datos no esta configurada',
+      undefined,
+      'DATABASE_URL_MISSING'
+    );
   }
 
   const url = new URL(databaseUrl);
   if (!url.hostname || !url.username || !url.password) {
-    throw new Error('DATABASE_URL no tiene el formato mysql válido.');
+    throw new ApiError(
+      500,
+      'La conexion a la base de datos tiene un formato invalido',
+      undefined,
+      'DATABASE_URL_INVALID'
+    );
   }
 
   const adapter = new PrismaMariaDb({
